@@ -4,7 +4,7 @@ Plugin Name: Scale My Podcast - Core Functionality
 Description: none
 Author: Michael Peres
 Plugin URI: https://github.com/mikeyperes/smp-core-podcast-integration
-Version: 1.2
+Version: 1.3
 Text Domain: smp-core-podcast-integration
 Domain Path: /languages
 Author URI: https://scalemypodcast.com
@@ -15,7 +15,7 @@ XXXRequires Plugins: hws-base-tools, advanced-custom-fields-pro
 */          
 namespace smp_core_podcast_functionality;
 
- 
+
 // Ensure this file is being included by a parent file
 defined('ABSPATH') or die('No script kiddies please!');
 
