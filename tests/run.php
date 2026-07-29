@@ -22,6 +22,7 @@ $GLOBALS['test_fields'] = [];
 $GLOBALS['test_shortcodes'] = [];
 $GLOBALS['test_post_types'] = [];
 $GLOBALS['test_post_meta_keys'] = [];
+$GLOBALS['test_post_meta_values'] = [];
 
 function sanitize_key( string $value ): string { return strtolower( preg_replace( '/[^a-z0-9_\-]/i', '', $value ) ?: '' ); }
 function sanitize_title( string $value ): string { return trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', $value ) ?: '' ), '-' ); }
@@ -45,6 +46,7 @@ function get_field( string $field, mixed $context = null, bool $format = true ):
 function get_post( int $post_id ): ?object { return $post_id > 0 ? (object) [ 'ID' => $post_id, 'post_author' => 1, 'post_type' => 'post' ] : null; }
 function get_post_type( int $post_id ): string|false { return $GLOBALS['test_post_types'][ $post_id ] ?? false; }
 function metadata_exists( string $meta_type, int $object_id, string $meta_key ): bool { return 'post' === $meta_type && ! empty( $GLOBALS['test_post_meta_keys'][ $object_id ][ $meta_key ] ); }
+function get_post_meta( int $post_id, string $key = '', bool $single = false ): mixed { unset( $single ); return $GLOBALS['test_post_meta_values'][ $post_id ][ $key ] ?? ''; }
 function get_the_title( mixed $post_id = 0 ): string { return 'Object ' . (int) ( is_object( $post_id ) ? $post_id->ID : $post_id ); }
 function get_permalink( int $post_id ): string { return 'https://example.test/object-' . $post_id . '/'; }
 function get_userdata( int $user_id ): ?object { return $user_id > 0 ? (object) [ 'ID' => $user_id, 'display_name' => 'User ' . $user_id, 'user_email' => '', 'user_url' => '' ] : null; }
@@ -71,7 +73,7 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.0.2' === $header_version, 'plugin header reports 3.0.2', $header_version );
+check( '3.0.3' === $header_version, 'plugin header reports 3.0.3', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
@@ -154,6 +156,11 @@ $GLOBALS['test_fields']['101:audio_url'] = 'https://cdn.example.test/audio.mp3';
 check( 'https://cdn.example.test/audio.mp3' === SMP\Podcast\Frontend\ShortcodeCallbacks::episode_fields( [ 'name' => 'audio_url', 'post_id' => 101 ] ), 'top-level audio_url shortcode is not misread as a group' );
 $GLOBALS['test_fields']['101:urls'] = [ 'spotify' => 'https://open.spotify.com/example' ];
 check( 'https://open.spotify.com/example' === SMP\Podcast\Frontend\ShortcodeCallbacks::episode_fields( [ 'name' => 'urls_spotify', 'post_id' => 101 ] ), 'grouped URL shortcode resolves' );
+$GLOBALS['test_fields']['21811:guests'] = '1';
+$GLOBALS['test_post_meta_values'][21811]['guests'] = '1';
+$GLOBALS['test_post_meta_values'][21811]['guests_0_guest'] = '139';
+$guest_output = SMP\Podcast\Frontend\ShortcodeCallbacks::guest_profiles( [ 'post_id' => 21811 ] );
+check( str_contains( $guest_output, 'class="guest-profile' ) && str_contains( $guest_output, 'User 139' ), 'legacy guest repeater renders without an active ACF field definition' );
 
 require $root . '/src/Compatibility/legacy-functions.php';
 check( function_exists( 'smp_core_podcast_functionality\\episode_fields_shortcode' ), 'legacy namespace wrapper exists' );

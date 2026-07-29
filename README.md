@@ -52,6 +52,10 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ## Release History
 
+### 3.0.3
+
+- Restored legacy guest-profile rendering when repeater rows exist in post meta but their historical ACF field definition is unavailable
+
 ### 3.0.2
 
 - Fixed the AJAX-rendered ACF settings form so saves return to the canonical Podcast Settings tab instead of `admin-ajax.php`

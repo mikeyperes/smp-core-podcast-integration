@@ -170,8 +170,11 @@ final class ShortcodeCallbacks {
         }
 
         $rows = get_field( 'guests', $post_id );
+        if ( ! is_array( $rows ) ) {
+            $rows = self::legacy_repeater_rows( $post_id, 'guests', 'guest' );
+        }
         $cards = '';
-        foreach ( is_array( $rows ) ? $rows : [] as $row ) {
+        foreach ( $rows as $row ) {
             $user_id = self::object_id( is_array( $row ) ? ( $row['guest'] ?? 0 ) : $row );
             if ( $user_id > 0 ) {
                 $cards .= self::user_card( $user_id );
@@ -249,6 +252,19 @@ final class ShortcodeCallbacks {
             return absint( $value['ID'] ?? $value['id'] ?? $value['value'] ?? 0 );
         }
         return is_numeric( $value ) ? absint( $value ) : 0;
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    private static function legacy_repeater_rows( int $post_id, string $field, string $sub_field ): array {
+        $count = absint( get_post_meta( $post_id, $field, true ) );
+        $rows = [];
+        for ( $index = 0; $index < $count; $index++ ) {
+            $value = get_post_meta( $post_id, $field . '_' . $index . '_' . $sub_field, true );
+            if ( self::object_id( $value ) > 0 ) {
+                $rows[] = [ $sub_field => $value ];
+            }
+        }
+        return $rows;
     }
 
     private static function empty_field( mixed $value ): bool {
