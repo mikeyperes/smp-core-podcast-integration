@@ -63,15 +63,16 @@ final class PodcastSettings {
             return $args;
         }
 
-        $podcast_markers = [ 'relation' => 'OR' ];
-        foreach ( self::PODCAST_META_KEYS as $key ) {
-            $podcast_markers[] = [ 'key' => $key, 'compare' => 'EXISTS' ];
-        }
+        $podcast_markers = [
+            'key' => self::PODCAST_META_KEYS,
+            'compare_key' => 'IN',
+            'compare' => 'EXISTS',
+        ];
 
         if ( ! empty( $args['meta_query'] ) && is_array( $args['meta_query'] ) ) {
             $args['meta_query'] = [ 'relation' => 'AND', $args['meta_query'], $podcast_markers ];
         } else {
-            $args['meta_query'] = $podcast_markers;
+            $args['meta_query'] = [ $podcast_markers ];
         }
 
         return $args;

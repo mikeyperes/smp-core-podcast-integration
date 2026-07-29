@@ -52,6 +52,11 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ## Release History
 
+### 3.0.1
+
+- Replaced six expensive podcast-marker joins with one indexed `meta_key IN (...)` query
+- Kept mixed post archives scoped without timing out dashboard, operation, shortcode, or schema checks
+
 ### 3.0.0
 
 - Major namespaced and modular rewrite

@@ -71,7 +71,7 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.0.0' === $header_version, 'plugin header reports 3.0.0', $header_version );
+check( '3.0.1' === $header_version, 'plugin header reports 3.0.1', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
@@ -118,8 +118,9 @@ check( ! isset( $GLOBALS['test_options']['smp_podcast_flush_rewrite_rules'] ), '
 
 $scoped = SMP\Podcast\Settings\PodcastSettings::scoped_query_args( [ 'post_status' => 'publish' ] );
 check( 'post' === $scoped['post_type'], 'post-mode queries retain the WordPress post type' );
-check( 'OR' === ( $scoped['meta_query']['relation'] ?? '' ), 'post-mode queries require a podcast metadata marker' );
-check( 6 === count( $scoped['meta_query'] ) - 1, 'all podcast metadata markers participate in post-mode queries' );
+check( 'IN' === ( $scoped['meta_query'][0]['compare_key'] ?? '' ), 'post-mode queries use one metadata-key join' );
+check( 'EXISTS' === ( $scoped['meta_query'][0]['compare'] ?? '' ), 'post-mode queries require a podcast metadata marker' );
+check( 6 === count( $scoped['meta_query'][0]['key'] ?? [] ), 'all podcast metadata markers participate in post-mode queries' );
 
 $existing_meta_query = [ [ 'key' => 'season', 'value' => 2 ] ];
 $combined = SMP\Podcast\Settings\PodcastSettings::scoped_query_args( [ 'meta_query' => $existing_meta_query ] );
