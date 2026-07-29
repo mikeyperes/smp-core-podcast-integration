@@ -242,6 +242,7 @@ final class Dashboard implements ModuleInterface {
                     'form' => true,
                     'submit_value' => 'Save Podcast Data',
                     'updated_message' => 'Podcast data saved.',
+                    'return' => admin_url( 'options-general.php?page=' . Config::SETTINGS_PAGE . '&tab=settings&updated=1' ),
                     'html_submit_button' => '<input type="submit" class="hpc-button" value="%s" />',
                 ]
             );

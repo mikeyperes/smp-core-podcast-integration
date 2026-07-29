@@ -52,6 +52,10 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ## Release History
 
+### 3.0.2
+
+- Fixed the AJAX-rendered ACF settings form so saves return to the canonical Podcast Settings tab instead of `admin-ajax.php`
+
 ### 3.0.1
 
 - Replaced six expensive podcast-marker joins with one indexed `meta_key IN (...)` query
