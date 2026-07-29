@@ -1,0 +1,317 @@
+.smp-podcast-dashboard {
+    --smp-ink: #20242b;
+    --smp-muted: #657080;
+    --smp-line: #d9dee6;
+    --smp-surface: #ffffff;
+    max-width: 1480px;
+}
+
+.smp-podcast-dashboard,
+.smp-podcast-dashboard * {
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.smp-podcast-header {
+    align-items: flex-end;
+    border-bottom: 1px solid var(--smp-line);
+    display: flex;
+    gap: 24px;
+    justify-content: space-between;
+    margin: 18px 0 16px;
+    padding: 0 0 14px;
+}
+
+.smp-podcast-header h1 {
+    color: var(--smp-ink);
+    font-size: 26px;
+    line-height: 1.2;
+    margin: 0 0 5px;
+}
+
+.smp-podcast-header p,
+.smp-podcast-intro p {
+    color: var(--smp-muted);
+    margin: 0;
+}
+
+.smp-podcast-version {
+    align-items: flex-end;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    white-space: nowrap;
+}
+
+.smp-podcast-version span {
+    color: var(--smp-muted);
+    font-size: 12px;
+}
+
+.smp-podcast-dashboard .hpc-host-rail {
+    align-self: start;
+    max-height: none;
+    position: static;
+    top: auto;
+}
+
+.smp-podcast-dashboard .hpc-host-main,
+.smp-podcast-dashboard .hpc-host-tab-panel,
+.smp-podcast-dashboard .hpc-section-body,
+.smp-podcast-dashboard .hpc-card {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.smp-podcast-intro {
+    margin: 0 0 15px;
+}
+
+.smp-podcast-intro h2 {
+    font-size: 21px;
+    margin: 0 0 5px;
+}
+
+.smp-podcast-metrics {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 0 0 15px;
+}
+
+.smp-podcast-metrics article {
+    background: var(--smp-surface);
+    border: 1px solid var(--smp-line);
+    border-radius: 7px;
+    display: flex;
+    flex-direction: column;
+    min-height: 116px;
+    padding: 15px;
+}
+
+.smp-podcast-metrics span,
+.smp-podcast-metrics small {
+    color: var(--smp-muted);
+}
+
+.smp-podcast-metrics span {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.smp-podcast-metrics strong {
+    color: var(--smp-ink);
+    font-size: 24px;
+    line-height: 1.25;
+    margin: 9px 0 auto;
+}
+
+.smp-podcast-host-card {
+    align-items: center;
+    display: flex;
+    gap: 15px;
+}
+
+.smp-podcast-host-card img {
+    border: 1px solid var(--smp-line);
+    border-radius: 4px;
+    height: 96px;
+    object-fit: cover;
+    width: 96px;
+}
+
+.smp-podcast-host-card > div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.smp-podcast-host-card > div > strong {
+    font-size: 17px;
+}
+
+.smp-podcast-host-card > div > span {
+    color: var(--smp-muted);
+}
+
+.smp-podcast-default-host-preview {
+    align-items: start;
+    background: #f8fafc;
+    border: 1px solid var(--smp-line);
+    border-radius: 6px;
+    display: grid;
+    gap: 14px;
+    grid-template-columns: 112px minmax(0, 1fr);
+    margin-top: 12px;
+    padding: 14px;
+}
+
+.smp-podcast-default-host-preview > img {
+    aspect-ratio: 1 / 1;
+    height: auto;
+    object-fit: cover;
+    width: 112px;
+}
+
+.smp-podcast-default-host-preview > div > strong,
+.smp-podcast-default-host-preview > div > span {
+    display: block;
+}
+
+.smp-podcast-default-host-preview > div > span {
+    color: var(--smp-muted);
+    margin-top: 3px;
+}
+
+.smp-podcast-default-host-preview ul {
+    margin: 10px 0;
+}
+
+.smp-podcast-default-host-preview li {
+    overflow-wrap: anywhere;
+}
+
+.smp-podcast-acf-form {
+    margin-top: 14px;
+}
+
+.smp-podcast-acf-form .acf-fields {
+    border: 1px solid var(--smp-line);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.smp-podcast-acf-form .acf-form-submit {
+    margin: 14px 0 0;
+}
+
+.smp-podcast-dashboard select,
+.smp-podcast-dashboard .hpc-field select {
+    appearance: auto;
+    background-color: #fff;
+    border: 1px solid #8c8f94;
+    min-height: 40px;
+    padding-right: 32px;
+    width: 100%;
+}
+
+.smp-podcast-operation [data-smp-operation-status],
+[data-smp-model-status] {
+    color: var(--smp-muted);
+    font-size: 13px;
+}
+
+.smp-podcast-operation-progress {
+    align-items: center;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin-top: 14px;
+}
+
+.smp-podcast-operation-progress progress {
+    height: 12px;
+    width: 100%;
+}
+
+.smp-podcast-operation-log {
+    border: 1px solid var(--smp-line);
+    border-radius: 6px;
+    margin-top: 12px;
+    max-height: 380px;
+    overflow: auto;
+}
+
+.smp-podcast-operation-row {
+    align-items: start;
+    border-top: 1px solid var(--smp-line);
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    padding: 10px 12px;
+}
+
+.smp-podcast-operation-row:first-child {
+    border-top: 0;
+}
+
+.smp-podcast-operation-row.is-changed .dashicons {
+    color: #1f7a45;
+}
+
+.smp-podcast-operation-row.is-skipped .dashicons {
+    color: #8a6200;
+}
+
+.smp-podcast-operation-row strong,
+.smp-podcast-operation-row span,
+.smp-podcast-operation-row code {
+    display: block;
+}
+
+.smp-podcast-operation-row span,
+.smp-podcast-operation-row code {
+    color: var(--smp-muted);
+    margin-top: 3px;
+}
+
+.smp-podcast-operation-row code,
+.smp-podcast-recent code {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.smp-podcast-recent > div {
+    align-items: center;
+    border-top: 1px solid var(--smp-line);
+    display: grid;
+    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 11px 0;
+}
+
+.smp-podcast-recent > div:first-child {
+    border-top: 0;
+}
+
+.smp-podcast-recent strong,
+.smp-podcast-recent code {
+    display: block;
+}
+
+.smp-podcast-recent code {
+    color: var(--smp-muted);
+    margin-top: 4px;
+}
+
+@media (max-width: 1000px) {
+    .smp-podcast-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 782px) {
+    .smp-podcast-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .smp-podcast-version {
+        align-items: flex-start;
+    }
+
+    .smp-podcast-metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .smp-podcast-host-card {
+        align-items: flex-start;
+    }
+
+    .smp-podcast-operation-row,
+    .smp-podcast-recent > div {
+        grid-template-columns: 1fr;
+    }
+}
