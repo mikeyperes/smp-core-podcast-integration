@@ -71,7 +71,7 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ### 3.1.4
 
-- Preserved active playback across JetEngine Loop Grid destinations by allowing only the exact canonical JetEngine data-store and popup initializers, revalidating them immediately before ordered execution, and retaining hard-navigation fallback for altered or unknown inline scripts
+- Preserved active playback across JetEngine Loop Grid destinations by allowing only byte-exact captured JetEngine data-store and popup initializers, revalidating and abort-checking them immediately before ordered execution, and retaining hard-navigation fallback for altered or unknown inline scripts
 
 ### 3.1.3
 

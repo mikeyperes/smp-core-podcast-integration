@@ -929,9 +929,17 @@
                 return chain.then(function () {
                     return new Promise(function (resolve, reject) {
                         if (!source.src) {
+                            if (signal && signal.aborted) {
+                                reject(abortError());
+                                return;
+                            }
                             var inlineText = normalizedAssetText(source.textContent);
                             if (!safeDynamicInlineScript(source, inlineText)) {
                                 reject(unsupportedNavigation('unsupported-inline-script'));
+                                return;
+                            }
+                            if (signal && signal.aborted) {
+                                reject(abortError());
                                 return;
                             }
                             document.head.appendChild(copyExecutableInlineScript(source));
@@ -1321,15 +1329,14 @@
 
             var escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             var canonical = String(text || '')
-                .replace(new RegExp('\\n?//# sourceURL=' + escapedId + '\\s*$'), '')
-                .replace(/\s+/g, ' ')
+                .replace(new RegExp('(?:^|\\n)//# sourceURL=' + escapedId + '\\s*$'), '')
                 .trim();
             return canonical === safeDynamicInlineScript.sources[id];
         }
 
         safeDynamicInlineScript.sources = {
-            'jet-engine-data-stores-js-before': "window.JetEngineStores = window.JetEngineStores || {}; window.JetEngineStores['local-storage'] = { addToStore: function( storeSlug, postID, maxSize, isOnViewStore ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ); isOnViewStore = isOnViewStore || false; if ( store ) { store = store.split( ',' ); } else { store = []; } postID = '' + postID; maxSize = parseInt( maxSize, 10 ); if ( 0 <= store.indexOf( postID ) ) { return store.length; } if ( 0 < maxSize && store.length >= maxSize ) { if ( isOnViewStore ) { store.splice( 0, 1 ); } else { alert( 'You can`t add more posts' ); return false; } } store.push( postID ); window.localStorage.setItem( 'jet_engine_store_' + storeSlug, store.join( ',' ) ); return store.length; }, remove: function( storeSlug, postID ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ), index; if ( store ) { store = store.split( ',' ); } else { store = []; } postID = '' + postID; index = store.indexOf( postID ); if ( 0 > index ) { return store.length; } else { store.splice( index, 1 ); } window.localStorage.setItem( 'jet_engine_store_' + storeSlug, store.join( ',' ) ); return store.length; }, inStore: function( storeSlug, postID ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ), index; postID = '' + postID; if ( store ) { store = store.split( ',' ); } else { store = []; } index = store.indexOf( postID ); return ( 0 <= index ); }, getStore: function( storeSlug ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ), index; if ( store ) { store = store.split( ',' ); } else { store = []; } return store; }, };",
-            'jet-engine-frontend-js-before': "jQuery( window ).on( 'jet-engine/frontend/loaded', function() { window.JetPlugins.hooks.addFilter( 'jet-popup.show-popup.data', 'JetEngine.popupData', function( popupData, popup, triggeredBy ) { if ( ! triggeredBy ) { return popupData; } if ( ! triggeredBy.data( 'popupIsJetEngine' ) ) { return popupData; } var wrapper = triggeredBy.closest( '.jet-listing-grid__items' ); if ( wrapper.length && wrapper.data( 'cctSlug' ) ) { popupData['cctSlug'] = wrapper.data( 'cctSlug' ); } return popupData; } ); } );"
+            'jet-engine-data-stores-js-before': "window.JetEngineStores = window.JetEngineStores || {};\n\t\t\twindow.JetEngineStores['local-storage'] = {\n\t\t\t\taddToStore: function( storeSlug, postID, maxSize, isOnViewStore ) {\n\t\t\t\t\t\n\t\tvar store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug );\n\t\tisOnViewStore = isOnViewStore || false;\n\n\t\tif ( store ) {\n\t\t\tstore = store.split( ',' );\n\t\t} else {\n\t\t\tstore = [];\n\t\t}\n\n\t\tpostID = '' + postID;\n\n\t\tmaxSize = parseInt( maxSize, 10 );\n\n\t\tif ( 0 <= store.indexOf( postID ) ) {\n\t\t\treturn store.length;\n\t\t}\n\n\t\tif ( 0 < maxSize && store.length >= maxSize ) {\n\t\t\t\n\t\t\tif ( isOnViewStore ) {\n\t\t\t\tstore.splice( 0, 1 );\n\t\t\t} else {\n\t\t\t\talert( 'You can`t add more posts' );\n\t\t\t\treturn false;\n\t\t\t}\n\t\t\n\t\t}\n\n\t\tstore.push( postID );\n\n\t\twindow.localStorage.setItem( 'jet_engine_store_' + storeSlug, store.join( ',' ) );\n\n\t\treturn store.length;\n\n\t\t\n\t\t\t\t},\n\t\t\t\tremove: function( storeSlug, postID ) {\n\t\t\t\t\t\n\t\tvar store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ),\n\t\t\tindex;\n\n\t\tif ( store ) {\n\t\t\tstore = store.split( ',' );\n\t\t} else {\n\t\t\tstore = [];\n\t\t}\n\n\t\tpostID = '' + postID;\n\n\t\tindex = store.indexOf( postID );\n\n\t\tif ( 0 > index ) {\n\t\t\treturn store.length;\n\t\t} else {\n\t\t\tstore.splice( index, 1 );\n\t\t}\n\n\t\twindow.localStorage.setItem( 'jet_engine_store_' + storeSlug, store.join( ',' ) );\n\n\t\treturn store.length;\n\n\t\t\n\t\t\t\t},\n\t\t\t\tinStore: function( storeSlug, postID ) {\n\t\t\t\t\t\n\t\tvar store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ),\n\t\t\tindex;\n\n\t\tpostID = '' + postID;\n\n\t\tif ( store ) {\n\t\t\tstore = store.split( ',' );\n\t\t} else {\n\t\t\tstore = [];\n\t\t}\n\n\t\tindex = store.indexOf( postID );\n\n\t\treturn ( 0 <= index );\n\n\t\t\n\t\t\t\t},\n\t\t\t\tgetStore: function( storeSlug ) {\n\t\t\t\t\t\n\t\tvar store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ),\n\t\t\tindex;\n\n\t\tif ( store ) {\n\t\t\tstore = store.split( ',' );\n\t\t} else {\n\t\t\tstore = [];\n\t\t}\n\n\t\treturn store;\n\n\t\t\n\t\t\t\t},\n\t\t\t};",
+            'jet-engine-frontend-js-before': "jQuery( window ).on( 'jet-engine/frontend/loaded', function() {\n\t\t\t\twindow.JetPlugins.hooks.addFilter(\n\t\t\t\t\t'jet-popup.show-popup.data',\n\t\t\t\t\t'JetEngine.popupData',\n\t\t\t\t\tfunction( popupData, popup, triggeredBy ) {\n\n\t\t\t\t\t\tif ( ! triggeredBy ) {\n\t\t\t\t\t\t\treturn popupData;\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\tif ( ! triggeredBy.data( 'popupIsJetEngine' ) ) {\n\t\t\t\t\t\t\treturn popupData;\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\tvar wrapper = triggeredBy.closest( '.jet-listing-grid__items' );\n\n\t\t\t\t\t\tif ( wrapper.length && wrapper.data( 'cctSlug' ) ) {\n\t\t\t\t\t\t\tpopupData['cctSlug'] = wrapper.data( 'cctSlug' );\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\treturn popupData;\n\t\t\t\t\t}\n\t\t\t\t);\n\t\t\t} );"
         };
 
         function ignorableSelfRemovingScript(source) {

@@ -346,14 +346,15 @@ check(
     str_contains( $player_js, "'jet-engine-data-stores-js-before'" )
     && str_contains( $player_js, "'jet-engine-frontend-js-before'" )
     && str_contains( $player_js, 'canonical === safeDynamicInlineScript.sources[id]' )
-    && str_contains( $player_js, "replace(/\\s+/g, ' ')" ),
-    'only exact canonical JetEngine before-initializers may cross an active AJAX navigation'
+    && str_contains( $player_js, "new RegExp('(?:^|\\\\n)//# sourceURL='" ),
+    'only byte-exact captured JetEngine before-initializers may cross an active AJAX navigation'
 );
 check(
     substr_count( $player_js, 'safeDynamicInlineScript(source,' ) >= 2
     && str_contains( $player_js, 'copyExecutableInlineScript(source)' )
-    && str_contains( $player_js, "reject(unsupportedNavigation('unsupported-inline-script'))" ),
-    'trusted inline initializers are revalidated immediately before ordered execution'
+    && str_contains( $player_js, "reject(unsupportedNavigation('unsupported-inline-script'))" )
+    && substr_count( $player_js, 'if (signal && signal.aborted)' ) >= 4,
+    'trusted inline initializers are revalidated and abort-checked immediately before ordered execution'
 );
 check( str_contains( $player_js, 'cancelPendingNavigation' ) && str_contains( $player_js, 'parkNavigationSession' ) && str_contains( $player_js, 'pendingNavigationActive' ), 'pause and terminal playback states cancel pending work and park history ownership' );
 check( str_contains( $player_js, 'inline-event-handler' ) && str_contains( $player_js, 'copyAllowedAttributes' ) && str_contains( $player_js, 'managedInlineStyleId' ), 'fetched event attributes are rejected and managed assets use explicit policies' );
