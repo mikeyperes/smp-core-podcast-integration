@@ -69,6 +69,10 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ## Release History
 
+### 3.1.1
+
+- Kept active audio playing across Cloudflare-protected pages by recognizing the exact same-origin, self-removing email-decoder asset during AJAX script preflight without executing fetched inline or untrusted scripts
+
 ### 3.1.0
 
 - Added an accessible singleton bottom audio player with play/pause, seek, skip, rate, volume, artwork, download, close, Media Session, and remembered-preference controls

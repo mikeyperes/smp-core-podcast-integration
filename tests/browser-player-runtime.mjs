@@ -25,6 +25,7 @@ const scenarios = [
     'elementor-unready',
     'unsupported-inline',
     'missing-script',
+    'self-removing-cloudflare',
     'unmatched-root',
     'malicious-style-onload',
     'malicious-script-onerror',
@@ -148,6 +149,16 @@ const server = createServer((request, response) => {
     if (url.pathname === '/missing-script') {
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
         response.end(fallbackDocument('missing-script-asset', '<script src="/wp-content/plugins/not-loaded.js"></script>'));
+        return;
+    }
+    if (url.pathname === '/self-removing-cloudflare') {
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(cloudflareTargetDocument());
+        return;
+    }
+    if (url.pathname === '/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js') {
+        response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end('window.__cloudflareEmailDecoderRuns=(window.__cloudflareEmailDecoderRuns||0)+1;if(document.currentScript)document.currentScript.remove();');
         return;
     }
     if (url.pathname === '/wp-content/plugins/not-loaded.js') {
@@ -282,6 +293,7 @@ function scenarioDocument(mode) {
         'elementor-unready': '/elementor-unready',
         'unsupported-inline': '/unsupported-inline',
         'missing-script': '/missing-script',
+        'self-removing-cloudflare': '/self-removing-cloudflare',
         'unmatched-root': '/unmatched-root',
         'malicious-style-onload': '/malicious-style-onload',
         'malicious-script-onerror': '/malicious-script-onerror',
@@ -486,6 +498,9 @@ ${headMetadata}
 }
 
 function initialAssetMarkup(mode) {
+    if (mode === 'self-removing-cloudflare') {
+        return '<script src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>';
+    }
     if (mode !== 'divergent-assets') return '';
     return `<link id="home-surface-css" rel="stylesheet" href="/home.css">
 <style id="elementor-frontend-inline-css">:root{--elementor-page:home}</style>
@@ -493,6 +508,13 @@ function initialAssetMarkup(mode) {
 <style id="loop-10">.loop-10{display:grid}</style>
 <style>.shared-anonymous{box-sizing:border-box}</style>
 <script type="text/javascript">(function(url){var marker='WordfenceTestMonBot';window.wfLogHumanRan=window.wfLogHumanRan||false;document.createElement('script');return url+marker;})('//127.0.0.1/?wordfence_lh=1&hid=AAAA1111');</script>`;
+}
+
+function cloudflareTargetDocument() {
+    return `<!doctype html><html lang="en"><head><title>Cloudflare target</title>
+<link rel="canonical" href="/self-removing-cloudflare"><meta name="description" content="Cloudflare target description">
+</head><body class="cloudflare-target"><main data-smp-ajax-root="content"><h1>Cloudflare target</h1><p>Known self-removing decoder remains inert.</p></main>
+<script src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body></html>`;
 }
 
 function continuityTargetDocument() {
@@ -775,6 +797,22 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
         assert(observedClick(document.getElementById('navigate'))===false,'disabled AJAX navigation was intercepted');
         assert(counters.fetches===0 && counters.replaces===0 && counters.popstateBindings===0,'disabled AJAX changed navigation state');
         pass('PASS disabled AJAX leaves native navigation untouched');
+        return;
+    }
+
+    if(mode==='self-removing-cloudflare'){
+        assert(window.__cloudflareEmailDecoderRuns===1,'initial Cloudflare decoder did not run exactly once');
+        assert(!document.querySelector('script[src*="/cloudflare-static/email-decode"]'),'initial Cloudflare decoder did not remove itself');
+        var cloudflareBefore=playerAudio.currentTime;
+        var cloudflareReady=waitFor('smp:after-navigate');
+        assert(observedClick(document.getElementById('navigate'))===true,'Cloudflare target navigation was not intercepted');
+        await cloudflareReady;
+        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Cloudflare target','Cloudflare target content was not swapped');
+        assert(window.__cloudflareEmailDecoderRuns===1,'fetched Cloudflare decoder was executed again');
+        assert(!document.querySelector('script[src*="/cloudflare-static/email-decode"]'),'fetched Cloudflare decoder was imported into the live document');
+        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>cloudflareBefore,'audio continuity was lost on the Cloudflare-script surface');
+        assert(counters.pushes===1&&counters.popstateBindings===1,'Cloudflare-script surface did not use one AJAX history transition');
+        pass('PASS known same-origin Cloudflare email decoder is ignored without execution');
         return;
     }
 

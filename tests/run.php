@@ -103,7 +103,7 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.1.0' === $header_version, 'plugin header reports 3.1.0', $header_version );
+check( '3.1.1' === $header_version, 'plugin header reports 3.1.1', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
@@ -326,6 +326,12 @@ check( str_contains( $player_js, "window.location.assign" ) && str_contains( $pl
 check( ! str_contains( $player_js, 'bindNavigation();' ) && ! preg_match( '/configureMediaSession\(\);\s*recordHistoryState\(\);/', $player_js ), 'page initialization does not bind or mutate navigation history' );
 check( strpos( $player_js, 'beginNavigationSession();' ) > strpos( $player_js, 'loadRequiredStyles(plan.styles.missing,' ), 'history ownership begins only after navigation preflight succeeds' );
 check( str_contains( $player_js, 'unsupported-inline-script' ) && str_contains( $player_js, 'missing-script-asset' ) && str_contains( $player_js, 'sanitizeImportedContent(importedRoot)' ), 'fetched executable code is rejected or stripped rather than evaluated' );
+check(
+    str_contains( $player_js, 'ignorableSelfRemovingScript(source)' )
+    && str_contains( $player_js, 'url.origin === window.location.origin' )
+    && str_contains( $player_js, 'cloudflare-static\\/email-decode'),
+    'only the exact same-origin self-removing Cloudflare email decoder may be omitted from fetched script requirements'
+);
 check( str_contains( $player_js, 'cancelPendingNavigation' ) && str_contains( $player_js, 'parkNavigationSession' ) && str_contains( $player_js, 'pendingNavigationActive' ), 'pause and terminal playback states cancel pending work and park history ownership' );
 check( str_contains( $player_js, 'inline-event-handler' ) && str_contains( $player_js, 'copyAllowedAttributes' ) && str_contains( $player_js, 'managedInlineStyleId' ), 'fetched event attributes are rejected and managed assets use explicit policies' );
 check( str_contains( $player_js, 'safeContentRootSelector' ) && str_contains( $player_js, 'content-root-mismatch' ) && str_contains( $player_js, 'header,footer,nav' ), 'content roots are matched and reject persistent or broad regions' );

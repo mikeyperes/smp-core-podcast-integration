@@ -4,7 +4,7 @@
  * Description: Podcast content, fields, feeds, shortcodes, and PowerPress integration for Hexa WordPress sites.
  * Author: Michael Peres
  * Plugin URI: https://github.com/mikeyperes/smp-core-podcast-integration
- * Version: 3.1.0
+ * Version: 3.1.1
  * Text Domain: smp-core-podcast-integration
  * Domain Path: /languages
  * Author URI: https://michaelperes.com

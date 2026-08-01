@@ -823,6 +823,7 @@
                 if (source.src) {
                     var sourceUrl = absoluteAsset(source.src);
                     if (existingExternal.has(sourceUrl)) return;
+                    if (ignorableSelfRemovingScript(source)) return;
                     if (!safeDynamicScript(source) || missingExternal.has(sourceUrl)) {
                         if (!missingExternal.has(sourceUrl)) throw unsupportedNavigation('missing-script-asset');
                         return;
@@ -1279,6 +1280,17 @@
             try {
                 var url = new URL(source.src, window.location.href);
                 return url.origin === window.location.origin && /^https?:$/.test(url.protocol) && paths[id].test(url.pathname);
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function ignorableSelfRemovingScript(source) {
+            if (!source || !source.src) return false;
+            try {
+                var url = new URL(source.src, window.location.href);
+                return url.origin === window.location.origin
+                    && /^\/cdn-cgi\/scripts\/[a-z0-9_-]+\/cloudflare-static\/email-decode(?:\.min)?\.js$/i.test(url.pathname);
             } catch (error) {
                 return false;
             }
