@@ -24,6 +24,8 @@ const scenarios = [
     'foreign-history',
     'elementor-ready',
     'elementor-recaptcha',
+    'wordfence-fresh',
+    'tampered-wordfence',
     'trusted-jet-inline',
     'tampered-jet-inline',
     'tampered-jet-whitespace',
@@ -32,8 +34,6 @@ const scenarios = [
     'unsupported-inline',
     'missing-script',
     'spoofed-recaptcha',
-    'wordfence-first-target',
-    'spoofed-wordfence',
     'self-removing-cloudflare',
     'unmatched-root',
     'malicious-style-onload',
@@ -112,6 +112,15 @@ const server = createServer((request, response) => {
         response.end(recaptchaTargetDocument('https://www.google.com/recaptcha/api.js?render=explicit&ver=4.2.1'));
         return;
     }
+    if (url.pathname === '/wordfence-fresh' || url.pathname === '/tampered-wordfence') {
+        const tampered = url.pathname === '/tampered-wordfence';
+        const directRequest = request.headers['sec-fetch-dest'] === 'document';
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(tampered && directRequest
+            ? fallbackDocument('unsupported-inline-script')
+            : wordfenceTargetDocument(tampered));
+        return;
+    }
     if (['/trusted-jet-inline', '/tampered-jet-inline', '/tampered-jet-whitespace', '/aborted-jet-inline'].includes(url.pathname)) {
         const mode = url.pathname.slice(1);
         const tampered = mode === 'tampered-jet-inline' || mode === 'tampered-jet-whitespace';
@@ -181,19 +190,6 @@ const server = createServer((request, response) => {
         response.end(directRequest
             ? fallbackDocument('missing-script-asset')
             : recaptchaTargetDocument('https://recaptcha.attacker.example/recaptcha/api.js?render=explicit'));
-        return;
-    }
-    if (url.pathname === '/wordfence-first-target') {
-        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-        response.end(wordfenceTargetDocument(false));
-        return;
-    }
-    if (url.pathname === '/spoofed-wordfence') {
-        const directRequest = request.headers['sec-fetch-dest'] === 'document';
-        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-        response.end(directRequest
-            ? fallbackDocument('unsupported-inline-script')
-            : wordfenceTargetDocument(true));
         return;
     }
     if (url.pathname === '/self-removing-cloudflare') {
@@ -336,6 +332,8 @@ function scenarioDocument(mode) {
         'foreign-history': '/foreign-history-target',
         'elementor-ready': '/elementor-ready',
         'elementor-recaptcha': '/elementor-recaptcha',
+        'wordfence-fresh': '/wordfence-fresh',
+        'tampered-wordfence': '/tampered-wordfence',
         'trusted-jet-inline': '/trusted-jet-inline',
         'tampered-jet-inline': '/tampered-jet-inline',
         'tampered-jet-whitespace': '/tampered-jet-whitespace',
@@ -344,8 +342,6 @@ function scenarioDocument(mode) {
         'unsupported-inline': '/unsupported-inline',
         'missing-script': '/missing-script',
         'spoofed-recaptcha': '/spoofed-recaptcha',
-        'wordfence-first-target': '/wordfence-first-target',
-        'spoofed-wordfence': '/spoofed-wordfence',
         'self-removing-cloudflare': '/self-removing-cloudflare',
         'unmatched-root': '/unmatched-root',
         'malicious-style-onload': '/malicious-style-onload',
@@ -411,7 +407,7 @@ function surfaceMatrixInitialDocument() {
 <script>${instrumentationScript()}</script>
 ${elementorTestBootstrap()}
 <script>${companionRuntimeBootstrap()}</script>
-<script type="text/javascript">${wordfenceHumanDetectionSource('A'.repeat(32))}</script>
+<script type="text/javascript">${wordfenceHumanLoggerSource('A'.repeat(32))}</script>
 <script>window.smpPodcastPlayerConfig=${JSON.stringify(config)};</script>
 <script src="/assets/home-interactions.js"></script>
 <script src="/assets/frontend-player.js"></script>
@@ -489,7 +485,7 @@ function surfaceDocument(surface) {
 <link rel="stylesheet" href="/assets/home-interactions.css">
 <meta name="description" content="${escapeHtml(surface.label)} description">
 <script id="elementor-frontend-js-before">var elementorFrontendConfig={"post":{"id":${surface.id},"title":${JSON.stringify(surface.label)}}};</script>
-<script type="text/javascript">${wordfenceHumanDetectionSource(surface.id.toString(16).padStart(32, '0'))}</script>
+<script type="text/javascript">${wordfenceHumanLoggerSource(surface.id.toString(16).padStart(32, '0'))}</script>
 <script src="/assets/home-interactions.js"></script>
 <script src="/assets/frontend-player.js"></script>
 </head><body class="surface-body">${root}${breadcrumbCompanionTemplate(surface.label + ' breadcrumb')}</body></html>`;
@@ -556,12 +552,13 @@ function initialAssetMarkup(mode) {
         return '<script src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>';
     }
     if (mode !== 'divergent-assets') return '';
+    const wordfence = wordfenceHumanLoggerSource('A'.repeat(32));
     return `<link id="home-surface-css" rel="stylesheet" href="/home.css">
 <style id="elementor-frontend-inline-css">:root{--elementor-page:home}</style>
 <style id="elementor-post-1">.elementor-post-1{color:#111}</style>
 <style id="loop-10">.loop-10{display:grid}</style>
 <style>.shared-anonymous{box-sizing:border-box}</style>
-<script type="text/javascript">${wordfenceHumanDetectionSource('A'.repeat(32))}</script>`;
+<script type="text/javascript">${wordfence}</script>`;
 }
 
 function cloudflareTargetDocument() {
@@ -569,53 +566,6 @@ function cloudflareTargetDocument() {
 <link rel="canonical" href="/self-removing-cloudflare"><meta name="description" content="Cloudflare target description">
 </head><body class="cloudflare-target"><main data-smp-ajax-root="content"><h1>Cloudflare target</h1><p>Known self-removing decoder remains inert.</p></main>
 <script src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body></html>`;
-}
-
-function wordfenceTargetDocument(tampered) {
-    return `<!doctype html><html lang="en"><head><title>Wordfence target</title>
-<link rel="canonical" href="/${tampered ? 'spoofed-wordfence' : 'wordfence-first-target'}"><meta name="description" content="Wordfence target description">
-<script type="text/javascript">${wordfenceHumanDetectionSource('D'.repeat(32), tampered)}</script>
-</head><body><main data-smp-ajax-root="content"><h1>Wordfence target</h1></main></body></html>`;
-}
-
-function wordfenceHumanDetectionSource(hid, tampered = false) {
-    const host = new URL(origin).host;
-    const source = [
-        '(function(url){',
-        "\tif(/(?:Chrome\\/26\\.0\\.1410\\.63 Safari\\/537\\.31|WordfenceTestMonBot)/.test(navigator.userAgent)){ return; }",
-        '\tvar addEvent = function(evt, handler) {',
-        '\t\tif (window.addEventListener) {',
-        '\t\t\tdocument.addEventListener(evt, handler, false);',
-        '\t\t} else if (window.attachEvent) {',
-        "\t\t\tdocument.attachEvent('on' + evt, handler);",
-        '\t\t}',
-        '\t};',
-        '\tvar removeEvent = function(evt, handler) {',
-        '\t\tif (window.removeEventListener) {',
-        '\t\t\tdocument.removeEventListener(evt, handler, false);',
-        '\t\t} else if (window.detachEvent) {',
-        "\t\t\tdocument.detachEvent('on' + evt, handler);",
-        '\t\t}',
-        '\t};',
-        "\tvar evts = 'contextmenu dblclick drag dragend dragenter dragleave dragover dragstart drop keydown keypress keyup mousedown mousemove mouseout mouseover mouseup mousewheel scroll'.split(' ');",
-        '\tvar logHuman = function() {',
-        '\t\tif (window.wfLogHumanRan) { return; }',
-        '\t\twindow.wfLogHumanRan = true;',
-        "\t\tvar wfscr = document.createElement('script');",
-        "\t\twfscr.type = 'text/javascript';",
-        '\t\twfscr.async = true;',
-        "\t\twfscr.src = url + '&r=' + Math.random();",
-        "\t\t(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(wfscr);",
-        '\t\tfor (var i = 0; i < evts.length; i++) {',
-        '\t\t\tremoveEvent(evts[i], logHuman);',
-        '\t\t}',
-        '\t};',
-        '\tfor (var i = 0; i < evts.length; i++) {',
-        '\t\taddEvent(evts[i], logHuman);',
-        '\t}',
-        `})('//${host}/?wordfence_lh=1&hid=${hid}');`,
-    ].join('\n');
-    return tampered ? `${source}\nwindow.__spoofedWordfence = true;` : source;
 }
 
 function continuityTargetDocument() {
@@ -650,7 +600,7 @@ ${managedStyles}
 <style>.shared-anonymous{box-sizing:border-box}</style>
 <script id="elementor-frontend-js-before">var elementorFrontendConfig={"post":{"id":${episode ? 2 : 1},"title":"${title}"}};</script>
 <script id="elementor-pro-frontend-js-before">var ElementorProFrontendConfig={"version":"${kind}"};</script>
-<script type="text/javascript">${wordfenceHumanDetectionSource((episode ? 'B' : 'C').repeat(32))}</script>
+<script type="text/javascript">${wordfenceHumanLoggerSource((episode ? 'B' : 'C').repeat(32))}</script>
 ${dynamicAssets}
 </head><body class="${kind}-body"><main data-smp-ajax-root="content" class="elementor"><h1>${title}</h1><div class="elementor-element" data-element_type="widget" data-widget_type="heading.default">${title} widget</div><a id="surface-next" href="${destination}">Switch surface</a></main></body></html>`;
 }
@@ -701,6 +651,29 @@ function recaptchaTargetDocument(source) {
 <link rel="canonical" href="/elementor-recaptcha"><meta name="description" content="Elementor reCAPTCHA target description">
 <script id="elementor-recaptcha_v3-api-js" src="${escapeHtml(source)}"></script>
 </head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor reCAPTCHA target</h1><div class="elementor-element elementor-widget-form" data-element_type="widget" data-widget_type="form.default"><form class="elementor-form"><input name="email" type="email"></form></div></main></body></html>`;
+}
+
+function wordfenceTargetDocument(tampered = false) {
+    const endpoint = `${origin}/?wordfence_lh=1&hid=ABCDEF0123456789ABCDEF0123456789`;
+    let source = wordfenceHumanLoggerFixture().replace('__WORDFENCE_URL__', endpoint);
+    if (tampered) source = source.replace('window.wfLogHumanRan = true;', 'window.wfLogHumanRan = true; window.__tamperedWordfence = true;');
+    return `<!doctype html><html lang="en"><head><title>${tampered ? 'Tampered' : 'Fresh'} Wordfence target</title>
+<link rel="canonical" href="/${tampered ? 'tampered-wordfence' : 'wordfence-fresh'}"><meta name="description" content="Wordfence target description">
+<script type="text/javascript">${source}</script>
+</head><body><main data-smp-ajax-root="content"><h1>${tampered ? 'Tampered' : 'Fresh'} Wordfence target</h1></main></body></html>`;
+}
+
+function wordfenceHumanLoggerFixture() {
+    const match = /parseWordfenceHumanLogger\.template = ("(?:[^"\\]|\\.)*");/.exec(runtime.toString('utf8'));
+    if (!match) throw new Error('Missing captured Wordfence human-logger fixture');
+    const decoded = JSON.parse(match[1]);
+    const digest = createHash('sha256').update(decoded).digest('hex');
+    if (digest !== '801dba788af0499ac120a1090dab46ce5a43d7ab8056cb278df180babc756291') throw new Error('Wordfence human-logger fixture hash mismatch');
+    return decoded;
+}
+
+function wordfenceHumanLoggerSource(hid) {
+    return wordfenceHumanLoggerFixture().replace('__WORDFENCE_URL__', `${origin}/?wordfence_lh=1&hid=${hid}`);
 }
 
 function jetInlineTargetDocument(mode = 'trusted-jet-inline') {
@@ -808,6 +781,12 @@ window.__dynamicLoads=[];
 window.__dynamicScriptUrls=[];
 var nativeHeadAppend=document.head.appendChild.bind(document.head);
 document.head.appendChild=function(node){
+    if(node&&node.tagName==='SCRIPT'&&node.id==='smp-wordfence-human-logger'){
+        window.__dynamicLoads.push(node.id);
+        window.__dynamicScriptUrls.push(node.src);
+        setTimeout(function(){node.dispatchEvent(new Event('load'));},0);
+        return node;
+    }
     if(node&&node.tagName==='SCRIPT'&&node.id==='elementor-recaptcha_v3-api-js'){
         window.__dynamicLoads.push(node.id);
         window.__dynamicScriptUrls.push(node.src);
@@ -1012,25 +991,6 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
         return;
     }
 
-    if(mode==='wordfence-first-target'){
-        var wordfenceBefore=playerAudio.currentTime;
-        var wordfenceReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('navigate'))===true,'first Wordfence target navigation was not intercepted');
-        await wordfenceReady;
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Wordfence target','first Wordfence target content was not swapped');
-        assert(!document.querySelector('script:not([src])')?.textContent.includes('wordfence_lh=1'),'fetched Wordfence bootstrap was imported into the live document');
-        assert(window.__spoofedWordfence!==true,'untrusted Wordfence fixture executed');
-        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>wordfenceBefore,'audio continuity was lost on the first Wordfence target');
-        assert(counters.pushes===1&&counters.popstateBindings===1,'first Wordfence target did not use one AJAX history transition');
-        pass('PASS exact first-target Wordfence bootstrap is omitted without interrupting audio');
-        return;
-    }
-
-    if(mode==='spoofed-wordfence'){
-        assert(observedClick(document.getElementById('navigate'))===true,'spoofed Wordfence target navigation was not intercepted before fallback');
-        return;
-    }
-
     if(mode==='trusted-jet-inline'){
         var jetBefore=playerAudio.currentTime;
         var jetReady=waitFor('smp:after-navigate');
@@ -1120,6 +1080,27 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
         assert(window.__elementorFormSubmits===1,'initialized Elementor form did not handle submit');
         assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>recaptchaBefore,'audio continuity was lost on the Elementor reCAPTCHA surface');
         pass('PASS exact Elementor reCAPTCHA dependency loads without interrupting audio');
+        return;
+    }
+
+    if(mode==='wordfence-fresh'){
+        var wordfenceBefore=playerAudio.currentTime;
+        var wordfenceReady=waitFor('smp:after-navigate');
+        assert(observedClick(document.getElementById('navigate'))===true,'fresh Wordfence navigation was not intercepted');
+        await wordfenceReady;
+        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Fresh Wordfence target','fresh Wordfence content was not swapped');
+        assert(window.wfLogHumanRan!==true&&window.__dynamicLoads.length===0,'fetched Wordfence inline script executed instead of the safe logger');
+        assert(window.__tamperedWordfence!==true,'tampered Wordfence code executed');
+        document.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));
+        await delay(30);
+        var wordfenceUrl=new URL(window.__dynamicScriptUrls[0]);
+        assert(window.__dynamicLoads.join(',')==='smp-wordfence-human-logger','safe Wordfence logger did not load exactly once');
+        assert(wordfenceUrl.origin===location.origin&&wordfenceUrl.pathname==='/'&&wordfenceUrl.searchParams.get('wordfence_lh')==='1'&&/^[a-f0-9]{32}$/i.test(wordfenceUrl.searchParams.get('hid')||'')&&wordfenceUrl.searchParams.has('r'),'safe Wordfence logger did not preserve the validated same-origin endpoint');
+        document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));
+        await delay(20);
+        assert(window.__dynamicLoads.length===1,'safe Wordfence logger did not remove its listeners after the first human event');
+        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>wordfenceBefore,'audio continuity was lost on the fresh Wordfence surface');
+        pass('PASS exact fresh Wordfence logger is safely reconstructed without interrupting audio');
         return;
     }
 

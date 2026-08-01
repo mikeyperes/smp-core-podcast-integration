@@ -40,6 +40,7 @@
             playbackActivated: false,
             seeking: false,
             scrollTimer: 0,
+            wordfenceLoggerActive: false,
             legacyObserver: null,
             legacySources: new WeakMap()
         };
@@ -552,6 +553,7 @@
                     syncStylesheetAssets(plan.styles.urls);
                     stylesCommitted = true;
                     updateHistory(finalUrl, options);
+                    initializeWordfenceHumanLogger(plan.wordfenceUrl);
                     reinitializeContent(importedRoot, finalUrl, options, plan);
                 });
             }).catch(function (error) {
@@ -660,7 +662,8 @@
                 elementor: rootUsesElementor(nextRoot),
                 companions: inspectCompanionFragments(parsed, nextRoot),
                 styles: inspectRequiredStyles(parsed),
-                scripts: []
+                scripts: [],
+                wordfenceUrl: ''
             };
             inspectRequiredScripts(parsed, nextRoot, plan);
 
@@ -795,11 +798,13 @@
             var existingExternal = new Set(Array.prototype.map.call(document.querySelectorAll('script[src]'), function (node) { return absoluteAsset(node.src); }));
             var missingExternal = new Set();
             var currentInlineSignatures = new Set();
+            var wordfenceInitialized = state.wordfenceLoggerActive || window.wfLogHumanRan;
             document.querySelectorAll('script:not([src])').forEach(function (node) {
                 var text = normalizedAssetText(node.textContent);
                 if (!text) return;
                 var signature = scriptType(node) + '\n' + text;
                 currentInlineSignatures.add(signature);
+                if (parseWordfenceHumanLogger(node, text)) wordfenceInitialized = true;
             });
 
             parsed.querySelectorAll('script').forEach(function (source) {
@@ -833,7 +838,13 @@
 
                 if (!text) return;
                 if (currentInlineSignatures.has(signature)) return;
-                if (ignorableWordfenceHumanDetectionScript(source, text)) return;
+                var wordfenceUrl = parseWordfenceHumanLogger(source, text);
+                if (wordfenceUrl) {
+                    if (wordfenceInitialized) return;
+                    if (plan.wordfenceUrl) throw unsupportedNavigation('duplicate-wordfence-logger');
+                    plan.wordfenceUrl = wordfenceUrl;
+                    return;
+                }
                 var localized = parseSupportedLocalizedConfig(source, text);
                 if (localized) {
                     plan.configs.push(localized);
@@ -1175,6 +1186,36 @@
             else history.replaceState(Object.assign({}, options.historyState || {}, payload), '', url.href);
         }
 
+        function initializeWordfenceHumanLogger(value) {
+            if (!value || state.wordfenceLoggerActive || window.wfLogHumanRan) return;
+            if (/(?:Chrome\/26\.0\.1410\.63 Safari\/537\.31|WordfenceTestMonBot)/.test(navigator.userAgent)) return;
+            var url;
+            try { url = new URL(value, window.location.href); } catch (error) { return; }
+            if (url.origin !== window.location.origin || url.pathname !== '/' || url.searchParams.get('wordfence_lh') !== '1') return;
+
+            var events = 'contextmenu dblclick drag dragend dragenter dragleave dragover dragstart drop keydown keypress keyup mousedown mousemove mouseout mouseover mouseup mousewheel scroll'.split(' ');
+            var cleanup = function () {
+                events.forEach(function (eventName) { document.removeEventListener(eventName, logHuman, false); });
+            };
+            var logHuman = function () {
+                if (window.wfLogHumanRan) {
+                    cleanup();
+                    return;
+                }
+                window.wfLogHumanRan = true;
+                cleanup();
+                var script = document.createElement('script');
+                script.id = 'smp-wordfence-human-logger';
+                script.type = 'text/javascript';
+                script.async = true;
+                url.searchParams.set('r', String(Math.random()));
+                script.src = url.href;
+                document.head.appendChild(script);
+            };
+            state.wordfenceLoggerActive = true;
+            events.forEach(function (eventName) { document.addEventListener(eventName, logHuman, false); });
+        }
+
         function reinitializeContent(root, url, options, plan) {
             if (plan.elementor) {
                 try {
@@ -1362,52 +1403,34 @@
             }
         }
 
-        function ignorableWordfenceHumanDetectionScript(source, text) {
+        function parseWordfenceHumanLogger(source, text) {
             var type = scriptType(source);
-            if (source.id || (type && type !== 'text/javascript' && type !== 'application/javascript')) return false;
-            var escapedHost = window.location.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            var endpoint = new RegExp('//' + escapedHost + '/\\?wordfence_lh=1&hid=[a-f0-9]{32}', 'i');
-            var canonical = String(text || '').trim();
-            if (!endpoint.test(canonical)) return false;
-            canonical = canonical.replace(endpoint, '//__SMP_HOST__/?wordfence_lh=1&hid=__SMP_HID__');
-            return canonical === ignorableWordfenceHumanDetectionScript.source;
+            if (source.id || (type && type !== 'text/javascript' && type !== 'application/javascript')) return '';
+            var match = /\}\)\('([^']+)'\);$/.exec(text);
+            if (!match) return '';
+
+            var url;
+            try { url = new URL(match[1], window.location.href); } catch (error) { return ''; }
+            var keys = [];
+            url.searchParams.forEach(function (value, key) { keys.push(key); });
+            if (!/^https?:$/.test(url.protocol)
+                || url.origin !== window.location.origin
+                || url.username
+                || url.password
+                || url.pathname !== '/'
+                || url.hash
+                || keys.length !== 2
+                || url.searchParams.getAll('wordfence_lh').length !== 1
+                || url.searchParams.get('wordfence_lh') !== '1'
+                || url.searchParams.getAll('hid').length !== 1
+                || !/^[a-f0-9]{32}$/i.test(url.searchParams.get('hid') || '')
+            ) return '';
+
+            var canonical = text.slice(0, match.index) + "})('__WORDFENCE_URL__');";
+            return canonical === parseWordfenceHumanLogger.template ? url.href : '';
         }
 
-        ignorableWordfenceHumanDetectionScript.source = [
-            '(function(url){',
-            "\tif(/(?:Chrome\\/26\\.0\\.1410\\.63 Safari\\/537\\.31|WordfenceTestMonBot)/.test(navigator.userAgent)){ return; }",
-            '\tvar addEvent = function(evt, handler) {',
-            '\t\tif (window.addEventListener) {',
-            '\t\t\tdocument.addEventListener(evt, handler, false);',
-            '\t\t} else if (window.attachEvent) {',
-            "\t\t\tdocument.attachEvent('on' + evt, handler);",
-            '\t\t}',
-            '\t};',
-            '\tvar removeEvent = function(evt, handler) {',
-            '\t\tif (window.removeEventListener) {',
-            '\t\t\tdocument.removeEventListener(evt, handler, false);',
-            '\t\t} else if (window.detachEvent) {',
-            "\t\t\tdocument.detachEvent('on' + evt, handler);",
-            '\t\t}',
-            '\t};',
-            "\tvar evts = 'contextmenu dblclick drag dragend dragenter dragleave dragover dragstart drop keydown keypress keyup mousedown mousemove mouseout mouseover mouseup mousewheel scroll'.split(' ');",
-            '\tvar logHuman = function() {',
-            '\t\tif (window.wfLogHumanRan) { return; }',
-            '\t\twindow.wfLogHumanRan = true;',
-            "\t\tvar wfscr = document.createElement('script');",
-            "\t\twfscr.type = 'text/javascript';",
-            '\t\twfscr.async = true;',
-            "\t\twfscr.src = url + '&r=' + Math.random();",
-            "\t\t(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(wfscr);",
-            '\t\tfor (var i = 0; i < evts.length; i++) {',
-            '\t\t\tremoveEvent(evts[i], logHuman);',
-            '\t\t}',
-            '\t};',
-            '\tfor (var i = 0; i < evts.length; i++) {',
-            '\t\taddEvent(evts[i], logHuman);',
-            '\t}',
-            "})('//__SMP_HOST__/?wordfence_lh=1&hid=__SMP_HID__');"
-        ].join('\n');
+        parseWordfenceHumanLogger.template = "(function(url){\n\tif(/(?:Chrome\\/26\\.0\\.1410\\.63 Safari\\/537\\.31|WordfenceTestMonBot)/.test(navigator.userAgent)){ return; }\n\tvar addEvent = function(evt, handler) {\n\t\tif (window.addEventListener) {\n\t\t\tdocument.addEventListener(evt, handler, false);\n\t\t} else if (window.attachEvent) {\n\t\t\tdocument.attachEvent('on' + evt, handler);\n\t\t}\n\t};\n\tvar removeEvent = function(evt, handler) {\n\t\tif (window.removeEventListener) {\n\t\t\tdocument.removeEventListener(evt, handler, false);\n\t\t} else if (window.detachEvent) {\n\t\t\tdocument.detachEvent('on' + evt, handler);\n\t\t}\n\t};\n\tvar evts = 'contextmenu dblclick drag dragend dragenter dragleave dragover dragstart drop keydown keypress keyup mousedown mousemove mouseout mouseover mouseup mousewheel scroll'.split(' ');\n\tvar logHuman = function() {\n\t\tif (window.wfLogHumanRan) { return; }\n\t\twindow.wfLogHumanRan = true;\n\t\tvar wfscr = document.createElement('script');\n\t\twfscr.type = 'text/javascript';\n\t\twfscr.async = true;\n\t\twfscr.src = url + '&r=' + Math.random();\n\t\t(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(wfscr);\n\t\tfor (var i = 0; i < evts.length; i++) {\n\t\t\tremoveEvent(evts[i], logHuman);\n\t\t}\n\t};\n\tfor (var i = 0; i < evts.length; i++) {\n\t\taddEvent(evts[i], logHuman);\n\t}\n})('__WORDFENCE_URL__');";
 
         function unsupportedNavigation(reason) {
             var error = new Error(reason || 'unsupported-page');

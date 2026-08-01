@@ -337,14 +337,6 @@ check(
     'only the exact same-origin self-removing Cloudflare email decoder may be omitted from fetched script requirements'
 );
 check(
-    str_contains( $player_js, 'ignorableWordfenceHumanDetectionScript(source, text)' )
-    && str_contains( $player_js, "window.location.host.replace" )
-    && str_contains( $player_js, "wordfence_lh=1&hid=[a-f0-9]{32}" )
-    && str_contains( $player_js, 'canonical === ignorableWordfenceHumanDetectionScript.source' )
-    && ! str_contains( $player_js, 'wordfenceInitialized' ),
-    'only the exact same-host Wordfence human-detection bootstrap with a 32-character hex ID may be omitted'
-);
-check(
     str_contains( $player_js, "id === 'elementor-recaptcha_v3-api-js'" )
     && str_contains( $player_js, "url.protocol === 'https:'" )
     && str_contains( $player_js, "url.host === 'www.google.com'" )
@@ -353,6 +345,24 @@ check(
     && str_contains( $player_js, "url.searchParams.getAll('render').length === 1" )
     && str_contains( $player_js, "url.searchParams.get('render') === 'explicit'" ),
     'dynamic script policy accepts only Elementor reCAPTCHA from its exact HTTPS hosts, path, and render mode'
+);
+check(
+    str_contains( $player_js, 'parseWordfenceHumanLogger.template' )
+    && str_contains( $player_js, "url.origin !== window.location.origin" )
+    && str_contains( $player_js, "url.searchParams.getAll('wordfence_lh').length !== 1" )
+    && str_contains( $player_js, "url.searchParams.getAll('hid').length !== 1" )
+    && str_contains( $player_js, '/^[a-f0-9]{32}$/i' )
+    && str_contains( $player_js, "canonical === parseWordfenceHumanLogger.template" )
+    && str_contains( $player_js, 'var wordfenceInitialized = state.wordfenceLoggerActive || window.wfLogHumanRan;' )
+    && str_contains( $player_js, 'if (parseWordfenceHumanLogger(node, text)) wordfenceInitialized = true;' ),
+    'fresh Wordfence human logger is accepted only from its byte-exact wrapper and exact same-origin endpoint'
+);
+check(
+    str_contains( $player_js, 'initializeWordfenceHumanLogger(plan.wordfenceUrl)' )
+    && str_contains( $player_js, "script.id = 'smp-wordfence-human-logger'" )
+    && str_contains( $player_js, "url.searchParams.set('r', String(Math.random()))" )
+    && str_contains( $player_js, 'document.removeEventListener(eventName, logHuman, false)' ),
+    'validated Wordfence logger is reconstructed as a one-shot owned script without executing fetched inline code'
 );
 check(
     str_contains( $player_js, "new RegExp('(?:^|\\\\n)//# sourceURL=' + escapedId" )

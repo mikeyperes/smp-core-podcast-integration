@@ -54,7 +54,7 @@ Plugin-owned markup that must live outside the replaceable island uses the inert
 
 No history listener, scroll-state mutation, or manual scroll restoration is installed on page load. A navigation session begins only after playback is eligible and the first fetched page passes root, script, style, and Elementor preflight. It fetches the exact same-origin public URL and accepts only an HTTP 200 HTML document. Any timeout, HTTP error, non-HTML response, mismatched root, unsupported executable inline script or localized configuration, missing script asset, unsupported style, unavailable Elementor lifecycle, external URL, account/checkout path, feed, media/download URL, modified click, target link, or excluded path uses ordinary browser navigation.
 
-After safe preflight, the runtime reconciles validated WordPress/Elementor inline styles, loads trusted stylesheets and a narrow handle-and-path allowlist of Elementor/JetEngine dependencies, accepts Elementor's exact reCAPTCHA handle only from the HTTPS Google or reCAPTCHA endpoint with `render=explicit`, and executes only byte-exact captured JetEngine initializers after execution-time revalidation and abort checks. It then replaces only the matched content island, synchronizes the document title/language, common canonical/alternate links, common SEO and social metadata, head JSON-LD, body classes, history, and scroll position, and invokes the supported Elementor ready trigger. It never evaluates unknown fetched inline JavaScript, copies inline event handlers, or loads an unknown script. Direct requests remain complete server-rendered WordPress pages with their original status, metadata, schema, and crawlable links.
+After safe preflight, the runtime reconciles validated WordPress/Elementor inline styles, loads trusted stylesheets and a narrow handle-and-path allowlist of Elementor/JetEngine dependencies, accepts Elementor's exact reCAPTCHA handle only from the HTTPS Google or reCAPTCHA endpoint with `render=explicit`, executes only byte-exact captured JetEngine initializers after execution-time revalidation and abort checks, and, when no equivalent logger is already active, safely reconstructs Wordfence's byte-exact human logger only for its validated same-origin endpoint. It then replaces only the matched content island, synchronizes the document title/language, common canonical/alternate links, common SEO and social metadata, head JSON-LD, body classes, history, and scroll position, and invokes the supported Elementor ready trigger. It never evaluates unknown fetched inline JavaScript, copies inline event handlers, or loads an unknown script. Direct requests remain complete server-rendered WordPress pages with their original status, metadata, schema, and crawlable links.
 
 ## Testing
 
@@ -76,8 +76,8 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ### 3.1.6
 
-- Preserved active audio on an immediate first navigation to a Wordfence-protected page by recognizing only its exact same-host human-detection bootstrap with a 32-character hexadecimal ID
-- Added browser coverage proving the exact bootstrap remains inert while any modified Wordfence-like inline script forces a safe hard-navigation fallback
+- Preserved active playback on an immediate first navigation to a Wordfence-protected destination by accepting only its byte-exact captured human-logger wrapper and exact same-origin 32-hex endpoint, then reconstructing the one-shot logger without executing fetched inline code
+- Added browser coverage proving the safe logger runs once, altered Wordfence-like code still forces hard navigation, and audio remains continuous
 
 ### 3.1.5
 
