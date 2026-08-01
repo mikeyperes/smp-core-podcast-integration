@@ -837,8 +837,15 @@
                 if (currentInlineSignatures.has(signature)) return;
                 if (wordfenceInitialized && alreadyInitializedInlineScript(source, text)) return;
                 var localized = parseSupportedLocalizedConfig(source, text);
-                if (!localized) throw unsupportedNavigation('unsupported-inline-script');
-                plan.configs.push(localized);
+                if (localized) {
+                    plan.configs.push(localized);
+                    return;
+                }
+                if (safeDynamicInlineScript(source, text)) {
+                    plan.scripts.push(source);
+                    return;
+                }
+                throw unsupportedNavigation('unsupported-inline-script');
             });
         }
 
@@ -921,6 +928,16 @@
             return sources.reduce(function (chain, source) {
                 return chain.then(function () {
                     return new Promise(function (resolve, reject) {
+                        if (!source.src) {
+                            var inlineText = normalizedAssetText(source.textContent);
+                            if (!safeDynamicInlineScript(source, inlineText)) {
+                                reject(unsupportedNavigation('unsupported-inline-script'));
+                                return;
+                            }
+                            document.head.appendChild(copyExecutableInlineScript(source));
+                            resolve();
+                            return;
+                        }
                         var settled = false;
                         var script = copyExternalScript(source);
                         var finish = function (error, aborted) {
@@ -963,6 +980,13 @@
             script.async = false;
             if (source.hasAttribute('nomodule')) script.noModule = true;
             script.src = source.src;
+            return script;
+        }
+
+        function copyExecutableInlineScript(source) {
+            var script = document.createElement('script');
+            copyAllowedAttributes(source, script, ['id', 'type', 'nonce']);
+            script.textContent = source.textContent || '';
             return script;
         }
 
@@ -1287,6 +1311,26 @@
                 return false;
             }
         }
+
+        function safeDynamicInlineScript(source, text) {
+            var id = (source.id || '').trim();
+            var type = scriptType(source);
+            if ((type && type !== 'text/javascript' && type !== 'application/javascript')
+                || !Object.prototype.hasOwnProperty.call(safeDynamicInlineScript.sources, id)
+            ) return false;
+
+            var escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            var canonical = String(text || '')
+                .replace(new RegExp('\\n?//# sourceURL=' + escapedId + '\\s*$'), '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            return canonical === safeDynamicInlineScript.sources[id];
+        }
+
+        safeDynamicInlineScript.sources = {
+            'jet-engine-data-stores-js-before': "window.JetEngineStores = window.JetEngineStores || {}; window.JetEngineStores['local-storage'] = { addToStore: function( storeSlug, postID, maxSize, isOnViewStore ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ); isOnViewStore = isOnViewStore || false; if ( store ) { store = store.split( ',' ); } else { store = []; } postID = '' + postID; maxSize = parseInt( maxSize, 10 ); if ( 0 <= store.indexOf( postID ) ) { return store.length; } if ( 0 < maxSize && store.length >= maxSize ) { if ( isOnViewStore ) { store.splice( 0, 1 ); } else { alert( 'You can`t add more posts' ); return false; } } store.push( postID ); window.localStorage.setItem( 'jet_engine_store_' + storeSlug, store.join( ',' ) ); return store.length; }, remove: function( storeSlug, postID ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ), index; if ( store ) { store = store.split( ',' ); } else { store = []; } postID = '' + postID; index = store.indexOf( postID ); if ( 0 > index ) { return store.length; } else { store.splice( index, 1 ); } window.localStorage.setItem( 'jet_engine_store_' + storeSlug, store.join( ',' ) ); return store.length; }, inStore: function( storeSlug, postID ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ), index; postID = '' + postID; if ( store ) { store = store.split( ',' ); } else { store = []; } index = store.indexOf( postID ); return ( 0 <= index ); }, getStore: function( storeSlug ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ), index; if ( store ) { store = store.split( ',' ); } else { store = []; } return store; }, };",
+            'jet-engine-frontend-js-before': "jQuery( window ).on( 'jet-engine/frontend/loaded', function() { window.JetPlugins.hooks.addFilter( 'jet-popup.show-popup.data', 'JetEngine.popupData', function( popupData, popup, triggeredBy ) { if ( ! triggeredBy ) { return popupData; } if ( ! triggeredBy.data( 'popupIsJetEngine' ) ) { return popupData; } var wrapper = triggeredBy.closest( '.jet-listing-grid__items' ); if ( wrapper.length && wrapper.data( 'cctSlug' ) ) { popupData['cctSlug'] = wrapper.data( 'cctSlug' ); } return popupData; } ); } );"
+        };
 
         function ignorableSelfRemovingScript(source) {
             if (!source || !source.src) return false;

@@ -22,6 +22,8 @@ const scenarios = [
     'inactive-history',
     'foreign-history',
     'elementor-ready',
+    'trusted-jet-inline',
+    'tampered-jet-inline',
     'elementor-unready',
     'unsupported-inline',
     'missing-script',
@@ -96,6 +98,15 @@ const server = createServer((request, response) => {
     if (url.pathname === '/elementor-ready') {
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
         response.end(elementorTargetDocument());
+        return;
+    }
+    if (url.pathname === '/trusted-jet-inline' || url.pathname === '/tampered-jet-inline') {
+        const tampered = url.pathname === '/tampered-jet-inline';
+        const directRequest = request.headers['sec-fetch-dest'] === 'document';
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(tampered && directRequest
+            ? fallbackDocument('unsupported-inline-script')
+            : jetInlineTargetDocument(tampered));
         return;
     }
     if (url.pathname === '/continuity') {
@@ -290,6 +301,8 @@ function scenarioDocument(mode) {
         'inactive-history': '/inactive-history-target',
         'foreign-history': '/foreign-history-target',
         'elementor-ready': '/elementor-ready',
+        'trusted-jet-inline': '/trusted-jet-inline',
+        'tampered-jet-inline': '/tampered-jet-inline',
         'elementor-unready': '/elementor-unready',
         'unsupported-inline': '/unsupported-inline',
         'missing-script': '/missing-script',
@@ -327,6 +340,7 @@ function scenarioDocument(mode) {
 ${initialAssetMarkup(mode)}
 <script>${instrumentationScript()}</script>
 ${mode === 'elementor-ready' || mode === 'divergent-assets' ? elementorTestBootstrap() : ''}
+${mode === 'trusted-jet-inline' || mode === 'tampered-jet-inline' ? jetInlineTestBootstrap() : ''}
 <script>window.smpPodcastPlayerConfig=${JSON.stringify(config)};</script>
 <script src="/assets/frontend-player.js"></script>
 </head><body>
@@ -595,6 +609,38 @@ function elementorTargetDocument() {
 </head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor target</h1><div class="elementor-element">Widget</div></main></body></html>`;
 }
 
+function jetInlineTargetDocument(tampered = false) {
+    const scripts = jetBeforeScriptSources();
+    const dataStoreSource = tampered
+        ? scripts.dataStores.replace("return store; }, };", "return store; }, }; window.__tamperedJetInline = true;")
+        : scripts.dataStores;
+    return `<!doctype html><html lang="en"><head><title>${tampered ? 'Tampered' : 'Trusted'} JetEngine target</title>
+<link rel="canonical" href="/${tampered ? 'tampered' : 'trusted'}-jet-inline"><meta name="description" content="JetEngine target description">
+<script id="jet-engine-data-stores-js-before">${dataStoreSource}
+//# sourceURL=jet-engine-data-stores-js-before</script>
+<script id="jet-engine-data-stores-js" src="/wp-content/plugins/jet-engine/assets/js/frontend/modules/data-stores.js?ver=3.8.13.2"></script>
+<script id="jet-engine-frontend-js-before">${scripts.frontend}
+//# sourceURL=jet-engine-frontend-js-before</script>
+<script id="jet-engine-frontend-js" src="/wp-content/plugins/jet-engine/assets/js/frontend/frontend.js?ver=3.8.13.2"></script>
+</head><body><main data-smp-ajax-root="content"><h1>${tampered ? 'Tampered' : 'Trusted'} JetEngine target</h1></main></body></html>`;
+}
+
+function jetBeforeScriptSources() {
+    return {
+        dataStores: "window.JetEngineStores = window.JetEngineStores || {}; window.JetEngineStores['local-storage'] = { addToStore: function( storeSlug, postID, maxSize, isOnViewStore ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ); isOnViewStore = isOnViewStore || false; if ( store ) { store = store.split( ',' ); } else { store = []; } postID = '' + postID; maxSize = parseInt( maxSize, 10 ); if ( 0 <= store.indexOf( postID ) ) { return store.length; } if ( 0 < maxSize && store.length >= maxSize ) { if ( isOnViewStore ) { store.splice( 0, 1 ); } else { alert( 'You can`t add more posts' ); return false; } } store.push( postID ); window.localStorage.setItem( 'jet_engine_store_' + storeSlug, store.join( ',' ) ); return store.length; }, remove: function( storeSlug, postID ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ), index; if ( store ) { store = store.split( ',' ); } else { store = []; } postID = '' + postID; index = store.indexOf( postID ); if ( 0 > index ) { return store.length; } else { store.splice( index, 1 ); } window.localStorage.setItem( 'jet_engine_store_' + storeSlug, store.join( ',' ) ); return store.length; }, inStore: function( storeSlug, postID ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ), index; postID = '' + postID; if ( store ) { store = store.split( ',' ); } else { store = []; } index = store.indexOf( postID ); return ( 0 <= index ); }, getStore: function( storeSlug ) { var store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ), index; if ( store ) { store = store.split( ',' ); } else { store = []; } return store; }, };",
+        frontend: "jQuery( window ).on( 'jet-engine/frontend/loaded', function() { window.JetPlugins.hooks.addFilter( 'jet-popup.show-popup.data', 'JetEngine.popupData', function( popupData, popup, triggeredBy ) { if ( ! triggeredBy ) { return popupData; } if ( ! triggeredBy.data( 'popupIsJetEngine' ) ) { return popupData; } var wrapper = triggeredBy.closest( '.jet-listing-grid__items' ); if ( wrapper.length && wrapper.data( 'cctSlug' ) ) { popupData['cctSlug'] = wrapper.data( 'cctSlug' ); } return popupData; } ); } );"
+    };
+}
+
+function jetInlineTestBootstrap() {
+    return `<script>
+window.__jetBeforeEvents=[];
+window.__jetFilters=[];
+window.jQuery=function(){return {on:function(name){window.__jetBeforeEvents.push(name);}};};
+window.JetPlugins={hooks:{addFilter:function(){window.__jetFilters.push(Array.prototype.slice.call(arguments,0,2).join(':'));}}};
+</script>`;
+}
+
 function elementorUnreadyDocument() {
     return '<!doctype html><html><head><title>Elementor unavailable</title></head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor unavailable</h1></main></body></html>';
 }
@@ -817,6 +863,23 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
         assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>cloudflareBefore,'audio continuity was lost on the Cloudflare-script surface');
         assert(counters.pushes===1&&counters.popstateBindings===1,'Cloudflare-script surface did not use one AJAX history transition');
         pass('PASS known same-origin Cloudflare email decoder is ignored without execution');
+        return;
+    }
+
+    if(mode==='trusted-jet-inline'){
+        var jetBefore=playerAudio.currentTime;
+        var jetReady=waitFor('smp:after-navigate');
+        assert(observedClick(document.getElementById('navigate'))===true,'trusted JetEngine target navigation was not intercepted');
+        await jetReady;
+        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Trusted JetEngine target','trusted JetEngine target did not swap');
+        assert(window.JetEngineStores&&typeof window.JetEngineStores['local-storage'].getStore==='function','validated JetEngine data-store initializer did not execute');
+        assert(window.__jetBeforeEvents.join(',')==='jet-engine/frontend/loaded','validated JetEngine frontend initializer did not register in source order');
+        assert(window.__dynamicLoads.join(',')==='jet-engine-data-stores-js,jet-engine-frontend-js','JetEngine external assets did not load in source order');
+        assert(document.querySelectorAll('#jet-engine-data-stores-js-before').length===1&&document.querySelectorAll('#jet-engine-frontend-js-before').length===1,'validated JetEngine initializers were duplicated or omitted');
+        assert(window.__tamperedJetInline!==true,'tampered JetEngine code executed');
+        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>jetBefore,'audio continuity was lost while loading validated JetEngine initializers');
+        assert(counters.pushes===1&&counters.popstateBindings===1,'trusted JetEngine navigation did not own one AJAX transition');
+        pass('PASS exact JetEngine before-initializers load in order without interrupting audio');
         return;
     }
 
