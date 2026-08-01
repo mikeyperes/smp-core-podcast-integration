@@ -20,6 +20,7 @@ final class Shortcodes implements ModuleInterface {
     private static function callbacks(): array {
         return [
             'smp_listen_button' => [ ShortcodeCallbacks::class, 'listen_button' ],
+            'smp_watch_button' => [ ShortcodeCallbacks::class, 'watch_button' ],
             'podcast_url' => [ ShortcodeCallbacks::class, 'podcast_url' ],
             'episode_fields' => [ ShortcodeCallbacks::class, 'episode_fields' ],
             'article_guests' => [ ShortcodeCallbacks::class, 'article_guests' ],

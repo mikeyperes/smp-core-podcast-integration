@@ -10,6 +10,9 @@ final class PlaybackSettings {
         return [
             'enabled' => false,
             'ajax_navigation' => true,
+            'video_enabled' => true,
+            'show_mode_switch' => true,
+            'sync_media_position' => true,
             'content_selector' => '[data-smp-ajax-root]',
             'excluded_paths' => "/wp-admin/\n/wp-login.php\n/wp-json/\n/feed/\n/cart/\n/checkout/\n/my-account/",
             'timeout_ms' => 10000,
@@ -40,6 +43,9 @@ final class PlaybackSettings {
         return [
             'enabled' => self::boolean( $values['enabled'] ),
             'ajax_navigation' => self::boolean( $values['ajax_navigation'] ),
+            'video_enabled' => self::boolean( $values['video_enabled'] ),
+            'show_mode_switch' => self::boolean( $values['show_mode_switch'] ),
+            'sync_media_position' => self::boolean( $values['sync_media_position'] ),
             'content_selector' => self::selector( $values['content_selector'] ),
             'excluded_paths' => self::paths( $values['excluded_paths'] ),
             'timeout_ms' => self::bounded_int( $values['timeout_ms'], 2000, 30000, 10000 ),
@@ -72,6 +78,9 @@ final class PlaybackSettings {
         return [
             'enabled' => (bool) $settings['enabled'],
             'ajaxNavigation' => (bool) $settings['ajax_navigation'],
+            'videoEnabled' => (bool) $settings['video_enabled'],
+            'showModeSwitch' => (bool) $settings['show_mode_switch'],
+            'syncMediaPosition' => (bool) $settings['sync_media_position'],
             'contentSelector' => (string) $settings['content_selector'],
             'excludedPaths' => array_values( array_filter( array_map( 'trim', $paths ) ) ),
             'timeoutMs' => (int) $settings['timeout_ms'],

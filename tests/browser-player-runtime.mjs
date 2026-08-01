@@ -13,6 +13,7 @@ const homeInteractionsStyles = readFileSync(join(root, 'assets/home-interactions
 const scenarios = [
     'no-playback',
     'disabled',
+    'video-switch',
     'active',
     'continuity',
     'divergent-assets',
@@ -363,6 +364,9 @@ function scenarioDocument(mode) {
         skipBack: 15,
         skipForward: 30,
         showCover: true,
+        videoEnabled: true,
+        showModeSwitch: true,
+        syncMediaPosition: true,
         mediaSession: false,
         rememberPreferences: false,
         strings: {},
@@ -383,7 +387,8 @@ ${['trusted-jet-inline', 'tampered-jet-inline', 'tampered-jet-whitespace', 'abor
 <header><a href="/">Home</a></header>
 <main data-smp-ajax-root="content">
 <h1>Initial content</h1>
-<button id="listen" type="button" data-smp-player-trigger data-smp-audio-src="${escapeHtml(origin)}/media.mp3" data-smp-title="Test episode">Listen</button>
+<button id="listen" type="button" data-smp-player-trigger data-smp-audio-src="${escapeHtml(origin)}/media.mp3" data-smp-video-id="yzMcrZCYh5Y" data-smp-video-url="https://www.youtube.com/watch?v=yzMcrZCYh5Y" data-smp-title="Test episode">Listen</button>
+${mode === 'video-switch' ? '<a id="watch" class="smp-watch-button" href="https://www.youtube.com/watch?v=yzMcrZCYh5Y" target="_blank">Watch</a>' : ''}
 <a id="navigate" href="${escapeHtml(endpoint)}">Navigate</a>
 <div><button id="ap-toggle" type="button">Legacy listen</button><audio id="ap-audio" src="${escapeHtml(origin)}/legacy.mp3"></audio></div>
 </main>
@@ -445,6 +450,9 @@ function playerConfig(overrides = {}) {
         skipBack: 15,
         skipForward: 30,
         showCover: true,
+        videoEnabled: true,
+        showModeSwitch: true,
+        syncMediaPosition: true,
         mediaSession: false,
         rememberPreferences: false,
         strings: {},
@@ -910,6 +918,33 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
     assert(counters.replaces===0 && counters.popstateBindings===0,'track selection changed history');
     var playerAudio=document.querySelector('[data-smp-audio]');
 
+    if(mode==='video-switch'){
+        assert(!playerAudio.paused,'audio did not begin before the format switch');
+        var watch=document.getElementById('watch');
+        assert(observedClick(watch)===true,'native Watch link was not intercepted');
+        var player=document.querySelector('[data-smp-player]');
+        var frame=player.querySelector('[data-smp-video]');
+        assert(player.getAttribute('data-smp-mode')==='video','Watch did not select video mode');
+        assert(playerAudio.paused,'audio continued while video mode was selected');
+        assert(frame.src.indexOf('/embed/yzMcrZCYh5Y')!==-1,'real episode video was not loaded into the persistent iframe');
+        window.dispatchEvent(new MessageEvent('message',{origin:'https://www.youtube-nocookie.com',source:frame.contentWindow,data:JSON.stringify({event:'onReady'})}));
+        window.dispatchEvent(new MessageEvent('message',{origin:'https://www.youtube-nocookie.com',source:frame.contentWindow,data:JSON.stringify({event:'onStateChange',info:1})}));
+        window.dispatchEvent(new MessageEvent('message',{origin:'https://www.youtube-nocookie.com',source:frame.contentWindow,data:JSON.stringify({event:'infoDelivery',info:{playerState:1,currentTime:14,duration:120,muted:false}})}));
+        await delay(40);
+        assert(document.body.classList.contains('smp-podcast-player-video-visible'),'video mode did not expose its responsive surface');
+        var videoReady=waitFor('smp:after-navigate');
+        assert(observedClick(document.getElementById('navigate'))===true,'active video did not enable safe AJAX navigation');
+        await videoReady;
+        assert(document.querySelector('[data-smp-video]')===frame&&player.getAttribute('data-smp-mode')==='video','video surface was replaced during AJAX navigation');
+        click(player.querySelector('[data-smp-mode-button="audio"]'));
+        await Promise.resolve();
+        assert(player.getAttribute('data-smp-mode')==='audio'&&!document.body.classList.contains('smp-podcast-player-video-visible'),'Audio switch did not restore the compact player');
+        assert(!playerAudio.paused&&playerAudio.currentTime>=13.5,'video timestamp did not transfer back to audio');
+        assert(player.querySelector('[data-smp-video-shell]').hidden,'video remained visible after switching to audio');
+        pass('PASS persistent video, AJAX navigation, and audio/video switching share one dynamic episode');
+        return;
+    }
+
     if(mode==='surface-matrix'){
         var homeApi=window.__mppHomeInteractions23128;
         assert(homeApi&&homeApi.version==='3.1.0'&&homeApi.isActive(),'owned homepage initializer did not activate');
@@ -1208,10 +1243,12 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
 function playerMarkup() {
     return `<aside id="smp-podcast-player" data-smp-player hidden>
 <audio data-smp-audio></audio>
+<div data-smp-stage><img data-smp-cover hidden><div data-smp-video-shell hidden><iframe data-smp-video></iframe></div></div>
+<span data-smp-kind></span><div data-smp-modes><button type="button" data-smp-mode-button="audio">Audio</button><button type="button" data-smp-mode-button="video">Video</button></div>
 <button type="button" data-smp-toggle><span data-smp-play-icon>play</span><span data-smp-pause-icon hidden>pause</span></button>
 <button type="button" data-smp-back>back</button><button type="button" data-smp-forward>forward</button>
 <input data-smp-seek type="range" min="0" max="1" value="0"><span data-smp-elapsed></span><span data-smp-duration></span>
-<a data-smp-title></a><img data-smp-cover hidden><a data-smp-download></a>
+<a data-smp-title></a><a data-smp-download></a>
 <select data-smp-rate><option value="1">1</option></select><input data-smp-volume type="range" min="0" max="1" value="1">
 <button type="button" data-smp-mute></button><button type="button" data-smp-close></button><span data-smp-status></span>
 </aside>`;

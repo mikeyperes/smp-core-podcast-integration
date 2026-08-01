@@ -1,6 +1,6 @@
 # Scale My Podcast - Core Functionality
 
-Hexa WordPress integration for podcast content, ACF field structures, profile relationships, PowerPress metadata, feeds, shortcodes, a persistent audio player, playback-preserving navigation, and release diagnostics.
+Hexa WordPress integration for podcast content, ACF field structures, profile relationships, PowerPress metadata, feeds, shortcodes, a persistent audio/video player, playback-preserving navigation, and release diagnostics.
 
 ## Requirements
 
@@ -31,22 +31,22 @@ The plugin defaults to existing WordPress posts. It does not migrate podcast arc
 
 - Existing post, option, ACF, and PowerPress metadata remains in place.
 - ACF group keys `group_6844c5d5cf57f` and `group_6848b7b0247cc` remain canonical.
-- All nine legacy shortcode tags remain registered, plus the canonical `[smp_listen_button]` player trigger.
+- All nine legacy shortcode tags remain registered, plus the canonical `[smp_listen_button]` and `[smp_watch_button]` media triggers.
 - The old active basename `smp-core-podcast-integration/initialization.php` migrates to the canonical plugin file automatically.
 - The public PowerPress feed remains `/feed/podcast/`.
 - Optional internal integration feed: `/feed/internal-rss/`.
-- The player uses one audio element. Playback URLs prefer PowerPress, then ACF `audio`, `audio_url`, and the WordPress `enclosure` value.
+- The player uses one audio element and one on-demand privacy-enhanced YouTube iframe. Audio URLs prefer PowerPress, then ACF `audio`, `audio_url`, and the WordPress `enclosure` value; video uses the validated episode `urls_youtube` value.
 - No unauthenticated admin AJAX action, public REST route, app shell, hash router, or alternate indexable response is introduced.
 
 ## Admin
 
 Open **Settings > Scale My Podcast**. The dashboard uses Hexa WP Core for sidebar tabs, collapsible structures, content-type and ACF controls, snippets, shortcodes, update panels, dynamic buttons, and integration tests.
 
-The **Persistent Player** tab saves through an authenticated, nonce-protected AJAX action. The player is opt-in by default and exposes independent switches for playback-preserving navigation, Media Session, remembered preferences, artwork, skip, rate, volume, download, and close controls. Playback-preserving navigation is eligible only while audio is actively playing; pause, close, end, and error immediately return links and history to ordinary browser behavior. The tab also controls the bounded content selector, excluded paths, timeout, transition, and skip intervals.
+The **Persistent Player** tab saves through an authenticated, nonce-protected AJAX action. The player is opt-in by default and exposes independent switches for playback-preserving navigation, inline video, the Audio / Video switch, timestamp transfer, Media Session, remembered preferences, artwork, skip, rate, volume, download, and close controls. Playback-preserving navigation is eligible only while the selected audio or video medium is actively playing; pause, close, end, and error immediately return links and history to ordinary browser behavior. The tab also controls the bounded content selector, excluded paths, timeout, transition, and skip intervals.
 
 ## Player and Elementor Contract
 
-Use `[smp_listen_button]` in an Elementor Shortcode widget, WordPress content, or a PHP template. Optional attributes are `post_id`, `label`, and `class`. The server-rendered button includes the canonical `data-smp-player-trigger` metadata contract and remains keyboard-operable.
+Use `[smp_listen_button]` or `[smp_watch_button]` in an Elementor Shortcode widget, WordPress content, or a PHP template. Optional attributes are `post_id`, `label`, and `class`; Watch also accepts `element="button"` for legacy button-only placement while its default output is a real YouTube anchor. The server-rendered controls carry both available media sources so visitors can switch formats without leaving the current episode. A native Elementor Watch button may retain its real dynamic YouTube URL and add the `smp-watch-button` class; the runtime intercepts only an unmodified primary click while inline video is enabled.
 
 For rebuilt Elementor templates, put `data-smp-ajax-root` on the one content island that should change between pages. Compatible explicit marker values may navigate to each other. Without explicit markers, selector changes are limited to the hardcoded Elementor page, post, single, and archive surface matrix; custom and bounded `main.site-main` or `main#content` selectors must match exactly. Keep the fixed player, persistent header, and persistent footer outside that island. Header, footer, navigation, whole-document, broad `main`, ambiguous selectors, and one-sided or mismatched explicit markers are rejected.
 
@@ -68,6 +68,19 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.2.1
+
+- Kept every server-rendered Watch control as a real crawlable YouTube anchor while preserving inline video interception for ordinary primary clicks
+- Created episode artwork only after a real track is selected so the idle fixed player cannot emit a broken empty image
+
+### 3.2.0
+
+- Rebuilt the fixed player as a branded persistent audio/video surface with dependency-free SVG controls and landscape episode artwork
+- Added validated YouTube episode resolution, native Watch interception, and an Elementor-ready `[smp_watch_button]` trigger
+- Added accessible Audio / Video switching with optional timestamp transfer while ensuring only one medium plays at a time
+- Kept AJAX navigation fail-closed and eligible only while the selected audio or video medium is actually playing
+- Added video, mode-switch, and timestamp-sync controls to the Persistent Player settings tab
 
 ### 3.1.7
 

@@ -55,6 +55,7 @@ function esc_url_raw( mixed $value ): string { return esc_url( $value ); }
 function wp_kses_post( mixed $value ): string { return (string) $value; }
 function wp_strip_all_tags( mixed $value ): string { return strip_tags( (string) $value ); }
 function wp_http_validate_url( mixed $value ): string|false { return filter_var( (string) $value, FILTER_VALIDATE_URL ) ? (string) $value : false; }
+function wp_parse_url( string $value ): array|false { return parse_url( $value ); }
 function admin_url( string $path = '' ): string { return 'https://example.test/wp-admin/' . ltrim( $path, '/' ); }
 function home_url( string $path = '' ): string { return 'https://example.test/' . ltrim( $path, '/' ); }
 function get_option( string $key, mixed $default = false ): mixed { return $GLOBALS['test_options'][ $key ] ?? $default; }
@@ -103,7 +104,7 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.1.7' === $header_version, 'plugin header reports 3.1.7', $header_version );
+check( '3.2.1' === $header_version, 'plugin header reports 3.2.1', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
@@ -143,6 +144,8 @@ $GLOBALS['test_options']['smp_podcast_content_model'] = 'post';
 $playback_defaults = SMP\Podcast\Settings\PlaybackSettings::defaults();
 check( false === $playback_defaults['enabled'], 'persistent player is opt-in by default' );
 check( true === $playback_defaults['ajax_navigation'], 'playback navigation is ready when the player is enabled' );
+check( true === $playback_defaults['video_enabled'], 'inline episode video is enabled by default once the player is enabled' );
+check( true === $playback_defaults['show_mode_switch'] && true === $playback_defaults['sync_media_position'], 'audio/video switching defaults to visible position-preserving controls' );
 check( ! array_key_exists( 'ajax_while_paused', $playback_defaults ), 'paused navigation cannot be enabled in settings' );
 $sanitized_playback = SMP\Podcast\Settings\PlaybackSettings::sanitize(
     [
@@ -241,8 +244,8 @@ $GLOBALS['test_options']['smp_podcast_content_model'] = 'post';
 
 $shortcodes = new SMP\Podcast\Frontend\Shortcodes();
 $shortcodes->register();
-$expected_tags = [ 'smp_listen_button', 'podcast_url', 'episode_fields', 'article_guests', 'podcast_hosts', 'display_single_episode_hosts', 'guest_grid', 'display_guest_profile_info', 'display_host_profile_info', 'podcast_host' ];
-check( $expected_tags === SMP\Podcast\Frontend\Shortcodes::tags(), 'canonical player trigger and all nine legacy shortcode tags register' );
+$expected_tags = [ 'smp_listen_button', 'smp_watch_button', 'podcast_url', 'episode_fields', 'article_guests', 'podcast_hosts', 'display_single_episode_hosts', 'guest_grid', 'display_guest_profile_info', 'display_host_profile_info', 'podcast_host' ];
+check( $expected_tags === SMP\Podcast\Frontend\Shortcodes::tags(), 'canonical media triggers and all nine legacy shortcode tags register' );
 check( [] === array_diff( $expected_tags, array_keys( $GLOBALS['test_shortcodes'] ) ), 'all shortcode callbacks register' );
 
 $GLOBALS['test_fields']['301:audio'] = [ 'url' => 'https://example.test/direct-301.mp3' ];
@@ -252,11 +255,49 @@ check( 'https://media.example.test/powerpress-301.mp3' === $resolved_audio['play
 check( 'https://example.test/direct-301.mp3' === $resolved_audio['download_url'], 'direct ACF media remains the download URL' );
 check( 3723 === $resolved_audio['duration_seconds'] && '1:02:03' === $resolved_audio['duration'], 'PowerPress duration normalizes for the player' );
 check( 'powerpress' === $resolved_audio['source'], 'resolved audio records its playback owner' );
-check( 'thumbnail' === ( $GLOBALS['test_thumbnail_sizes'][301] ?? null ), 'persistent-player cover requests the thumbnail derivative' );
+check( 'medium_large' === ( $GLOBALS['test_thumbnail_sizes'][301] ?? null ), 'persistent-player cover requests a landscape-capable derivative' );
 $listen_button = SMP\Podcast\Frontend\ShortcodeCallbacks::listen_button( [ 'post_id' => 301, 'label' => 'Listen now', 'class' => 'episode-listen custom<script>' ] );
 check( str_contains( $listen_button, 'data-smp-player-trigger' ) && str_contains( $listen_button, 'powerpress-301.mp3' ), 'listen-button shortcode emits the canonical player contract' );
 check( str_contains( $listen_button, 'aria-controls="smp-podcast-player"' ) && str_contains( $listen_button, 'aria-pressed="false"' ), 'listen-button shortcode is keyboard and state accessible' );
 check( ! str_contains( $listen_button, '<script>' ), 'listen-button shortcode sanitizes custom classes and labels' );
+
+$GLOBALS['test_fields']['301:urls_youtube'] = 'yzMcrZCYh5Y';
+$resolved_video = SMP\Podcast\Frontend\VideoSourceResolver::resolve( 301 );
+check( 'yzMcrZCYh5Y' === ( $resolved_video['id'] ?? '' ), 'YouTube episode IDs resolve into the persistent media contract' );
+check( '89gjiaYTa0Y' === SMP\Podcast\Frontend\VideoSourceResolver::video_id( '89gjiaYTa0Y&t=3s' ), 'legacy YouTube IDs with a timestamp suffix normalize safely' );
+check( 'yzMcrZCYh5Y' === SMP\Podcast\Frontend\VideoSourceResolver::video_id( 'https://www.youtube.com/watch?v=yzMcrZCYh5Y&t=14s' ), 'canonical YouTube watch URLs normalize safely' );
+check( '' === SMP\Podcast\Frontend\VideoSourceResolver::video_id( 'https://video.attacker.example/yzMcrZCYh5Y' ), 'non-YouTube video hosts are rejected' );
+$listen_with_video = SMP\Podcast\Frontend\ShortcodeCallbacks::listen_button( [ 'post_id' => 301 ] );
+check( str_contains( $listen_with_video, 'data-smp-video-id="yzMcrZCYh5Y"' ), 'listen trigger carries the matching dynamic video identity for format switching' );
+$watch_button = SMP\Podcast\Frontend\ShortcodeCallbacks::watch_button( [ 'post_id' => 301, 'label' => 'Watch now' ] );
+check( str_contains( $watch_button, 'data-smp-watch-trigger' ) && str_contains( $watch_button, 'data-smp-audio-src=' ), 'watch trigger carries both dynamic media sources for inline switching' );
+check(
+    str_starts_with( $watch_button, '<a ' )
+    && str_contains( $watch_button, 'href="https://www.youtube.com/watch?v=yzMcrZCYh5Y"' )
+    && ! str_contains( $watch_button, 'aria-pressed=' ),
+    'watch shortcode defaults to a crawlable YouTube anchor without button-only state semantics'
+);
+$watch_button_element = SMP\Podcast\Frontend\ShortcodeCallbacks::watch_button( [ 'post_id' => 301, 'element' => 'button' ] );
+check(
+    str_starts_with( $watch_button_element, '<button type="button" aria-pressed="false"' )
+    && ! str_contains( $watch_button_element, ' href=' ),
+    'watch shortcode retains an explicit accessible button compatibility mode'
+);
+
+$GLOBALS['test_options'][ SMP\Podcast\Settings\PlaybackSettings::OPTION_NAME ] = array_merge(
+    SMP\Podcast\Settings\PlaybackSettings::defaults(),
+    [ 'enabled' => true ]
+);
+ob_start();
+( new SMP\Podcast\Frontend\PersistentPlayer() )->render();
+$idle_player_markup = (string) ob_get_clean();
+check(
+    str_contains( $idle_player_markup, 'data-smp-stage' )
+    && ! str_contains( $idle_player_markup, 'data-smp-cover' )
+    && ! preg_match( '/<img\b[^>]*src=(?:""|\'\')/i', $idle_player_markup ),
+    'idle player markup has no empty or broken artwork image'
+);
+unset( $GLOBALS['test_options'][ SMP\Podcast\Settings\PlaybackSettings::OPTION_NAME ] );
 
 $GLOBALS['test_fields']['302:audio'] = null;
 $GLOBALS['test_fields']['302:audio_url'] = 'https://cdn.example.test/direct-302.m4a';
@@ -317,7 +358,20 @@ $player_css = (string) file_get_contents( $root . '/assets/frontend-player.css' 
 $home_interactions_js = (string) file_get_contents( $root . '/assets/home-interactions.js' );
 $home_interactions_css = (string) file_get_contents( $root . '/assets/home-interactions.css' );
 check( str_contains( $player_js, "response.status !== 200" ) && str_contains( $player_js, "text/html" ), 'AJAX navigation accepts only HTTP 200 HTML documents' );
-check( str_contains( $player_js, 'state.playbackActivated' ) && str_contains( $player_js, 'return !audio.paused;' ) && ! str_contains( $player_js, 'ajaxWhilePaused' ), 'navigation interception requires actively playing audio and has no paused-track override' );
+check(
+    str_contains( $player_js, 'state.playbackActivated' )
+    && str_contains( $player_js, 'state.videoPlaybackActivated && state.videoPlaying' )
+    && str_contains( $player_js, 'return !audio.paused;' )
+    && ! str_contains( $player_js, 'ajaxWhilePaused' ),
+    'navigation interception requires the selected audio or video medium to be actively playing'
+);
+check(
+    str_contains( $player_js, 'youtubeVideoId(videoValue)' )
+    && str_contains( $player_js, "switchMode('video', true)" )
+    && str_contains( $player_js, "switchMode('audio', true)" )
+    && str_contains( $player_js, 'https://www.youtube-nocookie.com/embed/' ),
+    'runtime supports validated inline video and bidirectional media switching'
+);
 check( str_contains( $player_js, "new DOMParser().parseFromString" ) && str_contains( $player_js, "roots.current.replaceWith" ), 'navigation parses full public documents and replaces only the content island' );
 check(
     str_contains( $player_js, "nodesIncludingScope(root, '.elementor-element[data-element_type]')" )
@@ -407,6 +461,12 @@ check(
 check( str_contains( $player_js, "nodesIncludingScope(scope, '#ap-audio')" ) && str_contains( $player_js, 'enforcePlayerSingleton' ), 'legacy audio is migrated into the singleton player contract' );
 check( ! str_contains( $player_js, 'admin-ajax.php' ) && ! str_contains( $player_js, 'wp-json' . '/smp' ), 'frontend navigation uses exact public URLs without a public AJAX API' );
 check( str_contains( $player_css, 'position: fixed' ) && str_contains( $player_css, 'prefers-reduced-motion' ), 'fixed player CSS includes reduced-motion support' );
+check(
+    str_contains( $player_css, '--smp-player-accent: #e00813' )
+    && str_contains( $player_css, 'aspect-ratio: 16 / 9' )
+    && str_contains( $player_css, '.smp-podcast-player .smp-podcast-player__toggle' ),
+    'player CSS owns the podcast brand, landscape artwork, and theme-resistant control specificity'
+);
 check(
     str_contains( $home_interactions_js, "var apiKey = '__mppHomeInteractions23128'" )
     && str_contains( $home_interactions_js, "document.addEventListener('smp:content-ready', refresh)" )

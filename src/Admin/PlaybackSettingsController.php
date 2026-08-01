@@ -30,6 +30,9 @@ final class PlaybackSettingsController implements ModuleInterface {
             [
                 'enabled' => $request->bool( 'enabled', false, 'post' ),
                 'ajax_navigation' => $request->bool( 'ajax_navigation', false, 'post' ),
+                'video_enabled' => $request->bool( 'video_enabled', false, 'post' ),
+                'show_mode_switch' => $request->bool( 'show_mode_switch', false, 'post' ),
+                'sync_media_position' => $request->bool( 'sync_media_position', false, 'post' ),
                 'content_selector' => $request->text( 'content_selector', '', 'post' ),
                 'excluded_paths' => $request->raw( 'excluded_paths', '', 'post' ),
                 'timeout_ms' => $request->int( 'timeout_ms', 10000, 'post' ),

@@ -21,6 +21,7 @@ final class ShortcodeCallbacks {
         if ( [] === $source ) {
             return '';
         }
+        $video = VideoSourceResolver::resolve( $post_id );
 
         $classes = [ 'smp-listen-button' ];
         foreach ( preg_split( '/\s+/', (string) $atts['class'] ) ?: [] as $class_name ) {
@@ -43,9 +44,64 @@ final class ShortcodeCallbacks {
             . ' data-smp-image="' . esc_attr( (string) $source['image'] ) . '"'
             . ' data-smp-duration="' . esc_attr( (string) $source['duration'] ) . '"'
             . ' data-smp-duration-seconds="' . (int) $source['duration_seconds'] . '"'
+            . ( ! empty( $video['id'] ) ? ' data-smp-video-id="' . esc_attr( (string) $video['id'] ) . '"' : '' )
+            . ( ! empty( $video['watch_url'] ) ? ' data-smp-video-url="' . esc_attr( (string) $video['watch_url'] ) . '"' : '' )
             . ' aria-controls="smp-podcast-player" aria-pressed="false" aria-label="' . esc_attr( $label . ': ' . $title ) . '">'
-            . '<span data-smp-listen-icon aria-hidden="true">▶</span><span data-smp-listen-label>' . esc_html( $label ) . '</span>'
+            . '<span data-smp-listen-icon aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M8 5v14l11-7z"/></svg></span><span data-smp-listen-label>' . esc_html( $label ) . '</span>'
             . '</button>';
+    }
+
+    /** @param array<string,mixed> $atts */
+    public static function watch_button( array $atts = [] ): string {
+        $atts = shortcode_atts(
+            [
+                'post_id' => 0,
+                'label' => 'Watch',
+                'class' => '',
+                'element' => 'a',
+            ],
+            $atts,
+            'smp_watch_button'
+        );
+        $post_id = self::post_id( $atts );
+        $video = VideoSourceResolver::resolve( $post_id );
+        if ( [] === $video ) {
+            return '';
+        }
+        $audio = AudioSourceResolver::resolve( $post_id );
+        $classes = [ 'smp-watch-button' ];
+        foreach ( preg_split( '/\s+/', (string) $atts['class'] ) ?: [] as $class_name ) {
+            $class_name = preg_replace( '/[^A-Za-z0-9_-]/', '', $class_name ) ?: '';
+            if ( '' !== $class_name ) {
+                $classes[] = $class_name;
+            }
+        }
+        $label = sanitize_text_field( (string) $atts['label'] );
+        $label = '' !== $label ? $label : 'Watch';
+        $title = (string) ( $audio['title'] ?? get_the_title( $post_id ) );
+        $element = 'button' === strtolower( sanitize_key( (string) $atts['element'] ) ) ? 'button' : 'a';
+        $opening = '<' . $element;
+        if ( 'a' === $element ) {
+            $opening .= ' href="' . esc_url( (string) $video['watch_url'] ) . '"';
+        } else {
+            $opening .= ' type="button" aria-pressed="false"';
+        }
+
+        return $opening . ' class="' . esc_attr( implode( ' ', array_unique( $classes ) ) ) . '"'
+            . ' data-smp-watch-trigger'
+            . ' data-smp-post-id="' . (int) $post_id . '"'
+            . ' data-smp-video-id="' . esc_attr( (string) $video['id'] ) . '"'
+            . ' data-smp-video-url="' . esc_attr( (string) $video['watch_url'] ) . '"'
+            . ( ! empty( $audio['playback_url'] ) ? ' data-smp-audio-src="' . esc_attr( (string) $audio['playback_url'] ) . '"' : '' )
+            . ( ! empty( $audio['download_url'] ) ? ' data-smp-download-src="' . esc_attr( (string) $audio['download_url'] ) . '"' : '' )
+            . ' data-smp-title="' . esc_attr( $title ) . '"'
+            . ' data-smp-url="' . esc_attr( (string) ( $audio['permalink'] ?? get_permalink( $post_id ) ) ) . '"'
+            . ( ! empty( $audio['image'] ) ? ' data-smp-image="' . esc_attr( (string) $audio['image'] ) . '"' : '' )
+            . ( ! empty( $audio['duration'] ) ? ' data-smp-duration="' . esc_attr( (string) $audio['duration'] ) . '"' : '' )
+            . ( ! empty( $audio['duration_seconds'] ) ? ' data-smp-duration-seconds="' . (int) $audio['duration_seconds'] . '"' : '' )
+            . ' aria-controls="smp-podcast-player" aria-label="' . esc_attr( $label . ': ' . $title ) . '">'
+            . '<span data-smp-watch-icon aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false"><path d="M21 7.2a2.7 2.7 0 0 0-1.9-1.9C17.4 4.8 12 4.8 12 4.8s-5.4 0-7.1.5A2.7 2.7 0 0 0 3 7.2 28 28 0 0 0 2.5 12 28 28 0 0 0 3 16.8a2.7 2.7 0 0 0 1.9 1.9c1.7.5 7.1.5 7.1.5s5.4 0 7.1-.5a2.7 2.7 0 0 0 1.9-1.9 28 28 0 0 0 .5-4.8 28 28 0 0 0-.5-4.8ZM10 15.5v-7l6 3.5-6 3.5Z"/></svg></span><span data-smp-watch-label>' . esc_html( $label ) . '</span>'
+            . '</' . $element . '>';
     }
 
     /** @param array<string,mixed> $atts */

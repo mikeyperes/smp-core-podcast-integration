@@ -262,15 +262,18 @@ final class Dashboard implements ModuleInterface {
         $settings = PlaybackSettings::get();
         ?>
         <section class="smp-podcast-intro">
-            <h2>Persistent Player and Playback Navigation</h2>
-            <p>One fixed audio player can remain active while listeners browse. Navigation is enhanced only during an active track; every public URL remains a complete server-rendered WordPress document for search engines, sharing, and direct visits.</p>
+            <h2>Persistent Media Player and Playback Navigation</h2>
+            <p>One fixed audio or video player can remain active while listeners browse. Navigation is enhanced only while the selected media is actively playing; every public URL remains a complete server-rendered WordPress document for search engines, sharing, and direct visits.</p>
         </section>
         <form class="smp-podcast-playback-form" data-smp-playback-form>
             <section class="hpc-card">
                 <div class="smp-podcast-setting-heading"><div><h3>Runtime</h3><p>Enable the singleton player first, then choose when same-origin links use the playback-preserving navigation layer.</p></div><?php echo CoreUi::pill( $settings['enabled'] ? 'Enabled' : 'Disabled', $settings['enabled'] ? 'success' : 'warning' ); ?></div>
                 <div class="smp-podcast-toggle-grid">
-                    <?php $this->playback_toggle( 'enabled', 'Enable persistent podcast player', 'Renders one accessible audio element and fixed bottom control bar.', (bool) $settings['enabled'] ); ?>
-                    <?php $this->playback_toggle( 'ajax_navigation', 'Enable playback-preserving navigation', 'Fetches the clicked public HTML page only while audio is playing.', (bool) $settings['ajax_navigation'] ); ?>
+                    <?php $this->playback_toggle( 'enabled', 'Enable persistent podcast player', 'Renders one accessible media surface and fixed bottom control bar.', (bool) $settings['enabled'] ); ?>
+                    <?php $this->playback_toggle( 'ajax_navigation', 'Enable playback-preserving navigation', 'Fetches the clicked public HTML page only while audio or video is actively playing.', (bool) $settings['ajax_navigation'] ); ?>
+                    <?php $this->playback_toggle( 'video_enabled', 'Enable inline episode video', 'Loads a real episode YouTube video inside the persistent media surface after a Watch click.', (bool) $settings['video_enabled'] ); ?>
+                    <?php $this->playback_toggle( 'show_mode_switch', 'Show Audio / Video switch', 'Lets visitors switch formats for the same episode without leaving the current page.', (bool) $settings['show_mode_switch'] ); ?>
+                    <?php $this->playback_toggle( 'sync_media_position', 'Keep position when switching formats', 'Carries the current timestamp between audio and video when both versions are available.', (bool) $settings['sync_media_position'] ); ?>
                     <?php $this->playback_toggle( 'media_session', 'Use browser Media Session controls', 'Adds lock-screen and hardware play, pause, seek, and metadata support.', (bool) $settings['media_session'] ); ?>
                     <?php $this->playback_toggle( 'remember_preferences', 'Remember speed and volume', 'Stores only playback rate and volume in local browser storage.', (bool) $settings['remember_preferences'] ); ?>
                 </div>
@@ -408,6 +411,7 @@ final class Dashboard implements ModuleInterface {
                 'key' => 'episode', 'title' => 'Episode Data', 'layer' => 'Post layer', 'live' => 'shortcode', 'register_file' => 'src/Frontend/ShortcodeCallbacks.php', 'access' => 'Podcast content',
                 'items' => [
                     [ 'tag' => 'smp_listen_button', 'code' => '[smp_listen_button label="Listen"]', 'desc' => 'Render the canonical persistent-player trigger with resolved PowerPress or ACF audio metadata.', 'type' => 'Accessible button', 'params' => 'post_id, label, class' ],
+                    [ 'tag' => 'smp_watch_button', 'code' => '[smp_watch_button label="Watch"]', 'desc' => 'Render a crawlable YouTube link that opens the validated episode video inline and carries the matching audio source.', 'type' => 'Crawlable media link', 'params' => 'post_id, label, class, element' ],
                     [ 'tag' => 'episode_fields', 'code' => '[episode_fields name="audio_url"]', 'desc' => 'Output any podcast episode field or grouped URL subfield.', 'type' => 'Text or URL', 'params' => 'name' ],
                     [ 'tag' => 'article_guests', 'code' => '[article_guests]', 'desc' => 'Display linked guest profiles for the current podcast item.', 'type' => 'HTML' ],
                     [ 'tag' => 'podcast_hosts', 'code' => '[podcast_hosts]', 'desc' => 'Display linked host profiles.', 'type' => 'HTML' ],

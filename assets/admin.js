@@ -158,7 +158,7 @@
             nonce: window.smpPodcastAdmin.nonce
         };
         var checkboxNames = [
-            'enabled', 'ajax_navigation', 'show_cover', 'show_skip',
+            'enabled', 'ajax_navigation', 'video_enabled', 'show_mode_switch', 'sync_media_position', 'show_cover', 'show_skip',
             'show_rate', 'show_volume', 'show_download', 'show_close', 'media_session',
             'remember_preferences'
         ];

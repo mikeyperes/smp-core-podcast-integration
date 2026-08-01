@@ -24,8 +24,8 @@ final class AudioSourceResolver {
             ?: self::valid_url( $enclosure['url'] ?? '' )
             ?: $playback_url;
         $duration = self::duration( $powerpress['duration'] ?? ( $enclosure['duration'] ?? '' ) );
-        $cover_size = apply_filters( 'smp_podcast_player_cover_image_size', 'thumbnail', $post_id );
-        $cover_size = is_string( $cover_size ) || is_array( $cover_size ) ? $cover_size : 'thumbnail';
+        $cover_size = apply_filters( 'smp_podcast_player_cover_image_size', 'medium_large', $post_id );
+        $cover_size = is_string( $cover_size ) || is_array( $cover_size ) ? $cover_size : 'medium_large';
         $image = function_exists( 'get_the_post_thumbnail_url' )
             ? (string) ( get_the_post_thumbnail_url( $post_id, $cover_size ) ?: '' )
             : '';
