@@ -103,7 +103,7 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.1.4' === $header_version, 'plugin header reports 3.1.4', $header_version );
+check( '3.1.5' === $header_version, 'plugin header reports 3.1.5', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
@@ -351,6 +351,20 @@ check(
     str_contains( $player_js, 'JetEngineSettings' )
     && str_contains( $player_js, '/^jet-engine-frontend-js-extra$/' ),
     'JetEngine page context is accepted only from its exact JSON localization handle'
+);
+check(
+    str_contains( $player_js, "'jet-engine-data-stores-js-before'" )
+    && str_contains( $player_js, "'jet-engine-frontend-js-before'" )
+    && str_contains( $player_js, 'canonical === safeDynamicInlineScript.sources[id]' )
+    && str_contains( $player_js, "new RegExp('(?:^|\\\\n)//# sourceURL='" ),
+    'only byte-exact captured JetEngine before-initializers may cross an active AJAX navigation'
+);
+check(
+    substr_count( $player_js, 'safeDynamicInlineScript(source,' ) >= 2
+    && str_contains( $player_js, 'copyExecutableInlineScript(source)' )
+    && str_contains( $player_js, "reject(unsupportedNavigation('unsupported-inline-script'))" )
+    && substr_count( $player_js, 'if (signal && signal.aborted)' ) >= 4,
+    'trusted inline initializers are revalidated and abort-checked immediately before ordered execution'
 );
 check( str_contains( $player_js, 'cancelPendingNavigation' ) && str_contains( $player_js, 'parkNavigationSession' ) && str_contains( $player_js, 'pendingNavigationActive' ), 'pause and terminal playback states cancel pending work and park history ownership' );
 check( str_contains( $player_js, 'inline-event-handler' ) && str_contains( $player_js, 'copyAllowedAttributes' ) && str_contains( $player_js, 'managedInlineStyleId' ), 'fetched event attributes are rejected and managed assets use explicit policies' );

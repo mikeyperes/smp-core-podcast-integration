@@ -54,7 +54,7 @@ Plugin-owned markup that must live outside the replaceable island uses the inert
 
 No history listener, scroll-state mutation, or manual scroll restoration is installed on page load. A navigation session begins only after playback is eligible and the first fetched page passes root, script, style, and Elementor preflight. It fetches the exact same-origin public URL and accepts only an HTTP 200 HTML document. Any timeout, HTTP error, non-HTML response, mismatched root, unsupported executable inline script or localized configuration, missing script asset, unsupported style, unavailable Elementor lifecycle, external URL, account/checkout path, feed, media/download URL, modified click, target link, or excluded path uses ordinary browser navigation.
 
-After safe preflight, the runtime reconciles validated WordPress/Elementor inline styles, loads trusted stylesheets and a narrow handle-and-path allowlist of Elementor/JetEngine dependencies, and accepts Elementor's exact reCAPTCHA handle only from the HTTPS Google or reCAPTCHA endpoint with `render=explicit`. It then replaces only the matched content island, synchronizes the document title/language, common canonical/alternate links, common SEO and social metadata, head JSON-LD, body classes, history, and scroll position, and invokes the supported Elementor ready trigger. It never evaluates fetched inline JavaScript, copies inline event handlers, or loads an unknown script. Direct requests remain complete server-rendered WordPress pages with their original status, metadata, schema, and crawlable links.
+After safe preflight, the runtime reconciles validated WordPress/Elementor inline styles, loads trusted stylesheets and a narrow handle-and-path allowlist of Elementor/JetEngine dependencies, accepts Elementor's exact reCAPTCHA handle only from the HTTPS Google or reCAPTCHA endpoint with `render=explicit`, and executes only byte-exact captured JetEngine initializers after execution-time revalidation and abort checks. It then replaces only the matched content island, synchronizes the document title/language, common canonical/alternate links, common SEO and social metadata, head JSON-LD, body classes, history, and scroll position, and invokes the supported Elementor ready trigger. It never evaluates unknown fetched inline JavaScript, copies inline event handlers, or loads an unknown script. Direct requests remain complete server-rendered WordPress pages with their original status, metadata, schema, and crawlable links.
 
 ## Testing
 
@@ -69,10 +69,15 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ## Release History
 
+### 3.1.5
+
+- Reconciled the strict JetEngine initializer and Elementor reCAPTCHA policies into one runtime so both Loop Grid and form destinations preserve active playback
+- Added combined browser coverage for trusted dependencies, tampered inline scripts, aborted execution, and a spoofed external reCAPTCHA host
+
 ### 3.1.4
 
+- Preserved active playback across JetEngine Loop Grid destinations by allowing only byte-exact captured JetEngine data-store and popup initializers, revalidating and abort-checking them immediately before ordered execution, and retaining hard-navigation fallback for altered or unknown inline scripts
 - Preserved active audio when navigating to Elementor form pages by accepting only the exact Elementor reCAPTCHA handle from its validated HTTPS hosts, API path, and explicit render mode
-- Added browser coverage proving the trusted reCAPTCHA dependency loads while a spoofed external host still forces normal browser navigation
 
 ### 3.1.3
 

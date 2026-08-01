@@ -837,8 +837,15 @@
                 if (currentInlineSignatures.has(signature)) return;
                 if (wordfenceInitialized && alreadyInitializedInlineScript(source, text)) return;
                 var localized = parseSupportedLocalizedConfig(source, text);
-                if (!localized) throw unsupportedNavigation('unsupported-inline-script');
-                plan.configs.push(localized);
+                if (localized) {
+                    plan.configs.push(localized);
+                    return;
+                }
+                if (safeDynamicInlineScript(source, text)) {
+                    plan.scripts.push(source);
+                    return;
+                }
+                throw unsupportedNavigation('unsupported-inline-script');
             });
         }
 
@@ -921,6 +928,24 @@
             return sources.reduce(function (chain, source) {
                 return chain.then(function () {
                     return new Promise(function (resolve, reject) {
+                        if (!source.src) {
+                            if (signal && signal.aborted) {
+                                reject(abortError());
+                                return;
+                            }
+                            var inlineText = normalizedAssetText(source.textContent);
+                            if (!safeDynamicInlineScript(source, inlineText)) {
+                                reject(unsupportedNavigation('unsupported-inline-script'));
+                                return;
+                            }
+                            if (signal && signal.aborted) {
+                                reject(abortError());
+                                return;
+                            }
+                            document.head.appendChild(copyExecutableInlineScript(source));
+                            resolve();
+                            return;
+                        }
                         var settled = false;
                         var script = copyExternalScript(source);
                         var finish = function (error, aborted) {
@@ -963,6 +988,13 @@
             script.async = false;
             if (source.hasAttribute('nomodule')) script.noModule = true;
             script.src = source.src;
+            return script;
+        }
+
+        function copyExecutableInlineScript(source) {
+            var script = document.createElement('script');
+            copyAllowedAttributes(source, script, ['id', 'type', 'nonce']);
+            script.textContent = source.textContent || '';
             return script;
         }
 
@@ -1295,6 +1327,25 @@
                 return false;
             }
         }
+
+        function safeDynamicInlineScript(source, text) {
+            var id = (source.id || '').trim();
+            var type = scriptType(source);
+            if ((type && type !== 'text/javascript' && type !== 'application/javascript')
+                || !Object.prototype.hasOwnProperty.call(safeDynamicInlineScript.sources, id)
+            ) return false;
+
+            var escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            var canonical = String(text || '')
+                .replace(new RegExp('(?:^|\\n)//# sourceURL=' + escapedId + '\\s*$'), '')
+                .trim();
+            return canonical === safeDynamicInlineScript.sources[id];
+        }
+
+        safeDynamicInlineScript.sources = {
+            'jet-engine-data-stores-js-before': "window.JetEngineStores = window.JetEngineStores || {};\n\t\t\twindow.JetEngineStores['local-storage'] = {\n\t\t\t\taddToStore: function( storeSlug, postID, maxSize, isOnViewStore ) {\n\t\t\t\t\t\n\t\tvar store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug );\n\t\tisOnViewStore = isOnViewStore || false;\n\n\t\tif ( store ) {\n\t\t\tstore = store.split( ',' );\n\t\t} else {\n\t\t\tstore = [];\n\t\t}\n\n\t\tpostID = '' + postID;\n\n\t\tmaxSize = parseInt( maxSize, 10 );\n\n\t\tif ( 0 <= store.indexOf( postID ) ) {\n\t\t\treturn store.length;\n\t\t}\n\n\t\tif ( 0 < maxSize && store.length >= maxSize ) {\n\t\t\t\n\t\t\tif ( isOnViewStore ) {\n\t\t\t\tstore.splice( 0, 1 );\n\t\t\t} else {\n\t\t\t\talert( 'You can`t add more posts' );\n\t\t\t\treturn false;\n\t\t\t}\n\t\t\n\t\t}\n\n\t\tstore.push( postID );\n\n\t\twindow.localStorage.setItem( 'jet_engine_store_' + storeSlug, store.join( ',' ) );\n\n\t\treturn store.length;\n\n\t\t\n\t\t\t\t},\n\t\t\t\tremove: function( storeSlug, postID ) {\n\t\t\t\t\t\n\t\tvar store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ),\n\t\t\tindex;\n\n\t\tif ( store ) {\n\t\t\tstore = store.split( ',' );\n\t\t} else {\n\t\t\tstore = [];\n\t\t}\n\n\t\tpostID = '' + postID;\n\n\t\tindex = store.indexOf( postID );\n\n\t\tif ( 0 > index ) {\n\t\t\treturn store.length;\n\t\t} else {\n\t\t\tstore.splice( index, 1 );\n\t\t}\n\n\t\twindow.localStorage.setItem( 'jet_engine_store_' + storeSlug, store.join( ',' ) );\n\n\t\treturn store.length;\n\n\t\t\n\t\t\t\t},\n\t\t\t\tinStore: function( storeSlug, postID ) {\n\t\t\t\t\t\n\t\tvar store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ),\n\t\t\tindex;\n\n\t\tpostID = '' + postID;\n\n\t\tif ( store ) {\n\t\t\tstore = store.split( ',' );\n\t\t} else {\n\t\t\tstore = [];\n\t\t}\n\n\t\tindex = store.indexOf( postID );\n\n\t\treturn ( 0 <= index );\n\n\t\t\n\t\t\t\t},\n\t\t\t\tgetStore: function( storeSlug ) {\n\t\t\t\t\t\n\t\tvar store = window.localStorage.getItem( 'jet_engine_store_' + storeSlug ),\n\t\t\tindex;\n\n\t\tif ( store ) {\n\t\t\tstore = store.split( ',' );\n\t\t} else {\n\t\t\tstore = [];\n\t\t}\n\n\t\treturn store;\n\n\t\t\n\t\t\t\t},\n\t\t\t};",
+            'jet-engine-frontend-js-before': "jQuery( window ).on( 'jet-engine/frontend/loaded', function() {\n\t\t\t\twindow.JetPlugins.hooks.addFilter(\n\t\t\t\t\t'jet-popup.show-popup.data',\n\t\t\t\t\t'JetEngine.popupData',\n\t\t\t\t\tfunction( popupData, popup, triggeredBy ) {\n\n\t\t\t\t\t\tif ( ! triggeredBy ) {\n\t\t\t\t\t\t\treturn popupData;\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\tif ( ! triggeredBy.data( 'popupIsJetEngine' ) ) {\n\t\t\t\t\t\t\treturn popupData;\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\tvar wrapper = triggeredBy.closest( '.jet-listing-grid__items' );\n\n\t\t\t\t\t\tif ( wrapper.length && wrapper.data( 'cctSlug' ) ) {\n\t\t\t\t\t\t\tpopupData['cctSlug'] = wrapper.data( 'cctSlug' );\n\t\t\t\t\t\t}\n\n\t\t\t\t\t\treturn popupData;\n\t\t\t\t\t}\n\t\t\t\t);\n\t\t\t} );"
+        };
 
         function ignorableSelfRemovingScript(source) {
             if (!source || !source.src) return false;

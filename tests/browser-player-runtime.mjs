@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
@@ -23,6 +24,10 @@ const scenarios = [
     'foreign-history',
     'elementor-ready',
     'elementor-recaptcha',
+    'trusted-jet-inline',
+    'tampered-jet-inline',
+    'tampered-jet-whitespace',
+    'aborted-jet-inline',
     'elementor-unready',
     'unsupported-inline',
     'missing-script',
@@ -103,6 +108,16 @@ const server = createServer((request, response) => {
     if (url.pathname === '/elementor-recaptcha') {
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
         response.end(recaptchaTargetDocument('https://www.google.com/recaptcha/api.js?render=explicit&ver=4.2.1'));
+        return;
+    }
+    if (['/trusted-jet-inline', '/tampered-jet-inline', '/tampered-jet-whitespace', '/aborted-jet-inline'].includes(url.pathname)) {
+        const mode = url.pathname.slice(1);
+        const tampered = mode === 'tampered-jet-inline' || mode === 'tampered-jet-whitespace';
+        const directRequest = request.headers['sec-fetch-dest'] === 'document';
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(tampered && directRequest
+            ? fallbackDocument('unsupported-inline-script')
+            : jetInlineTargetDocument(mode));
         return;
     }
     if (url.pathname === '/continuity') {
@@ -306,6 +321,10 @@ function scenarioDocument(mode) {
         'foreign-history': '/foreign-history-target',
         'elementor-ready': '/elementor-ready',
         'elementor-recaptcha': '/elementor-recaptcha',
+        'trusted-jet-inline': '/trusted-jet-inline',
+        'tampered-jet-inline': '/tampered-jet-inline',
+        'tampered-jet-whitespace': '/tampered-jet-whitespace',
+        'aborted-jet-inline': '/aborted-jet-inline',
         'elementor-unready': '/elementor-unready',
         'unsupported-inline': '/unsupported-inline',
         'missing-script': '/missing-script',
@@ -344,6 +363,7 @@ function scenarioDocument(mode) {
 ${initialAssetMarkup(mode)}
 <script>${instrumentationScript()}</script>
 ${mode === 'elementor-ready' || mode === 'elementor-recaptcha' || mode === 'divergent-assets' ? elementorTestBootstrap() : ''}
+${['trusted-jet-inline', 'tampered-jet-inline', 'tampered-jet-whitespace', 'aborted-jet-inline'].includes(mode) ? jetInlineTestBootstrap(mode === 'aborted-jet-inline') : ''}
 <script>window.smpPodcastPlayerConfig=${JSON.stringify(config)};</script>
 <script src="/assets/frontend-player.js"></script>
 </head><body>
@@ -619,6 +639,67 @@ function recaptchaTargetDocument(source) {
 </head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor reCAPTCHA target</h1><form class="elementor-form"><input name="email" type="email"></form></main></body></html>`;
 }
 
+function jetInlineTargetDocument(mode = 'trusted-jet-inline') {
+    const scripts = jetBeforeScriptSources();
+    let dataStoreSource = scripts.dataStores;
+    if (mode === 'tampered-jet-inline') {
+        dataStoreSource += '\nwindow.__tamperedJetInline = true;';
+    } else if (mode === 'tampered-jet-whitespace') {
+        dataStoreSource = dataStoreSource.replace('return store.length;', 'return\nstore.length;');
+    }
+    const label = mode === 'aborted-jet-inline' ? 'Aborted' : (mode === 'trusted-jet-inline' ? 'Trusted' : 'Tampered');
+    return `<!doctype html><html lang="en"><head><title>${label} JetEngine target</title>
+<link rel="canonical" href="/${escapeHtml(mode)}"><meta name="description" content="JetEngine target description">
+<script id="jet-engine-data-stores-js-before">${dataStoreSource}
+//# sourceURL=jet-engine-data-stores-js-before</script>
+<script id="jet-engine-data-stores-js" src="/wp-content/plugins/jet-engine/assets/js/frontend/modules/data-stores.js?ver=3.8.13.2"></script>
+<script id="jet-engine-frontend-js-before">${scripts.frontend}
+//# sourceURL=jet-engine-frontend-js-before</script>
+<script id="jet-engine-frontend-js" src="/wp-content/plugins/jet-engine/assets/js/frontend/frontend.js?ver=3.8.13.2"></script>
+</head><body><main data-smp-ajax-root="content"><h1>${label} JetEngine target</h1></main></body></html>`;
+}
+
+function jetBeforeScriptSources() {
+    const runtimeSource = runtime.toString('utf8');
+    const fixtures = {
+        dataStores: ['jet-engine-data-stores-js-before', 'b5a3263bf555f71f8c6de220981a3b317c8608a078b2e021cbbb91726ffde4dc'],
+        frontend: ['jet-engine-frontend-js-before', '343ca28c23c2d9d7e87c13c6581b8e27ee97a5a1921fd50df31d7b2aff472e94']
+    };
+    return Object.fromEntries(Object.entries(fixtures).map(([name, fixture]) => {
+        const pattern = new RegExp("'" + fixture[0] + "': (\\\"(?:[^\\\"\\\\]|\\\\.)*\\\")");
+        const match = pattern.exec(runtimeSource);
+        if (!match) throw new Error(`Missing captured JetEngine fixture: ${fixture[0]}`);
+        const decoded = JSON.parse(match[1]);
+        const digest = createHash('sha256').update(decoded).digest('hex');
+        if (digest !== fixture[1]) throw new Error(`JetEngine fixture hash mismatch: ${fixture[0]}`);
+        return [name, decoded];
+    }));
+}
+
+function jetInlineTestBootstrap(abortBeforeInline = false) {
+    return `<script>
+window.__jetBeforeEvents=[];
+window.__jetFilters=[];
+window.jQuery=function(){return {on:function(name){window.__jetBeforeEvents.push(name);}};};
+window.JetPlugins={hooks:{addFilter:function(){window.__jetFilters.push(Array.prototype.slice.call(arguments,0,2).join(':'));}}};
+${abortBeforeInline ? `window.__nativeStringTrim=String.prototype.trim;
+window.__jetDataStoreTrimCalls=0;
+window.__jetAbortRevalidationReached=false;
+String.prototype.trim=function(){
+    var value=String(this);
+    if(value.indexOf('window.JetEngineStores = window.JetEngineStores')!==-1){
+        window.__jetDataStoreTrimCalls+=1;
+        if(window.__jetDataStoreTrimCalls===4){
+            window.__jetAbortRevalidationReached=true;
+            String.prototype.trim=window.__nativeStringTrim;
+            document.querySelector('[data-smp-audio]').pause();
+        }
+    }
+    return window.__nativeStringTrim.call(this);
+};` : ''}
+</script>`;
+}
+
 function elementorUnreadyDocument() {
     return '<!doctype html><html><head><title>Elementor unavailable</title></head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor unavailable</h1></main></body></html>';
 }
@@ -852,6 +933,39 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
         assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>cloudflareBefore,'audio continuity was lost on the Cloudflare-script surface');
         assert(counters.pushes===1&&counters.popstateBindings===1,'Cloudflare-script surface did not use one AJAX history transition');
         pass('PASS known same-origin Cloudflare email decoder is ignored without execution');
+        return;
+    }
+
+    if(mode==='trusted-jet-inline'){
+        var jetBefore=playerAudio.currentTime;
+        var jetReady=waitFor('smp:after-navigate');
+        assert(observedClick(document.getElementById('navigate'))===true,'trusted JetEngine target navigation was not intercepted');
+        await jetReady;
+        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Trusted JetEngine target','trusted JetEngine target did not swap');
+        assert(window.JetEngineStores&&typeof window.JetEngineStores['local-storage'].getStore==='function','validated JetEngine data-store initializer did not execute');
+        assert(window.__jetBeforeEvents.join(',')==='jet-engine/frontend/loaded','validated JetEngine frontend initializer did not register in source order');
+        assert(window.__dynamicLoads.join(',')==='jet-engine-data-stores-js,jet-engine-frontend-js','JetEngine external assets did not load in source order');
+        assert(document.querySelectorAll('#jet-engine-data-stores-js-before').length===1&&document.querySelectorAll('#jet-engine-frontend-js-before').length===1,'validated JetEngine initializers were duplicated or omitted');
+        assert(window.__tamperedJetInline!==true,'tampered JetEngine code executed');
+        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>jetBefore,'audio continuity was lost while loading validated JetEngine initializers');
+        assert(counters.pushes===1&&counters.popstateBindings===1,'trusted JetEngine navigation did not own one AJAX transition');
+        pass('PASS exact JetEngine before-initializers load in order without interrupting audio');
+        return;
+    }
+
+    if(mode==='aborted-jet-inline'){
+        assert(observedClick(document.getElementById('navigate'))===true,'aborted JetEngine target navigation was not intercepted');
+        await delay(520);
+        assert(window.__jetAbortRevalidationReached===true&&window.__jetDataStoreTrimCalls===4,'JetEngine abort fixture did not reach execution-time revalidation');
+        assert(playerAudio.paused,'JetEngine abort fixture did not pause active playback');
+        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Initial content','aborted JetEngine navigation swapped content');
+        assert(!window.JetEngineStores,'aborted JetEngine inline initializer executed');
+        assert(window.__jetBeforeEvents.length===0,'aborted JetEngine frontend initializer registered');
+        assert(window.__dynamicLoads.length===0,'aborted JetEngine navigation loaded external scripts');
+        assert(counters.pushes===0&&counters.replaces===0,'aborted JetEngine navigation changed history');
+        assert(counters.cancellations>=1,'aborted JetEngine navigation was not explicitly cancelled');
+        assert(!document.body.classList.contains('smp-podcast-ajax-loading'),'aborted JetEngine navigation left loading state behind');
+        pass('PASS aborted navigation cannot execute validated JetEngine inline initializers');
         return;
     }
 
