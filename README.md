@@ -69,6 +69,11 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ## Release History
 
+### 3.1.7
+
+- Reinitialized every imported Elementor element through its supported ready trigger so AJAX-loaded forms attach their submit lifecycle while active audio remains uninterrupted
+- Strengthened the reCAPTCHA browser scenario to require a functional form submit handler, not only loaded markup and scripts
+
 ### 3.1.6
 
 - Preserved active audio on an immediate first navigation to a Wordfence-protected page by recognizing only its exact same-host human-detection bootstrap with a 32-character hexadecimal ID

@@ -652,7 +652,7 @@ ${managedStyles}
 <script id="elementor-pro-frontend-js-before">var ElementorProFrontendConfig={"version":"${kind}"};</script>
 <script type="text/javascript">${wordfenceHumanDetectionSource((episode ? 'B' : 'C').repeat(32))}</script>
 ${dynamicAssets}
-</head><body class="${kind}-body"><main data-smp-ajax-root="content" class="elementor"><h1>${title}</h1><div class="elementor-element">${title} widget</div><a id="surface-next" href="${destination}">Switch surface</a></main></body></html>`;
+</head><body class="${kind}-body"><main data-smp-ajax-root="content" class="elementor"><h1>${title}</h1><div class="elementor-element" data-element_type="widget" data-widget_type="heading.default">${title} widget</div><a id="surface-next" href="${destination}">Switch surface</a></main></body></html>`;
 }
 
 function historyFallbackDocument(expectedReason) {
@@ -693,14 +693,14 @@ function elementorTargetDocument() {
 //# sourceURL=elementor-pro-frontend-js-before</script>
 <script id="jet-engine-frontend-js-extra">var JetEngineSettings={"post_id":"2","queried_object_class":"WP_Post"};
 //# sourceURL=jet-engine-frontend-js-extra</script>
-</head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor target</h1><div class="elementor-element">Widget</div></main></body></html>`;
+</head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor target</h1><div class="elementor-element" data-element_type="widget" data-widget_type="heading.default">Widget</div></main></body></html>`;
 }
 
 function recaptchaTargetDocument(source) {
     return `<!doctype html><html lang="en"><head><title>Elementor reCAPTCHA target</title>
 <link rel="canonical" href="/elementor-recaptcha"><meta name="description" content="Elementor reCAPTCHA target description">
 <script id="elementor-recaptcha_v3-api-js" src="${escapeHtml(source)}"></script>
-</head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor reCAPTCHA target</h1><form class="elementor-form"><input name="email" type="email"></form></main></body></html>`;
+</head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor reCAPTCHA target</h1><div class="elementor-element elementor-widget-form" data-element_type="widget" data-widget_type="form.default"><form class="elementor-form"><input name="email" type="email"></form></div></main></body></html>`;
 }
 
 function jetInlineTargetDocument(mode = 'trusted-jet-inline') {
@@ -873,8 +873,20 @@ function elementorTestBootstrap() {
 window.elementorFrontendConfig={post:{id:1,title:'Initial'}};
 window.ElementorProFrontendConfig={version:'test-initial'};
 window.__elementorReadyCalls=0;
+window.__elementorReadyTypes=[];
+window.__elementorFormSubmits=0;
 window.jQuery=function(node){return {0:node,length:1};};
-window.elementorFrontend={config:window.elementorFrontendConfig,elementsHandler:{runReadyTrigger:function(){window.__elementorReadyCalls+=1;}}};
+window.elementorFrontend={config:window.elementorFrontendConfig,elementsHandler:{runReadyTrigger:function(scope){
+    var node=scope&&scope[0]?scope[0]:scope;
+    if(!node||!node.getAttribute('data-element_type'))return;
+    window.__elementorReadyCalls+=1;
+    window.__elementorReadyTypes.push(node.getAttribute('data-widget_type')||node.getAttribute('data-element_type'));
+    if(node.getAttribute('data-widget_type')==='form.default'){
+        var form=node.querySelector('form');
+        form.setAttribute('data-elementor-handler-ready','1');
+        form.addEventListener('submit',function(event){event.preventDefault();window.__elementorFormSubmits+=1;});
+    }
+}}};
 window.elementorProFrontend={config:window.ElementorProFrontendConfig};
 </script>`;
 }
@@ -1102,6 +1114,10 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
         assert(loadedRecaptcha.protocol==='https:'&&loadedRecaptcha.host==='www.google.com'&&loadedRecaptcha.pathname==='/recaptcha/api.js'&&loadedRecaptcha.searchParams.get('render')==='explicit','loaded reCAPTCHA dependency did not retain the exact trusted endpoint');
         assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Elementor reCAPTCHA target','Elementor reCAPTCHA content was not swapped');
         assert(window.__elementorReadyCalls===1,'Elementor lifecycle did not initialize the reCAPTCHA form surface');
+        var initializedForm=document.querySelector('form.elementor-form');
+        assert(initializedForm.getAttribute('data-elementor-handler-ready')==='1'&&window.__elementorReadyTypes.join(',')==='form.default','Elementor form widget handler was not attached');
+        initializedForm.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+        assert(window.__elementorFormSubmits===1,'initialized Elementor form did not handle submit');
         assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>recaptchaBefore,'audio continuity was lost on the Elementor reCAPTCHA surface');
         pass('PASS exact Elementor reCAPTCHA dependency loads without interrupting audio');
         return;

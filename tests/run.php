@@ -103,7 +103,7 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.1.6' === $header_version, 'plugin header reports 3.1.6', $header_version );
+check( '3.1.7' === $header_version, 'plugin header reports 3.1.7', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
@@ -319,7 +319,11 @@ $home_interactions_css = (string) file_get_contents( $root . '/assets/home-inter
 check( str_contains( $player_js, "response.status !== 200" ) && str_contains( $player_js, "text/html" ), 'AJAX navigation accepts only HTTP 200 HTML documents' );
 check( str_contains( $player_js, 'state.playbackActivated' ) && str_contains( $player_js, 'return !audio.paused;' ) && ! str_contains( $player_js, 'ajaxWhilePaused' ), 'navigation interception requires actively playing audio and has no paused-track override' );
 check( str_contains( $player_js, "new DOMParser().parseFromString" ) && str_contains( $player_js, "roots.current.replaceWith" ), 'navigation parses full public documents and replaces only the content island' );
-check( str_contains( $player_js, "runReadyTrigger(window.jQuery(root))" ), 'Elementor handlers reinitialize against the replaced content root' );
+check(
+    str_contains( $player_js, "nodesIncludingScope(root, '.elementor-element[data-element_type]')" )
+    && str_contains( $player_js, 'runReadyTrigger(element)' ),
+    'Elementor handlers reinitialize each imported element instead of no-oping on the document root'
+);
 check( str_contains( $player_js, "link[rel=\"canonical\"]" ) && str_contains( $player_js, 'application/ld+json' ), 'client navigation synchronizes canonical metadata and JSON-LD' );
 check( str_contains( $player_js, "window.addEventListener('popstate'" ) && str_contains( $player_js, 'history.pushState' ), 'browser history and back-forward navigation are owned by the player runtime' );
 check( str_contains( $player_js, "window.location.assign" ) && str_contains( $player_js, "window.location.reload" ), 'failed or ineligible navigation has a hard-browser fallback' );

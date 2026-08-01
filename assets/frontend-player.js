@@ -1178,7 +1178,7 @@
         function reinitializeContent(root, url, options, plan) {
             if (plan.elementor) {
                 try {
-                    window.elementorFrontend.elementsHandler.runReadyTrigger(window.jQuery(root));
+                    reinitializeElementorElements(root);
                 } catch (error) {
                     throw unsupportedNavigation('elementor-reinitialization-failed');
                 }
@@ -1203,6 +1203,12 @@
                 focusContent(root, options.mode === 'pop');
                 announce('Page loaded: ' + document.title);
                 recordHistoryState();
+            });
+        }
+
+        function reinitializeElementorElements(root) {
+            nodesIncludingScope(root, '.elementor-element[data-element_type]').forEach(function (element) {
+                window.elementorFrontend.elementsHandler.runReadyTrigger(element);
             });
         }
 
