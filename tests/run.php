@@ -296,7 +296,7 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.2.2' === $header_version, 'plugin header reports 3.2.2', $header_version );
+check( '3.2.3' === $header_version, 'plugin header reports 3.2.3', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
@@ -1029,9 +1029,24 @@ check(
     'homepage interactions use one delegated listener set instead of per-element rebinding'
 );
 check(
+    str_contains( $home_interactions_js, "window.addEventListener('scroll', queueScrollCue" )
+    && str_contains( $home_interactions_js, "window.addEventListener('resize', queueScrollCue" )
+    && str_contains( $home_interactions_js, 'window.requestAnimationFrame' )
+    && str_contains( $home_interactions_js, 'window.cancelAnimationFrame' )
+    && str_contains( $home_interactions_js, "cue.setAttribute('aria-hidden'" )
+    && str_contains( $home_interactions_js, "link.setAttribute('tabindex', '-1')" )
+    && str_contains( $home_interactions_js, "document.addEventListener('smp:podcast-track-selected', updateScrollCue)" )
+    && str_contains( $home_interactions_js, "document.addEventListener('smp:podcast-player-closed', updateScrollCue)" )
+    && str_contains( $home_interactions_js, "prefers-reduced-motion: reduce" ),
+    'homepage scroll cue is throttled, accessible, player-aware, lifecycle-safe, and reduced-motion aware'
+);
+check(
     str_contains( $home_interactions_css, '[data-elementor-id="23095"]' )
-    && str_contains( $home_interactions_css, '[data-elementor-id="23094"]' ),
-    'homepage interaction CSS remains scoped to the owned Elementor header and homepage IDs'
+    && str_contains( $home_interactions_css, '[data-elementor-id="23094"]' )
+    && str_contains( $home_interactions_css, '@media (max-width: 767px)' )
+    && str_contains( $home_interactions_css, 'overflow-x: clip' )
+    && str_contains( $home_interactions_css, 'body.smp-podcast-player-visible' ),
+    'homepage interaction CSS remains scoped, clips only the mobile homepage overflow rail, and reserves the player viewport'
 );
 $bootstrap_source = (string) file_get_contents( $root . '/src/Bootstrap/Plugin.php' );
 check( str_contains( $bootstrap_source, 'new HomeInteractions()' ) && str_contains( $bootstrap_source, 'new PersistentPlayer()' ) && str_contains( $bootstrap_source, 'new PlaybackSettingsController()' ), 'homepage initializer, player runtime, and authenticated settings controller are bootstrapped' );

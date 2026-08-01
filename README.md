@@ -97,6 +97,13 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ## Release History
 
+### 3.2.3
+
+- Replaced the malformed legacy homepage scroll-cue snippet with a throttled,
+  accessible, AJAX-lifecycle-safe runtime owned by the plugin.
+- Contained the mobile homepage's horizontal presentation rails without
+  changing desktop sizing or the persistent player surface.
+
 ### 3.2.2
 
 - Added a protected, explicit `episode|article` content-kind contract for

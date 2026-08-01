@@ -4,6 +4,19 @@
     z-index: 60;
 }
 
+@media (max-width: 767px) {
+    [data-elementor-id="23095"] {
+        overflow-x: clip;
+    }
+}
+
+body.smp-podcast-player-visible [data-elementor-id="23095"] .mpp-scroll-cue,
+body.smp-podcast-player-visible [data-elementor-id="23095"] [data-id="b01f027"] {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
 [data-elementor-id="23095"] #episodes,
 [data-elementor-id="23095"] #about,
 [data-elementor-id="23095"] [id^="ep-"] {

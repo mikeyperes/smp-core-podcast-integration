@@ -508,9 +508,10 @@ function surfaceRootMarkup(selector, elementorId, content) {
 }
 
 function homeSurfaceMarkup(destination, includePlayerTrigger) {
-    return `<main class="elementor" data-elementor-type="wp-page" data-elementor-id="23095">
+    return `<main class="elementor" data-elementor-type="wp-page" data-elementor-id="23095" style="min-height:1800px">
 <h1>${includePlayerTrigger ? 'Podcast home' : 'Podcast home restored'}</h1>
 ${includePlayerTrigger ? `<button id="listen" type="button" data-smp-player-trigger data-smp-audio-src="${escapeHtml(origin)}/media.mp3" data-smp-title="Test episode">Listen</button><a id="navigate" href="${escapeHtml(destination)}">Navigate</a>` : `<a id="surface-next" href="${escapeHtml(destination)}">Continue</a>`}
+<div class="mpp-scroll-cue" data-id="b01f027"><a href="#listen">Scroll</a></div>
 <div class="mpp-topic-chip"><button class="elementor-button" data-topic="all">All</button></div>
 <div class="mpp-topic-chip"><button class="elementor-button" data-topic="technology">Technology</button></div>
 <div class="mpp-episode-search"><form><input type="text" value=""></form></div>
@@ -784,7 +785,7 @@ function rootMismatchFallbackDocument(expectedReason, rootMarkup) {
 
 function instrumentationScript() {
     return `(function(){
-window.__smpTest={popstateBindings:0,scrollBindings:0,scrollRemovals:0,pushes:0,replaces:0,fetches:0,cancellations:0,lastCancellation:'',homeBindings:{click:0,keydown:0,input:0,submit:0,contentReady:0,domReady:0}};
+window.__smpTest={popstateBindings:0,scrollBindings:0,scrollRemovals:0,pushes:0,replaces:0,fetches:0,cancellations:0,lastCancellation:'',homeBindings:{click:0,keydown:0,input:0,submit:0,contentReady:0,domReady:0,scroll:0,resize:0,scrollRemoved:0,resizeRemoved:0}};
 window.__dynamicLoads=[];
 window.__dynamicScriptUrls=[];
 var nativeHeadAppend=document.head.appendChild.bind(document.head);
@@ -807,11 +808,17 @@ var nativeAdd=window.addEventListener.bind(window);
 var nativeRemove=window.removeEventListener.bind(window);
 window.addEventListener=function(type,listener,options){
     if(type==='popstate') window.__smpTest.popstateBindings+=1;
-    if(type==='scroll') window.__smpTest.scrollBindings+=1;
+    var name=listener&&listener.name?listener.name:'';
+    if(type==='scroll'&&name==='queueScrollCue')window.__smpTest.homeBindings.scroll+=1;
+    else if(type==='scroll')window.__smpTest.scrollBindings+=1;
+    if(type==='resize'&&name==='queueScrollCue')window.__smpTest.homeBindings.resize+=1;
     return nativeAdd(type,listener,options);
 };
 window.removeEventListener=function(type,listener,options){
-    if(type==='scroll') window.__smpTest.scrollRemovals+=1;
+    var name=listener&&listener.name?listener.name:'';
+    if(type==='scroll'&&name==='queueScrollCue')window.__smpTest.homeBindings.scrollRemoved+=1;
+    else if(type==='scroll')window.__smpTest.scrollRemovals+=1;
+    if(type==='resize'&&name==='queueScrollCue')window.__smpTest.homeBindings.resizeRemoved+=1;
     return nativeRemove(type,listener,options);
 };
 var nativeDocumentAdd=document.addEventListener.bind(document);
@@ -913,6 +920,21 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
         return;
     }
 
+    if(mode==='surface-matrix'){
+        var initialCue=document.querySelector('.mpp-scroll-cue');
+        var initialCueLink=initialCue&&initialCue.querySelector('a[href="#listen"]');
+        assert(initialCue&&!initialCue.classList.contains('is-hidden')&&initialCue.getAttribute('aria-hidden')==='false','scroll cue was not initially visible');
+        assert(initialCueLink&&!initialCueLink.hasAttribute('tabindex'),'visible scroll cue was removed from the tab order');
+        window.scrollTo(0,320);
+        window.dispatchEvent(new Event('scroll'));
+        await delay(40);
+        assert(initialCue.classList.contains('is-hidden')&&initialCue.getAttribute('aria-hidden')==='true'&&initialCueLink.getAttribute('tabindex')==='-1','scroll cue did not hide accessibly after the threshold');
+        window.scrollTo(0,0);
+        window.dispatchEvent(new Event('scroll'));
+        await delay(40);
+        assert(!initialCue.classList.contains('is-hidden')&&initialCue.getAttribute('aria-hidden')==='false'&&!initialCueLink.hasAttribute('tabindex'),'scroll cue did not restore at the top of the page');
+    }
+
     click(document.getElementById('listen'));
     await Promise.resolve();
     assert(counters.replaces===0 && counters.popstateBindings===0,'track selection changed history');
@@ -947,10 +969,11 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
 
     if(mode==='surface-matrix'){
         var homeApi=window.__mppHomeInteractions23128;
-        assert(homeApi&&homeApi.version==='3.1.0'&&homeApi.isActive(),'owned homepage initializer did not activate');
+        assert(homeApi&&homeApi.version==='3.2.0'&&homeApi.isActive(),'owned homepage initializer did not activate');
         assert(document.querySelector('[data-smp-ajax-companion-rendered="smpi-breadcrumbs"] [aria-current="page"]').textContent==='Podcast home breadcrumb','initial inert breadcrumb companion did not render');
         assert(document.getElementById('ep-158')&&document.getElementById('ep-154'),'initial homepage cards were not hydrated');
         assert(document.querySelector('#ep-158 .mpp-episode-guest a').getAttribute('aria-label').indexOf('Ada Guest')!==-1,'initial card accessibility metadata was not hydrated');
+        assert(initialCue.classList.contains('is-hidden')&&initialCue.getAttribute('aria-hidden')==='true'&&initialCueLink.getAttribute('tabindex')==='-1','active player did not yield the bottom viewport by hiding the scroll cue');
 
         click(document.querySelector('[data-topic="technology"]'));
         assert(!document.getElementById('ep-158').hidden&&document.getElementById('ep-154').hidden,'topic filtering did not apply the owned topic map');
@@ -995,10 +1018,23 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
 
         assert(homeApi.isActive(),'homepage initializer did not reactivate after returning from another surface');
         assert(document.getElementById('ep-158')&&document.getElementById('ep-154'),'restored homepage cards were not rehydrated');
-        assert(counters.homeBindings.click===1&&counters.homeBindings.keydown===1&&counters.homeBindings.input===1&&counters.homeBindings.submit===1&&counters.homeBindings.contentReady===1&&counters.homeBindings.domReady===1,'homepage delegated listeners were registered more than once');
+        var restoredCue=document.querySelector('.mpp-scroll-cue');
+        assert(restoredCue&&restoredCue.getAttribute('aria-hidden')==='true'&&restoredCue.classList.contains('is-hidden'),'AJAX-restored scroll cue did not remain clear of the persistent player');
+        assert(counters.homeBindings.click===1&&counters.homeBindings.keydown===1&&counters.homeBindings.input===1&&counters.homeBindings.submit===1&&counters.homeBindings.contentReady===1&&counters.homeBindings.domReady===1&&counters.homeBindings.scroll===1&&counters.homeBindings.resize===1,'homepage delegated listeners were registered more than once');
         assert(window.__fetchedInlineExecuted!==true,'fetched inline executable code ran during surface navigation');
         assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>playbackBefore+0.1,'audio continuity was lost across the trusted surface matrix');
         assert(counters.pushes===expectedSurfaces.length&&counters.popstateBindings===1&&counters.scrollBindings===1,'surface navigation duplicated or skipped history ownership');
+
+        click(document.querySelector('[data-smp-close]'));
+        await Promise.resolve();
+        assert(!restoredCue.classList.contains('is-hidden')&&restoredCue.getAttribute('aria-hidden')==='false'&&!restoredCue.querySelector('a').hasAttribute('tabindex'),'closing the player did not restore the unobstructed scroll cue');
+        window.scrollTo(0,320);
+        window.dispatchEvent(new Event('scroll'));
+        homeApi.destroy();
+        await delay(40);
+        assert(!window.__mppHomeInteractions23128,'homepage initializer did not clear its public lifecycle handle');
+        assert(counters.homeBindings.scrollRemoved===1&&counters.homeBindings.resizeRemoved===1,'homepage initializer did not remove its viewport listeners');
+        assert(!restoredCue.classList.contains('is-hidden')&&restoredCue.getAttribute('aria-hidden')==='false','destroy did not cancel a queued scroll-cue animation frame');
         pass('PASS homepage lifecycle and trusted Elementor surface matrix preserve active audio');
         return;
     }

@@ -2,7 +2,7 @@
     'use strict';
 
     var apiKey = '__mppHomeInteractions23128';
-    var version = '3.1.0';
+    var version = '3.2.0';
     var existing = window[apiKey];
     if (existing && existing.version === version && typeof existing.refresh === 'function') {
         existing.refresh();
@@ -25,6 +25,7 @@
     var observer = null;
     var observedRoot = null;
     var timer = 0;
+    var cueFrame = 0;
     var api = null;
 
     function pageRoot() {
@@ -112,12 +113,40 @@
         });
     }
 
+    function scrollCue(root) {
+        return root && root.querySelector('.mpp-scroll-cue, [data-id="b01f027"]');
+    }
+
+    function updateScrollCue() {
+        var root = pageRoot();
+        var cue = scrollCue(root);
+        if (!cue) return;
+        var threshold = Math.max(80, Math.min(220, window.innerHeight * 0.18));
+        var hidden = window.scrollY > threshold || document.body.classList.contains('smp-podcast-player-visible');
+        cue.classList.toggle('is-hidden', hidden);
+        cue.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+        var link = cue.querySelector('a[href="#listen"]');
+        if (link) {
+            if (hidden) link.setAttribute('tabindex', '-1');
+            else link.removeAttribute('tabindex');
+        }
+    }
+
+    function queueScrollCue() {
+        if (cueFrame) return;
+        cueFrame = window.requestAnimationFrame(function () {
+            cueFrame = 0;
+            updateScrollCue();
+        });
+    }
+
     function scan(root) {
         if (!root || root !== pageRoot()) return;
         cards(root).forEach(hydrateCard);
         prepareControls(root);
         repairHeroRuler(root);
         applyFilters(root);
+        updateScrollCue();
     }
 
     function disconnectObserver() {
@@ -215,11 +244,17 @@
 
     function destroy() {
         disconnectObserver();
+        if (cueFrame) window.cancelAnimationFrame(cueFrame);
+        cueFrame = 0;
+        window.removeEventListener('scroll', queueScrollCue);
+        window.removeEventListener('resize', queueScrollCue);
         document.removeEventListener('click', handleClick);
         document.removeEventListener('keydown', handleKeydown);
         document.removeEventListener('input', handleInput);
         document.removeEventListener('submit', handleSubmit, true);
         document.removeEventListener('smp:content-ready', refresh);
+        document.removeEventListener('smp:podcast-track-selected', updateScrollCue);
+        document.removeEventListener('smp:podcast-player-closed', updateScrollCue);
         document.removeEventListener('DOMContentLoaded', refresh);
         if (window[apiKey] === api) delete window[apiKey];
     }
@@ -232,11 +267,15 @@
     };
     window[apiKey] = api;
 
+    window.addEventListener('scroll', queueScrollCue, { passive: true });
+    window.addEventListener('resize', queueScrollCue, { passive: true });
     document.addEventListener('click', handleClick);
     document.addEventListener('keydown', handleKeydown);
     document.addEventListener('input', handleInput);
     document.addEventListener('submit', handleSubmit, true);
     document.addEventListener('smp:content-ready', refresh);
+    document.addEventListener('smp:podcast-track-selected', updateScrollCue);
+    document.addEventListener('smp:podcast-player-closed', updateScrollCue);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', refresh, { once: true });
     else refresh();
 }(window, document));
