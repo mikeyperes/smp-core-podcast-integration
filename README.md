@@ -69,6 +69,10 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ## Release History
 
+### 3.1.3
+
+- Added strict JSON-only synchronization for JetEngine's exact page-context localization handle so Loop Grid surfaces can replace one another without re-executing fetched JavaScript
+
 ### 3.1.2
 
 - Preserved strict JSON-only Elementor configuration synchronization while accepting WordPress's exact trailing `sourceURL` annotation on the already allowlisted Elementor config blocks

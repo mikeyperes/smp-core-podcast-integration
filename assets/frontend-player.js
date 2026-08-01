@@ -857,7 +857,8 @@
             var definitions = {
                 elementorFrontendConfig: /^elementor-frontend-js-(?:before|after)$/,
                 ElementorProFrontendConfig: /^elementor-pro-frontend-js-(?:before|after)$/,
-                elementorProFrontendConfig: /^elementor-pro-frontend-js-(?:before|after)$/
+                elementorProFrontendConfig: /^elementor-pro-frontend-js-(?:before|after)$/,
+                JetEngineSettings: /^jet-engine-frontend-js-extra$/
             };
             var id = script.id || '';
             var cleaned = text

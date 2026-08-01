@@ -590,6 +590,8 @@ function elementorTargetDocument() {
 //# sourceURL=elementor-frontend-js-before</script>
 <script id="elementor-pro-frontend-js-before">var ElementorProFrontendConfig={"version":"test-target"};
 //# sourceURL=elementor-pro-frontend-js-before</script>
+<script id="jet-engine-frontend-js-extra">var JetEngineSettings={"post_id":"2","queried_object_class":"WP_Post"};
+//# sourceURL=jet-engine-frontend-js-extra</script>
 </head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor target</h1><div class="elementor-element">Widget</div></main></body></html>`;
 }
 
@@ -934,6 +936,7 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
             assert(window.__elementorReadyCalls===1,'Elementor ready lifecycle did not run exactly once');
             assert(window.elementorFrontendConfig.post.id===2 && window.elementorFrontend.config.post.id===2,'validated Elementor config was not synchronized');
             assert(window.ElementorProFrontendConfig.version==='test-target' && window.elementorProFrontend.config.version==='test-target','validated Elementor Pro config was not synchronized');
+            assert(window.JetEngineSettings.post_id==='2' && window.JetEngineSettings.queried_object_class==='WP_Post','validated JetEngine JSON config was not synchronized');
             pass('PASS validated Elementor config and lifecycle behavior');
             return;
         }

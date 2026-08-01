@@ -103,7 +103,7 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.1.2' === $header_version, 'plugin header reports 3.1.2', $header_version );
+check( '3.1.3' === $header_version, 'plugin header reports 3.1.3', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
@@ -336,6 +336,11 @@ check(
     str_contains( $player_js, "new RegExp('(?:^|\\\\n)//# sourceURL=' + escapedId" )
     && str_contains( $player_js, "var candidate = cleaned.replace" ),
     'localized Elementor JSON accepts only its own exact trailing WordPress sourceURL annotation'
+);
+check(
+    str_contains( $player_js, 'JetEngineSettings' )
+    && str_contains( $player_js, '/^jet-engine-frontend-js-extra$/' ),
+    'JetEngine page context is accepted only from its exact JSON localization handle'
 );
 check( str_contains( $player_js, 'cancelPendingNavigation' ) && str_contains( $player_js, 'parkNavigationSession' ) && str_contains( $player_js, 'pendingNavigationActive' ), 'pause and terminal playback states cancel pending work and park history ownership' );
 check( str_contains( $player_js, 'inline-event-handler' ) && str_contains( $player_js, 'copyAllowedAttributes' ) && str_contains( $player_js, 'managedInlineStyleId' ), 'fetched event attributes are rejected and managed assets use explicit policies' );
