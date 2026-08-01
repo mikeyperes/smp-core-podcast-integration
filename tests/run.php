@@ -103,7 +103,7 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.1.3' === $header_version, 'plugin header reports 3.1.3', $header_version );
+check( '3.1.4' === $header_version, 'plugin header reports 3.1.4', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
@@ -331,6 +331,16 @@ check(
     && str_contains( $player_js, 'url.origin === window.location.origin' )
     && str_contains( $player_js, 'cloudflare-static\\/email-decode'),
     'only the exact same-origin self-removing Cloudflare email decoder may be omitted from fetched script requirements'
+);
+check(
+    str_contains( $player_js, "id === 'elementor-recaptcha_v3-api-js'" )
+    && str_contains( $player_js, "url.protocol === 'https:'" )
+    && str_contains( $player_js, "url.host === 'www.google.com'" )
+    && str_contains( $player_js, "url.host === 'www.recaptcha.net'" )
+    && str_contains( $player_js, "url.pathname === '/recaptcha/api.js'" )
+    && str_contains( $player_js, "url.searchParams.getAll('render').length === 1" )
+    && str_contains( $player_js, "url.searchParams.get('render') === 'explicit'" ),
+    'dynamic script policy accepts only Elementor reCAPTCHA from its exact HTTPS hosts, path, and render mode'
 );
 check(
     str_contains( $player_js, "new RegExp('(?:^|\\\\n)//# sourceURL=' + escapedId" )

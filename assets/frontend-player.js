@@ -1279,9 +1279,17 @@
                 'jet-engine-data-stores-js': /^\/wp-content\/plugins\/jet-engine\/assets\/js\/frontend\/modules\/data-stores\.js$/,
                 'jet-engine-frontend-js': /^\/wp-content\/plugins\/jet-engine\/assets\/js\/frontend\/frontend\.js$/
             };
-            if (!Object.prototype.hasOwnProperty.call(paths, id)) return false;
             try {
                 var url = new URL(source.src, window.location.href);
+                if (id === 'elementor-recaptcha_v3-api-js') {
+                    return url.protocol === 'https:'
+                        && (url.host === 'www.google.com' || url.host === 'www.recaptcha.net')
+                        && url.pathname === '/recaptcha/api.js'
+                        && url.searchParams.getAll('render').length === 1
+                        && url.searchParams.get('render') === 'explicit'
+                        && url.hash === '';
+                }
+                if (!Object.prototype.hasOwnProperty.call(paths, id)) return false;
                 return url.origin === window.location.origin && /^https?:$/.test(url.protocol) && paths[id].test(url.pathname);
             } catch (error) {
                 return false;

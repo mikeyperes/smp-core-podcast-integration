@@ -22,9 +22,11 @@ const scenarios = [
     'inactive-history',
     'foreign-history',
     'elementor-ready',
+    'elementor-recaptcha',
     'elementor-unready',
     'unsupported-inline',
     'missing-script',
+    'spoofed-recaptcha',
     'self-removing-cloudflare',
     'unmatched-root',
     'malicious-style-onload',
@@ -98,6 +100,11 @@ const server = createServer((request, response) => {
         response.end(elementorTargetDocument());
         return;
     }
+    if (url.pathname === '/elementor-recaptcha') {
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(recaptchaTargetDocument('https://www.google.com/recaptcha/api.js?render=explicit&ver=4.2.1'));
+        return;
+    }
     if (url.pathname === '/continuity') {
         setTimeout(() => {
             if (response.writableEnded) return;
@@ -149,6 +156,14 @@ const server = createServer((request, response) => {
     if (url.pathname === '/missing-script') {
         response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
         response.end(fallbackDocument('missing-script-asset', '<script src="/wp-content/plugins/not-loaded.js"></script>'));
+        return;
+    }
+    if (url.pathname === '/spoofed-recaptcha') {
+        const directRequest = request.headers['sec-fetch-dest'] === 'document';
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(directRequest
+            ? fallbackDocument('missing-script-asset')
+            : recaptchaTargetDocument('https://recaptcha.attacker.example/recaptcha/api.js?render=explicit'));
         return;
     }
     if (url.pathname === '/self-removing-cloudflare') {
@@ -290,9 +305,11 @@ function scenarioDocument(mode) {
         'inactive-history': '/inactive-history-target',
         'foreign-history': '/foreign-history-target',
         'elementor-ready': '/elementor-ready',
+        'elementor-recaptcha': '/elementor-recaptcha',
         'elementor-unready': '/elementor-unready',
         'unsupported-inline': '/unsupported-inline',
         'missing-script': '/missing-script',
+        'spoofed-recaptcha': '/spoofed-recaptcha',
         'self-removing-cloudflare': '/self-removing-cloudflare',
         'unmatched-root': '/unmatched-root',
         'malicious-style-onload': '/malicious-style-onload',
@@ -326,7 +343,7 @@ function scenarioDocument(mode) {
 <meta name="description" content="Initial description"><meta name="robots" content="index,follow">
 ${initialAssetMarkup(mode)}
 <script>${instrumentationScript()}</script>
-${mode === 'elementor-ready' || mode === 'divergent-assets' ? elementorTestBootstrap() : ''}
+${mode === 'elementor-ready' || mode === 'elementor-recaptcha' || mode === 'divergent-assets' ? elementorTestBootstrap() : ''}
 <script>window.smpPodcastPlayerConfig=${JSON.stringify(config)};</script>
 <script src="/assets/frontend-player.js"></script>
 </head><body>
@@ -595,6 +612,13 @@ function elementorTargetDocument() {
 </head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor target</h1><div class="elementor-element">Widget</div></main></body></html>`;
 }
 
+function recaptchaTargetDocument(source) {
+    return `<!doctype html><html lang="en"><head><title>Elementor reCAPTCHA target</title>
+<link rel="canonical" href="/elementor-recaptcha"><meta name="description" content="Elementor reCAPTCHA target description">
+<script id="elementor-recaptcha_v3-api-js" src="${escapeHtml(source)}"></script>
+</head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor reCAPTCHA target</h1><form class="elementor-form"><input name="email" type="email"></form></main></body></html>`;
+}
+
 function elementorUnreadyDocument() {
     return '<!doctype html><html><head><title>Elementor unavailable</title></head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor unavailable</h1></main></body></html>';
 }
@@ -636,6 +660,17 @@ function instrumentationScript() {
     return `(function(){
 window.__smpTest={popstateBindings:0,scrollBindings:0,scrollRemovals:0,pushes:0,replaces:0,fetches:0,cancellations:0,lastCancellation:'',homeBindings:{click:0,keydown:0,input:0,submit:0,contentReady:0,domReady:0}};
 window.__dynamicLoads=[];
+window.__dynamicScriptUrls=[];
+var nativeHeadAppend=document.head.appendChild.bind(document.head);
+document.head.appendChild=function(node){
+    if(node&&node.tagName==='SCRIPT'&&node.id==='elementor-recaptcha_v3-api-js'){
+        window.__dynamicLoads.push(node.id);
+        window.__dynamicScriptUrls.push(node.src);
+        setTimeout(function(){node.dispatchEvent(new Event('load'));},0);
+        return node;
+    }
+    return nativeHeadAppend(node);
+};
 var nativeAdd=window.addEventListener.bind(window);
 var nativeRemove=window.removeEventListener.bind(window);
 window.addEventListener=function(type,listener,options){
@@ -856,6 +891,22 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
         assert(continuitySchema['@type']==='PodcastEpisode' && continuitySchema.name==='Continuity target','continuity schema was not synchronized');
         assert(counters.popstateBindings===1 && history.scrollRestoration==='manual','continuity navigation did not activate bounded history ownership');
         pass('PASS audio advances uninterrupted while head and schema update');
+        return;
+    }
+
+    if(mode==='elementor-recaptcha'){
+        await delay(40);
+        var recaptchaBefore=playerAudio.currentTime;
+        var recaptchaReady=waitFor('smp:after-navigate');
+        assert(observedClick(document.getElementById('navigate'))===true,'Elementor reCAPTCHA navigation was not intercepted');
+        await recaptchaReady;
+        var loadedRecaptcha=new URL(window.__dynamicScriptUrls[0]);
+        assert(window.__dynamicLoads.join(',')==='elementor-recaptcha_v3-api-js','Elementor reCAPTCHA dependency was not loaded exactly once');
+        assert(loadedRecaptcha.protocol==='https:'&&loadedRecaptcha.host==='www.google.com'&&loadedRecaptcha.pathname==='/recaptcha/api.js'&&loadedRecaptcha.searchParams.get('render')==='explicit','loaded reCAPTCHA dependency did not retain the exact trusted endpoint');
+        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Elementor reCAPTCHA target','Elementor reCAPTCHA content was not swapped');
+        assert(window.__elementorReadyCalls===1,'Elementor lifecycle did not initialize the reCAPTCHA form surface');
+        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>recaptchaBefore,'audio continuity was lost on the Elementor reCAPTCHA surface');
+        pass('PASS exact Elementor reCAPTCHA dependency loads without interrupting audio');
         return;
     }
 
