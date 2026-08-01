@@ -12,6 +12,7 @@ final class DefaultHost implements ModuleInterface {
         }
 
         add_filter( 'acf/prepare_field/name=hosts', [ $this, 'prepare_field' ] );
+        add_action( 'smp_podcast_content_kind_saved', [ $this, 'assign_after_content_kind' ], 20, 3 );
     }
 
     /** @param array<string,mixed> $field @return array<string,mixed> */
@@ -25,6 +26,11 @@ final class DefaultHost implements ModuleInterface {
             return $field;
         }
 
+        $post_id = ContentKind::current_post_id();
+        if ( $post_id < 1 || ! PodcastSettings::is_podcast_content( $post_id ) ) {
+            return $field;
+        }
+
         $host_id = PodcastSettings::default_host_id();
         if ( $host_id > 0 && empty( $field['value'] ) ) {
             $field['value'] = [ $host_id ];
@@ -33,14 +39,29 @@ final class DefaultHost implements ModuleInterface {
         return $field;
     }
 
+    /**
+     * The episode ACF group is intentionally hidden while a mixed `post` is
+     * unclassified. Assign the default immediately after its first explicit
+     * episode classification so editors do not need a second save.
+     */
+    public function assign_after_content_kind( int $post_id, string $kind, string $previous_kind ): void {
+        if ( 'post' !== PodcastSettings::content_type()
+            || ContentKind::EPISODE !== $kind
+            || ContentKind::EPISODE === $previous_kind ) {
+            return;
+        }
+
+        self::apply( $post_id );
+    }
+
     /** @return array<string,mixed> */
     public static function apply( int $post_id ): array {
+        if ( ! PodcastSettings::is_podcast_content( $post_id ) ) {
+            return [ 'changed' => false, 'before' => [], 'after' => [], 'message' => 'Skipped: content type does not match.' ];
+        }
+
         $before = function_exists( 'get_field' ) ? get_field( 'hosts', $post_id, false ) : get_post_meta( $post_id, 'hosts', true );
         $before = is_array( $before ) ? array_values( $before ) : ( empty( $before ) ? [] : [ $before ] );
-
-        if ( ! PodcastSettings::is_podcast_content( $post_id ) ) {
-            return [ 'changed' => false, 'before' => $before, 'after' => $before, 'message' => 'Skipped: content type does not match.' ];
-        }
         if ( $before ) {
             return [ 'changed' => false, 'before' => $before, 'after' => $before, 'message' => 'Skipped: a host is already assigned.' ];
         }

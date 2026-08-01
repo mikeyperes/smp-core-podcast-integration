@@ -27,6 +27,33 @@ Only ACF is required for the field layer. Optional integrations never prevent th
 
 The plugin defaults to existing WordPress posts. It does not migrate podcast archives to a new post type. A dedicated `episode` content model can be selected intentionally from the dashboard.
 
+### Mixed-post content-kind contract
+
+ScaleMyPodcast owns the protected `_mpp_content_kind` post-meta contract. Its
+only valid values are `episode` and `article`. An explicit `episode` is
+authoritative even before incidental podcast fields exist; an explicit
+`article` vetoes podcast queries, ACF episode fields, default-host processing,
+PowerPress synchronization, and podcast player/shortcode resolution even if
+legacy podcast metadata remains. Only posts with no content-kind metadata may
+temporarily use the historical podcast-marker fallback. Invalid explicit
+values fail closed.
+
+Legacy podcast-marker fallback is a pre-backfill compatibility bridge, not a
+permanent classifier. The guarded exact-ID migration disables it in the same
+transaction that assigns the reviewed episode corpus, preventing a future
+unclassified article with ordinary linked-media `enclosure` metadata from
+entering podcast queries or integrations.
+
+Classification is authored through the normal nonce-protected editor meta box.
+The protected key is deliberately not REST-writable because first-time episode
+classification has lifecycle side effects, including default-host assignment;
+allowing a data-only REST write would bypass those guarantees.
+
+The tools-only migration under `tools/` is not loaded by WordPress. It refuses
+to infer corpus identity from the 158 published, 6 draft, and 1 private counts:
+planning requires a read-only, externally reviewed, checksummed list of the
+exact 165 IDs. It must not be run without its documented production gates.
+
 ## Compatibility Contracts
 
 - Existing post, option, ACF, and PowerPress metadata remains in place.
@@ -62,12 +89,22 @@ Run the repository checks:
 
 ```bash
 php tests/run.php
+php tests/content-kind-migration.php
 node tests/browser-player-runtime.mjs
 ```
 
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.2.2
+
+- Added a protected, explicit `episode|article` content-kind contract for
+  mixed WordPress post installations.
+- Added fail-closed episode queries and integration boundaries so editorial
+  articles cannot enter podcast playback, ACF, host, or PowerPress behavior.
+- Added the guarded, exact-ID WP-CLI migration and rollback artifacts for the
+  reviewed Michael Peres Podcast episode corpus.
 
 ### 3.2.1
 

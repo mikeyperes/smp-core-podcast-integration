@@ -135,7 +135,7 @@ final class ShortcodeCallbacks {
         $atts = shortcode_atts( [ 'name' => '', 'post_id' => 0 ], $atts, 'episode_fields' );
         $field = sanitize_key( (string) $atts['name'] );
         $post_id = self::post_id( $atts );
-        if ( '' === $field || $post_id < 1 || ! function_exists( 'get_field' ) ) {
+        if ( '' === $field || ! self::is_episode( $post_id ) || ! function_exists( 'get_field' ) ) {
             return '';
         }
 
@@ -172,7 +172,7 @@ final class ShortcodeCallbacks {
     /** @param array<string,mixed> $atts */
     public static function podcast_hosts( array $atts = [] ): string {
         $post_id = self::post_id( $atts );
-        if ( $post_id < 1 || ! function_exists( 'get_field' ) ) {
+        if ( ! self::is_episode( $post_id ) || ! function_exists( 'get_field' ) ) {
             return '';
         }
 
@@ -184,7 +184,7 @@ final class ShortcodeCallbacks {
     public static function episode_hosts( array $atts = [] ): string {
         $atts = shortcode_atts( [ 'must_have_thumbnail' => false, 'post_id' => 0 ], $atts, 'display_single_episode_hosts' );
         $post_id = self::post_id( $atts );
-        if ( $post_id < 1 || ! function_exists( 'get_field' ) ) {
+        if ( ! self::is_episode( $post_id ) || ! function_exists( 'get_field' ) ) {
             return '';
         }
 
@@ -264,7 +264,7 @@ final class ShortcodeCallbacks {
     /** @param array<string,mixed> $atts */
     public static function guest_profiles( array $atts = [] ): string {
         $post_id = self::post_id( $atts );
-        if ( $post_id < 1 || ! function_exists( 'get_field' ) ) {
+        if ( ! self::is_episode( $post_id ) || ! function_exists( 'get_field' ) ) {
             return '';
         }
 
@@ -288,7 +288,7 @@ final class ShortcodeCallbacks {
     /** @param array<string,mixed> $atts */
     public static function host_profiles( array $atts = [] ): string {
         $post_id = self::post_id( $atts );
-        if ( $post_id < 1 || ! function_exists( 'get_field' ) ) {
+        if ( ! self::is_episode( $post_id ) || ! function_exists( 'get_field' ) ) {
             return '';
         }
 
@@ -334,6 +334,10 @@ final class ShortcodeCallbacks {
     private static function post_id( array $atts ): int {
         $post_id = absint( $atts['post_id'] ?? 0 );
         return $post_id > 0 ? $post_id : (int) get_the_ID();
+    }
+
+    private static function is_episode( int $post_id ): bool {
+        return $post_id > 0 && PodcastSettings::is_podcast_content( $post_id );
     }
 
     private static function website_user_id( mixed $website ): int {

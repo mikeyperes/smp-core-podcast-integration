@@ -14,6 +14,7 @@ use SMP\Podcast\Admin\OperationsController;
 use SMP\Podcast\Admin\PlaybackSettingsController;
 use SMP\Podcast\Compatibility\LegacyCompatibility;
 use SMP\Podcast\Config;
+use SMP\Podcast\Content\ContentKind;
 use SMP\Podcast\Content\DefaultHost;
 use SMP\Podcast\Content\DefaultHostFieldPreview;
 use SMP\Podcast\Diagnostics\IntegrationTests;
@@ -51,6 +52,7 @@ final class Plugin {
         $core = new CoreBootstrap( $context );
         $core
             ->add_module( Registries::content_types() )
+            ->add_module( new ContentKind() )
             ->add_module( Registries::option_fields() )
             ->add_module( new Shortcodes() )
             ->add_module( new HomeInteractions() )

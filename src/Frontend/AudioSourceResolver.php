@@ -2,10 +2,12 @@
 
 namespace SMP\Podcast\Frontend;
 
+use SMP\Podcast\Settings\PodcastSettings;
+
 final class AudioSourceResolver {
     /** @return array<string,mixed> */
     public static function resolve( int $post_id ): array {
-        if ( $post_id < 1 || ! get_post( $post_id ) ) {
+        if ( $post_id < 1 || ! get_post( $post_id ) || ! PodcastSettings::is_podcast_content( $post_id ) ) {
             return [];
         }
 

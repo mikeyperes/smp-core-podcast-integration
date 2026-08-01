@@ -2,9 +2,14 @@
 
 namespace SMP\Podcast\Settings;
 
+use SMP\Podcast\Content\ContentKind;
+
 final class PodcastSettings {
     public const OPTIONS_POST_ID = 'option_podcast';
-    private const PODCAST_META_KEYS = [ 'audio', 'audio_url', 'enclosure', 'hosts', 'profiles', 'guests' ];
+    public const LEGACY_MARKER_FALLBACK_OPTION = 'smp_podcast_legacy_marker_fallback_enabled';
+    // `profiles` belongs to ordinary editorial relationships and must never
+    // turn an unclassified article into a legacy podcast episode.
+    private const PODCAST_META_KEYS = [ 'audio', 'audio_url', 'enclosure', 'hosts', 'guests' ];
 
     /** @return array{post_type:string,singular:string,plural:string,rewrite_slug:string} */
     public static function content(): array {
@@ -56,36 +61,129 @@ final class PodcastSettings {
         return self::content()['post_type'];
     }
 
+    /** @return array<int,string> */
+    public static function legacy_marker_keys(): array {
+        return self::PODCAST_META_KEYS;
+    }
+
+    /**
+     * Compatibility is enabled only until the reviewed content-kind backfill
+     * completes. Missing means enabled so an upgrade cannot hide legacy shows;
+     * the guarded migration writes an explicit false cutover value.
+     */
+    public static function legacy_marker_fallback_enabled(): bool {
+        $missing = new \stdClass();
+        $value = get_option( self::LEGACY_MARKER_FALLBACK_OPTION, $missing );
+        if ( $missing === $value ) {
+            return true;
+        }
+        if ( is_bool( $value ) ) {
+            return $value;
+        }
+        if ( is_numeric( $value ) ) {
+            return 0 !== (int) $value;
+        }
+        if ( is_string( $value ) ) {
+            return ! in_array( strtolower( trim( $value ) ), [ '', '0', 'false', 'off', 'no' ], true );
+        }
+        return (bool) $value;
+    }
+
     /** @param array<string,mixed> $args @return array<string,mixed> */
     public static function scoped_query_args( array $args = [] ): array {
-        $args['post_type'] = self::content_type();
-        if ( 'post' !== self::content_type() ) {
-            return $args;
+        $post_type = self::content_type();
+        $args['post_type'] = $post_type;
+        $content_scope = self::content_scope_clause();
+
+        if ( ! empty( $args['meta_query'] ) && is_array( $args['meta_query'] ) ) {
+            $args['meta_query'] = [ 'relation' => 'AND', $args['meta_query'], $content_scope ];
+        } else {
+            $args['meta_query'] = [ $content_scope ];
         }
 
-        $podcast_markers = [
-            'key' => self::PODCAST_META_KEYS,
+        $duplicate_ids = ContentKind::duplicate_post_ids( $post_type );
+        if ( null === $duplicate_ids ) {
+            // Never broaden a podcast query when row integrity is unknown.
+            $args['post__in'] = [ 0 ];
+            unset( $args['post__not_in'] );
+        } elseif ( $duplicate_ids ) {
+            if ( isset( $args['post__in'] ) ) {
+                $included = array_values( array_unique( array_filter( array_map( 'absint', (array) $args['post__in'] ) ) ) );
+                $included = array_values( array_diff( $included, $duplicate_ids ) );
+                $args['post__in'] = $included ?: [ 0 ];
+            } else {
+                $excluded = array_values( array_unique( array_filter( array_map( 'absint', (array) ( $args['post__not_in'] ?? [] ) ) ) ) );
+                $args['post__not_in'] = array_values( array_unique( array_merge( $excluded, $duplicate_ids ) ) );
+                sort( $args['post__not_in'], SORT_NUMERIC );
+            }
+        }
+
+        return $args;
+    }
+
+    /** @return array<string,mixed> */
+    public static function content_scope_clause(): array {
+        $explicit_episode = [
+            'key' => ContentKind::META_KEY,
+            'value' => ContentKind::EPISODE,
+            'compare' => '=',
+        ];
+        $unclassified = [
+            'key' => ContentKind::META_KEY,
+            'compare' => 'NOT EXISTS',
+        ];
+
+        // A dedicated episode CPT is authoritative unless it is explicitly
+        // vetoed as an article. Invalid explicit values also fail closed.
+        if ( 'post' !== self::content_type() ) {
+            return [ 'relation' => 'OR', $explicit_episode, $unclassified ];
+        }
+
+        if ( ! self::legacy_marker_fallback_enabled() ) {
+            return $explicit_episode;
+        }
+
+        $legacy_markers = [
+            'key' => self::legacy_marker_keys(),
             'compare_key' => 'IN',
             'compare' => 'EXISTS',
         ];
 
-        if ( ! empty( $args['meta_query'] ) && is_array( $args['meta_query'] ) ) {
-            $args['meta_query'] = [ 'relation' => 'AND', $args['meta_query'], $podcast_markers ];
-        } else {
-            $args['meta_query'] = [ $podcast_markers ];
-        }
-
-        return $args;
+        // Explicit episode is authoritative. Only truly unclassified legacy
+        // posts may fall back to historical metadata markers; an explicit
+        // article can therefore never leak into podcast queries.
+        return [
+            'relation' => 'OR',
+            $explicit_episode,
+            [ 'relation' => 'AND', $unclassified, $legacy_markers ],
+        ];
     }
 
     public static function is_podcast_content( int $post_id, bool $require_marker = true ): bool {
         if ( $post_id < 1 || self::content_type() !== get_post_type( $post_id ) ) {
             return false;
         }
-        if ( 'post' !== self::content_type() || ! $require_marker ) {
+
+        if ( ContentKind::has_explicit_value( $post_id ) ) {
+            if ( ContentKind::is_article( $post_id ) ) {
+                return false;
+            }
+
+            // Only a valid explicit episode has authority. Existing invalid
+            // protected metadata does not regain access through legacy fields.
+            return ContentKind::is_episode( $post_id );
+        }
+
+        if ( 'post' !== self::content_type() ) {
             return true;
         }
-        foreach ( self::PODCAST_META_KEYS as $key ) {
+        if ( ! self::legacy_marker_fallback_enabled() ) {
+            return false;
+        }
+        if ( ! $require_marker ) {
+            return true;
+        }
+        foreach ( self::legacy_marker_keys() as $key ) {
             if ( metadata_exists( 'post', $post_id, $key ) ) {
                 return true;
             }

@@ -3,6 +3,7 @@
 namespace SMP\Podcast\Integrations;
 
 use Hexa\PluginCore\CoreContracts\ModuleInterface;
+use SMP\Podcast\Content\ContentKind;
 use SMP\Podcast\Settings\PodcastSettings;
 
 final class PowerPressSync implements ModuleInterface {
@@ -115,6 +116,10 @@ final class PowerPressSync implements ModuleInterface {
     public function render_readonly_fields(): void {
         $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
         if ( ! $screen || 'post' !== $screen->base || PodcastSettings::content_type() !== $screen->post_type ) {
+            return;
+        }
+        $post_id = ContentKind::current_post_id();
+        if ( $post_id < 1 || ! PodcastSettings::is_podcast_content( $post_id ) ) {
             return;
         }
         ?>

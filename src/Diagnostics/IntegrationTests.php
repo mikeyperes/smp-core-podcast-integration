@@ -7,6 +7,7 @@ use Hexa\PluginCore\IntegrationTests\TestRegistry;
 use SMP\Podcast\Acf\EpisodeFieldGroup;
 use SMP\Podcast\Acf\PodcastOptionsFieldGroup;
 use SMP\Podcast\Config;
+use SMP\Podcast\Content\ContentKind;
 use SMP\Podcast\Frontend\AudioSourceResolver;
 use SMP\Podcast\Frontend\Shortcodes;
 use SMP\Podcast\Frontend\ShortcodeCallbacks;
@@ -60,6 +61,37 @@ final class IntegrationTests implements ModuleInterface {
                     'expected' => $post_type,
                     'actual' => $exists ? $post_type : 'not registered',
                     'details' => [ 'stored_posts' => (string) self::post_count( $post_type ) ],
+                ];
+            },
+            [ 'group' => $group, 'host' => $host ]
+        );
+
+        $registry->register(
+            $host . '.content-kind-meta',
+            'ScaleMyPodcast content-kind metadata is registered',
+            static function(): array {
+                $post_types = array_values( array_unique( [ 'post', PodcastSettings::content_type() ] ) );
+                $invalid = [];
+                foreach ( $post_types as $post_type ) {
+                    $registered = get_registered_meta_keys( 'post', $post_type );
+                    $args = is_array( $registered[ContentKind::META_KEY] ?? null ) ? $registered[ContentKind::META_KEY] : [];
+                    $valid = 'string' === ( $args['type'] ?? '' )
+                        && true === ( $args['single'] ?? false )
+                        && ! array_key_exists( 'default', $args )
+                        && false === ( $args['show_in_rest'] ?? null )
+                        && is_callable( $args['sanitize_callback'] ?? null )
+                        && is_callable( $args['auth_callback'] ?? null );
+                    if ( ! $valid ) {
+                        $invalid[] = $post_type;
+                    }
+                }
+                $passed = [] === $invalid;
+                return [
+                    'passed' => $passed,
+                    'summary' => $passed ? 'The protected episode/article contract is registered for every owned editorial type.' : 'The content-kind metadata registration is missing or invalid.',
+                    'expected' => ContentKind::META_KEY . ' protected episode|article editor contract, not REST-writable',
+                    'actual' => $passed ? 'registered for ' . implode( ', ', $post_types ) : 'invalid for ' . implode( ', ', $invalid ),
+                    'details' => [ 'post_types' => implode( ', ', $post_types ) ],
                 ];
             },
             [ 'group' => $group, 'host' => $host ]

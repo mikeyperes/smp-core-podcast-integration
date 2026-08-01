@@ -26,10 +26,114 @@ $GLOBALS['test_shortcodes'] = [];
 $GLOBALS['test_post_types'] = [];
 $GLOBALS['test_post_meta_keys'] = [];
 $GLOBALS['test_post_meta_values'] = [];
+$GLOBALS['test_post_meta_rows'] = [];
 $GLOBALS['test_powerpress'] = [];
 $GLOBALS['test_attachment_urls'] = [];
 $GLOBALS['test_thumbnail_sizes'] = [];
 $GLOBALS['test_posts'] = [];
+$GLOBALS['test_registered_post_meta'] = [];
+$GLOBALS['test_current_user_can'] = true;
+$GLOBALS['test_powerpress_calls'] = [];
+$GLOBALS['test_get_field_calls'] = [];
+$GLOBALS['test_is_admin'] = false;
+$GLOBALS['test_current_screen'] = null;
+$GLOBALS['test_valid_nonce'] = 'valid-content-kind-nonce';
+$GLOBALS['test_actions_registered'] = [];
+$GLOBALS['test_filters_registered'] = [];
+$GLOBALS['test_actions_fired'] = [];
+$GLOBALS['test_meta_boxes'] = [];
+$GLOBALS['test_revisions'] = [];
+$GLOBALS['test_autosaves'] = [];
+$GLOBALS['test_add_post_meta_failures'] = [];
+$GLOBALS['test_add_post_meta_duplicate_once'] = [];
+$GLOBALS['test_delete_post_meta_failures'] = [];
+
+/**
+ * Minimal wpdb double for the protected-meta integrity query.
+ *
+ * It derives duplicates from row-level fixtures rather than accepting a
+ * precomputed ID list, so identical and conflicting duplicate values exercise
+ * the same COUNT(*) > 1 boundary used in production.
+ */
+final class TestWpdb {
+    public string $posts = 'wp_posts';
+    public string $postmeta = 'wp_postmeta';
+    public string $last_error = '';
+    public bool $fail_prepare = false;
+    public bool $fail_get_col = false;
+    public int $prepare_calls = 0;
+    public int $get_col_calls = 0;
+
+    /** @var array<int,string> */
+    public array $post_types = [];
+
+    /** @var array<int,array{post_id:int,meta_key:string,meta_value:mixed}> */
+    public array $meta_rows = [];
+
+    private string $prepared_meta_key = '';
+    private string $prepared_post_type = '';
+
+    public function prepare( string $query, mixed ...$args ): string|false {
+        $this->prepare_calls++;
+        if ( $this->fail_prepare ) {
+            return false;
+        }
+
+        $this->prepared_meta_key = (string) ( $args[0] ?? '' );
+        $this->prepared_post_type = (string) ( $args[1] ?? '' );
+        return $query;
+    }
+
+    /** @return array<int,int>|false */
+    public function get_col( string $query ): array|false {
+        unset( $query );
+        $this->get_col_calls++;
+        if ( $this->fail_get_col ) {
+            $this->last_error = 'Simulated duplicate-integrity query failure.';
+            return false;
+        }
+
+        $this->last_error = '';
+        $counts = [];
+        foreach ( $this->meta_rows as $row ) {
+            $post_id = (int) ( $row['post_id'] ?? 0 );
+            if ( $post_id < 1
+                || $this->prepared_meta_key !== (string) ( $row['meta_key'] ?? '' )
+                || $this->prepared_post_type !== ( $this->post_types[ $post_id ] ?? '' ) ) {
+                continue;
+            }
+            $counts[ $post_id ] = ( $counts[ $post_id ] ?? 0 ) + 1;
+        }
+
+        $duplicates = [];
+        foreach ( $counts as $post_id => $count ) {
+            if ( $count > 1 ) {
+                $duplicates[] = (int) $post_id;
+            }
+        }
+        sort( $duplicates, SORT_NUMERIC );
+        return $duplicates;
+    }
+}
+
+$GLOBALS['wpdb'] = new TestWpdb();
+
+class WP_Post {
+    public int $ID;
+    public int $post_author;
+    public string $post_type;
+    public string $post_status;
+    public string $post_title;
+
+    /** @param array<string,mixed> $data */
+    public function __construct( array $data = [] ) {
+        $this->ID = (int) ( $data['ID'] ?? 0 );
+        $this->post_author = (int) ( $data['post_author'] ?? 1 );
+        $this->post_type = (string) ( $data['post_type'] ?? 'post' );
+        $this->post_status = (string) ( $data['post_status'] ?? 'draft' );
+        $this->post_title = (string) ( $data['post_title'] ?? '' );
+    }
+}
 
 final class WP_Query {
     /** @param array<string,mixed> $query_vars */
@@ -48,6 +152,7 @@ function sanitize_key( string $value ): string { return strtolower( preg_replace
 function sanitize_title( string $value ): string { return trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', $value ) ?: '' ), '-' ); }
 function sanitize_text_field( string $value ): string { return trim( strip_tags( $value ) ); }
 function absint( mixed $value ): int { return abs( (int) $value ); }
+function wp_unslash( mixed $value ): mixed { return is_array( $value ) ? array_map( 'wp_unslash', $value ) : ( is_string( $value ) ? stripslashes( $value ) : $value ); }
 function esc_html( mixed $value ): string { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_attr( mixed $value ): string { return esc_html( $value ); }
 function esc_url( mixed $value ): string { return filter_var( (string) $value, FILTER_SANITIZE_URL ) ?: ''; }
@@ -65,11 +170,89 @@ function shortcode_atts( array $defaults, array $atts, string $tag = '' ): array
 function add_shortcode( string $tag, callable $callback ): void { $GLOBALS['test_shortcodes'][ $tag ] = $callback; }
 function shortcode_exists( string $tag ): bool { return isset( $GLOBALS['test_shortcodes'][ $tag ] ); }
 function get_the_ID(): int { return 101; }
-function get_field( string $field, mixed $context = null, bool $format = true ): mixed { unset( $format ); $key = (string) $context . ':' . $field; return $GLOBALS['test_fields'][ $key ] ?? null; }
-function get_post( int $post_id ): ?object { return $GLOBALS['test_posts'][ $post_id ] ?? ( $post_id > 0 ? (object) [ 'ID' => $post_id, 'post_author' => 1, 'post_type' => 'post' ] : null ); }
+function get_field( string $field, mixed $context = null, bool $format = true ): mixed { unset( $format ); $GLOBALS['test_get_field_calls'][] = [ $field, $context ]; $key = (string) $context . ':' . $field; return $GLOBALS['test_fields'][ $key ] ?? null; }
+function get_post( int $post_id ): ?object { return $GLOBALS['test_posts'][ $post_id ] ?? ( $post_id > 0 ? new WP_Post( [ 'ID' => $post_id, 'post_author' => 1, 'post_type' => 'post' ] ) : null ); }
 function get_post_type( int $post_id ): string|false { return $GLOBALS['test_post_types'][ $post_id ] ?? false; }
-function metadata_exists( string $meta_type, int $object_id, string $meta_key ): bool { return 'post' === $meta_type && ! empty( $GLOBALS['test_post_meta_keys'][ $object_id ][ $meta_key ] ); }
-function get_post_meta( int $post_id, string $key = '', bool $single = false ): mixed { unset( $single ); return $GLOBALS['test_post_meta_values'][ $post_id ][ $key ] ?? ''; }
+function metadata_exists( string $meta_type, int $object_id, string $meta_key ): bool {
+    return 'post' === $meta_type
+        && ( ! empty( $GLOBALS['test_post_meta_keys'][ $object_id ][ $meta_key ] )
+            || ! empty( $GLOBALS['test_post_meta_rows'][ $object_id ][ $meta_key ] )
+            || array_key_exists( $meta_key, $GLOBALS['test_post_meta_values'][ $object_id ] ?? [] ) );
+}
+function get_post_meta( int $post_id, string $key = '', bool $single = false ): mixed {
+    if ( '' === $key ) {
+        return $GLOBALS['test_post_meta_values'][ $post_id ] ?? [];
+    }
+    if ( array_key_exists( $key, $GLOBALS['test_post_meta_rows'][ $post_id ] ?? [] ) ) {
+        $rows = array_values( $GLOBALS['test_post_meta_rows'][ $post_id ][ $key ] );
+        return $single ? ( $rows[0] ?? '' ) : $rows;
+    }
+    if ( array_key_exists( $key, $GLOBALS['test_post_meta_values'][ $post_id ] ?? [] ) ) {
+        $value = $GLOBALS['test_post_meta_values'][ $post_id ][ $key ];
+        return $single ? $value : [ $value ];
+    }
+    return $single ? '' : [];
+}
+function add_post_meta( int $post_id, string $key, mixed $value, bool $unique = false ): int|false {
+    $fixture_key = $post_id . ':' . $key;
+    if ( ! empty( $GLOBALS['test_add_post_meta_failures'][ $fixture_key ] ) ) {
+        $GLOBALS['test_add_post_meta_failures'][ $fixture_key ]--;
+        return false;
+    }
+    $rows = get_post_meta( $post_id, $key, false );
+    if ( $unique && [] !== $rows ) {
+        return false;
+    }
+    $rows[] = $value;
+    if ( ! empty( $GLOBALS['test_add_post_meta_duplicate_once'][ $fixture_key ] ) ) {
+        $GLOBALS['test_add_post_meta_duplicate_once'][ $fixture_key ]--;
+        $rows[] = $value;
+    }
+    $GLOBALS['test_post_meta_rows'][ $post_id ][ $key ] = $rows;
+    $GLOBALS['test_post_meta_values'][ $post_id ][ $key ] = $rows[0];
+    return count( $rows );
+}
+function delete_post_meta( int $post_id, string $key, mixed $value = '' ): bool {
+    $fixture_key = $post_id . ':' . $key;
+    if ( ! empty( $GLOBALS['test_delete_post_meta_failures'][ $fixture_key ] ) ) {
+        $GLOBALS['test_delete_post_meta_failures'][ $fixture_key ]--;
+        return false;
+    }
+    $existed = metadata_exists( 'post', $post_id, $key );
+    if ( 3 === func_num_args() ) {
+        $rows = array_values( array_filter( get_post_meta( $post_id, $key, false ), static fn( mixed $row ): bool => $row !== $value ) );
+        if ( $rows ) {
+            $GLOBALS['test_post_meta_rows'][ $post_id ][ $key ] = $rows;
+            $GLOBALS['test_post_meta_values'][ $post_id ][ $key ] = $rows[0];
+        } else {
+            unset( $GLOBALS['test_post_meta_rows'][ $post_id ][ $key ], $GLOBALS['test_post_meta_values'][ $post_id ][ $key ] );
+        }
+        return $existed;
+    }
+    unset( $GLOBALS['test_post_meta_rows'][ $post_id ][ $key ], $GLOBALS['test_post_meta_values'][ $post_id ][ $key ] );
+    return $existed;
+}
+function update_post_meta( int $post_id, string $key, mixed $value ): int|bool {
+    $GLOBALS['test_post_meta_rows'][ $post_id ][ $key ] = [ $value ];
+    $GLOBALS['test_post_meta_values'][ $post_id ][ $key ] = $value;
+    return 1;
+}
+function register_post_meta( string $post_type, string $meta_key, array $args ): bool {
+    $enum = $args['show_in_rest']['schema']['enum'] ?? null;
+    if ( array_key_exists( 'default', $args ) && is_array( $enum ) && ! in_array( $args['default'], $enum, true ) ) {
+        return false;
+    }
+    $GLOBALS['test_registered_post_meta'][ $post_type ][ $meta_key ] = $args;
+    return true;
+}
+function get_registered_meta_keys( string $object_type, string $object_subtype = '' ): array { return 'post' === $object_type ? ( $GLOBALS['test_registered_post_meta'][ $object_subtype ] ?? [] ) : []; }
+function current_user_can( string $capability, mixed ...$args ): bool { unset( $capability, $args ); return (bool) $GLOBALS['test_current_user_can']; }
+function wp_verify_nonce( string $nonce, string $action ): bool { unset( $action ); return hash_equals( (string) $GLOBALS['test_valid_nonce'], $nonce ); }
+function wp_nonce_field( string $action, string $name ): void { unset( $action ); echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( (string) $GLOBALS['test_valid_nonce'] ) . '">'; }
+function wp_is_post_revision( int $post_id ): bool { return ! empty( $GLOBALS['test_revisions'][ $post_id ] ); }
+function wp_is_post_autosave( int $post_id ): bool { return ! empty( $GLOBALS['test_autosaves'][ $post_id ] ); }
+function selected( mixed $selected, mixed $current = true, bool $display = true ): string { $result = $selected == $current ? ' selected="selected"' : ''; if ( $display ) { echo $result; } return $result; }
+function add_meta_box( string $id, string $title, callable $callback, string $screen, string $context = 'advanced', string $priority = 'default' ): void { $GLOBALS['test_meta_boxes'][ $screen ][ $id ] = compact( 'title', 'callback', 'context', 'priority' ); }
 function get_the_title( mixed $post_id = 0 ): string { return 'Object ' . (int) ( is_object( $post_id ) ? $post_id->ID : $post_id ); }
 function get_permalink( int $post_id ): string { return 'https://example.test/object-' . $post_id . '/'; }
 function get_userdata( int $user_id ): ?object { return $user_id > 0 ? (object) [ 'ID' => $user_id, 'display_name' => 'User ' . $user_id, 'user_email' => '', 'user_url' => '' ] : null; }
@@ -81,18 +264,27 @@ function get_the_post_thumbnail_url( int $id, mixed $size = 'thumbnail' ): strin
 function wp_get_attachment_url( int $id ): string|false { return $GLOBALS['test_attachment_urls'][ $id ] ?? false; }
 function has_post_thumbnail( int $id ): bool { return $id > 0; }
 function apply_filters( string $hook, mixed $value, mixed ...$args ): mixed { unset( $hook, $args ); return $value; }
-function is_admin(): bool { return false; }
+function is_admin(): bool { return (bool) $GLOBALS['test_is_admin']; }
+function get_current_screen(): ?object { return $GLOBALS['test_current_screen']; }
 function wp_doing_ajax(): bool { return false; }
 function is_feed(): bool { return false; }
 function is_embed(): bool { return false; }
-function powerpress_get_enclosure_data( int $post_id, string $feed_slug = 'podcast' ): array|false { unset( $feed_slug ); return $GLOBALS['test_powerpress'][ $post_id ] ?? false; }
+function powerpress_get_enclosure_data( int $post_id, string $feed_slug = 'podcast' ): array|false { unset( $feed_slug ); $GLOBALS['test_powerpress_calls'][] = $post_id; return $GLOBALS['test_powerpress'][ $post_id ] ?? false; }
 function setup_postdata( object $post ): void { unset( $post ); }
 function wp_reset_postdata(): void {}
-function add_action( string $hook, callable $callback, int $priority = 10, int $accepted_args = 1 ): void { unset( $hook, $callback, $priority, $accepted_args ); }
-function add_filter( string $hook, callable $callback, int $priority = 10, int $accepted_args = 1 ): void { unset( $hook, $callback, $priority, $accepted_args ); }
-function do_action( string $hook, mixed ...$args ): void { unset( $hook, $args ); }
+function add_action( string $hook, callable $callback, int $priority = 10, int $accepted_args = 1 ): void { $GLOBALS['test_actions_registered'][ $hook ][] = compact( 'callback', 'priority', 'accepted_args' ); }
+function add_filter( string $hook, callable $callback, int $priority = 10, int $accepted_args = 1 ): void { $GLOBALS['test_filters_registered'][ $hook ][] = compact( 'callback', 'priority', 'accepted_args' ); }
+function do_action( string $hook, mixed ...$args ): void {
+    $GLOBALS['test_actions_fired'][] = [ $hook, $args ];
+    $callbacks = $GLOBALS['test_actions_registered'][ $hook ] ?? [];
+    usort( $callbacks, static fn( array $left, array $right ): int => $left['priority'] <=> $right['priority'] );
+    foreach ( $callbacks as $registration ) {
+        call_user_func_array( $registration['callback'], array_slice( $args, 0, (int) $registration['accepted_args'] ) );
+    }
+}
 function did_action( string $hook ): int { unset( $hook ); return 0; }
 function flush_rewrite_rules( bool $hard = true ): void { unset( $hard ); }
+function update_field( string $field, mixed $value, int $post_id ): bool { $GLOBALS['test_fields'][ $post_id . ':' . $field ] = $value; return true; }
 
 require $root . '/lib/hexa-wordpress-plugin-core/bootstrap.php';
 hexa_plugin_core_register_package( 'podcast-tests', $root . '/lib/hexa-wordpress-plugin-core', [ 'minimum_version' => '1.1.9' ] );
@@ -104,7 +296,7 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.2.1' === $header_version, 'plugin header reports 3.2.1', $header_version );
+check( '3.2.2' === $header_version, 'plugin header reports 3.2.2', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
@@ -214,32 +406,368 @@ $rewrite->maybe_flush();
 check( SMP\Podcast\Config::VERSION === ( $GLOBALS['test_options']['smp_podcast_rewrite_version'] ?? '' ), 'rewrite refresh records the current release' );
 check( ! isset( $GLOBALS['test_options']['smp_podcast_flush_rewrite_rules'] ), 'rewrite refresh clears its pending flag' );
 
+$content_kind = new SMP\Podcast\Content\ContentKind();
+$content_kind->register();
+$content_kind->register_meta();
+$registered_kind = $GLOBALS['test_registered_post_meta']['post'][SMP\Podcast\Content\ContentKind::META_KEY] ?? [];
+check( 'string' === ( $registered_kind['type'] ?? '' ) && true === ( $registered_kind['single'] ?? false ), 'content-kind post meta is registered as one protected string' );
+check( ! array_key_exists( 'default', $registered_kind ), 'content-kind registration has no implicit default' );
+check( false === ( $registered_kind['show_in_rest'] ?? null ), 'content-kind classification is not writable outside its editor transition lifecycle' );
+check( 'episode' === SMP\Podcast\Content\ContentKind::sanitize( ' Episode ' ), 'content-kind sanitizer accepts episode' );
+check( 'article' === SMP\Podcast\Content\ContentKind::sanitize( 'ARTICLE' ), 'content-kind sanitizer accepts article' );
+check( '' === SMP\Podcast\Content\ContentKind::sanitize( 'podcast' ), 'content-kind sanitizer rejects values outside the contract' );
+$GLOBALS['test_current_user_can'] = true;
+check( SMP\Podcast\Content\ContentKind::authorize( false, '_mpp_content_kind', 201 ), 'post editors may update the protected content-kind contract' );
+$GLOBALS['test_current_user_can'] = false;
+check( ! SMP\Podcast\Content\ContentKind::authorize( true, '_mpp_content_kind', 201 ), 'users who cannot edit a post cannot update its content kind' );
+$GLOBALS['test_current_user_can'] = true;
+check(
+    isset( $GLOBALS['test_filters_registered']['acf/location/match_rule'] )
+    && ! isset( $GLOBALS['test_filters_registered']['acf/prepare_field_group'] ),
+    'episode field-group visibility uses ACF Pro supported location matching'
+);
+$content_kind->add_meta_box();
+check(
+    isset( $GLOBALS['test_meta_boxes']['post']['smp-podcast-content-kind'] ),
+    'mixed posts expose a normal editorial content-kind authoring control'
+);
+
 $scoped = SMP\Podcast\Settings\PodcastSettings::scoped_query_args( [ 'post_status' => 'publish' ] );
 check( 'post' === $scoped['post_type'], 'post-mode queries retain the WordPress post type' );
-check( 'IN' === ( $scoped['meta_query'][0]['compare_key'] ?? '' ), 'post-mode queries use one metadata-key join' );
-check( 'EXISTS' === ( $scoped['meta_query'][0]['compare'] ?? '' ), 'post-mode queries require a podcast metadata marker' );
-check( 6 === count( $scoped['meta_query'][0]['key'] ?? [] ), 'all podcast metadata markers participate in post-mode queries' );
+$post_scope = $scoped['meta_query'][0] ?? [];
+check( 'OR' === ( $post_scope['relation'] ?? '' ), 'post-mode content scope separates explicit episodes from legacy fallback' );
+check(
+    '_mpp_content_kind' === ( $post_scope[0]['key'] ?? '' ) && 'episode' === ( $post_scope[0]['value'] ?? '' ),
+    'explicit episode metadata is authoritative in scoped queries'
+);
+check(
+    'AND' === ( $post_scope[1]['relation'] ?? '' )
+    && 'NOT EXISTS' === ( $post_scope[1][0]['compare'] ?? '' )
+    && 'IN' === ( $post_scope[1][1]['compare_key'] ?? '' ),
+    'legacy podcast markers are consulted only when content kind is absent'
+);
+check( 5 === count( $post_scope[1][1]['key'] ?? [] ), 'only podcast-owned metadata markers participate in legacy fallback queries' );
+check( ! in_array( 'profiles', $post_scope[1][1]['key'] ?? [], true ), 'editorial profile relationships never classify an article as an episode' );
 
 $existing_meta_query = [ [ 'key' => 'season', 'value' => 2 ] ];
 $combined = SMP\Podcast\Settings\PodcastSettings::scoped_query_args( [ 'meta_query' => $existing_meta_query ] );
 check( 'AND' === ( $combined['meta_query']['relation'] ?? '' ), 'existing meta queries are combined with podcast scoping' );
 check( $existing_meta_query === ( $combined['meta_query'][0] ?? null ), 'existing meta query clauses are preserved' );
 
+/** @var TestWpdb $test_wpdb */
+$test_wpdb = $GLOBALS['wpdb'];
+$test_wpdb->post_types = [
+    601 => 'post',
+    602 => 'post',
+    603 => 'page',
+];
+$test_wpdb->meta_rows = [
+    [ 'post_id' => 601, 'meta_key' => SMP\Podcast\Content\ContentKind::META_KEY, 'meta_value' => 'episode' ],
+    [ 'post_id' => 601, 'meta_key' => SMP\Podcast\Content\ContentKind::META_KEY, 'meta_value' => 'episode' ],
+    [ 'post_id' => 602, 'meta_key' => SMP\Podcast\Content\ContentKind::META_KEY, 'meta_value' => 'episode' ],
+    [ 'post_id' => 602, 'meta_key' => SMP\Podcast\Content\ContentKind::META_KEY, 'meta_value' => 'article' ],
+    [ 'post_id' => 603, 'meta_key' => SMP\Podcast\Content\ContentKind::META_KEY, 'meta_value' => 'episode' ],
+    [ 'post_id' => 603, 'meta_key' => SMP\Podcast\Content\ContentKind::META_KEY, 'meta_value' => 'episode' ],
+];
+$scan_count = $test_wpdb->get_col_calls;
+do_action( 'added_post_meta', 1, 601, SMP\Podcast\Content\ContentKind::META_KEY, 'episode' );
+$duplicate_exclusions = SMP\Podcast\Settings\PodcastSettings::scoped_query_args( [ 'post__not_in' => [ 77 ] ] );
+check(
+    [ 77, 601, 602 ] === ( $duplicate_exclusions['post__not_in'] ?? [] ),
+    'scoped queries preserve existing exclusions and reject identical and conflicting duplicate content-kind rows'
+);
+check( $scan_count + 1 === $test_wpdb->get_col_calls, 'protected-meta add hook invalidates the duplicate-ID cache' );
+
+$duplicate_inclusion = SMP\Podcast\Settings\PodcastSettings::scoped_query_args( [ 'post__in' => [ 77, 601, 602, 88 ] ] );
+check( [ 77, 88 ] === ( $duplicate_inclusion['post__in'] ?? [] ), 'existing inclusions are intersected with the duplicate-integrity boundary' );
+$empty_duplicate_inclusion = SMP\Podcast\Settings\PodcastSettings::scoped_query_args( [ 'post__in' => [ 601, 602 ] ] );
+check( [ 0 ] === ( $empty_duplicate_inclusion['post__in'] ?? [] ), 'an empty safe inclusion becomes post__in [0] instead of WordPress empty-array match-all semantics' );
+
+$test_wpdb->meta_rows = [];
+$scan_count = $test_wpdb->get_col_calls;
+do_action( 'updated_post_meta', 2, 601, SMP\Podcast\Content\ContentKind::META_KEY, 'episode' );
+$clean_scope = SMP\Podcast\Settings\PodcastSettings::scoped_query_args( [ 'post__in' => [ 77, 88 ], 'post__not_in' => [ 99 ] ] );
+check(
+    [ 77, 88 ] === ( $clean_scope['post__in'] ?? [] ) && [ 99 ] === ( $clean_scope['post__not_in'] ?? [] ),
+    'a successful clean integrity scan leaves caller inclusion and exclusion constraints unchanged'
+);
+check( $scan_count + 1 === $test_wpdb->get_col_calls, 'protected-meta update hook invalidates the duplicate-ID cache' );
+$cached_scan_count = $test_wpdb->get_col_calls;
+SMP\Podcast\Settings\PodcastSettings::scoped_query_args();
+check( $cached_scan_count === $test_wpdb->get_col_calls, 'duplicate-ID integrity results are cached within one request' );
+
+$test_wpdb->post_types[604] = 'post';
+$test_wpdb->meta_rows = [
+    [ 'post_id' => 604, 'meta_key' => SMP\Podcast\Content\ContentKind::META_KEY, 'meta_value' => 'episode' ],
+    [ 'post_id' => 604, 'meta_key' => SMP\Podcast\Content\ContentKind::META_KEY, 'meta_value' => 'article' ],
+];
+$scan_count = $test_wpdb->get_col_calls;
+do_action( 'deleted_post_meta', 3, 604, SMP\Podcast\Content\ContentKind::META_KEY, 'article' );
+$deleted_hook_scope = SMP\Podcast\Settings\PodcastSettings::scoped_query_args();
+check(
+    $scan_count + 1 === $test_wpdb->get_col_calls && [ 604 ] === ( $deleted_hook_scope['post__not_in'] ?? [] ),
+    'protected-meta delete hook invalidates cached clean results before the next scoped query'
+);
+
+$test_wpdb->fail_prepare = true;
+do_action( 'updated_post_meta', 4, 604, SMP\Podcast\Content\ContentKind::META_KEY, 'episode' );
+$prepare_failure_scope = SMP\Podcast\Settings\PodcastSettings::scoped_query_args( [ 'post__not_in' => [ 77 ] ] );
+check(
+    [ 0 ] === ( $prepare_failure_scope['post__in'] ?? [] ) && ! isset( $prepare_failure_scope['post__not_in'] ),
+    'duplicate-integrity prepare failure fails the scoped query closed with post__in [0]'
+);
+$test_wpdb->fail_prepare = false;
+
+$test_wpdb->fail_get_col = true;
+do_action( 'updated_post_meta', 5, 604, SMP\Podcast\Content\ContentKind::META_KEY, 'episode' );
+$query_failure_scope = SMP\Podcast\Settings\PodcastSettings::scoped_query_args();
+check( [ 0 ] === ( $query_failure_scope['post__in'] ?? [] ), 'duplicate-integrity database failure fails the scoped query closed with post__in [0]' );
+$test_wpdb->fail_get_col = false;
+$test_wpdb->last_error = '';
+$test_wpdb->meta_rows = [];
+SMP\Podcast\Content\ContentKind::invalidate_duplicate_ids();
+
 $GLOBALS['test_post_types'][201] = 'post';
 $GLOBALS['test_post_types'][202] = 'post';
 $GLOBALS['test_post_types'][203] = 'page';
+$GLOBALS['test_post_types'][205] = 'post';
+$GLOBALS['test_post_types'][206] = 'post';
+$GLOBALS['test_post_types'][207] = 'post';
+$GLOBALS['test_post_types'][210] = 'post';
+$GLOBALS['test_post_types'][211] = 'post';
+$GLOBALS['test_post_types'][212] = 'post';
 $GLOBALS['test_post_meta_keys'][202]['audio_url'] = true;
+$GLOBALS['test_post_meta_values'][205]['_mpp_content_kind'] = 'episode';
+$GLOBALS['test_post_meta_values'][206]['_mpp_content_kind'] = 'article';
+$GLOBALS['test_post_meta_values'][206]['audio_url'] = 'https://example.test/must-not-count.mp3';
+$GLOBALS['test_post_meta_values'][207]['_mpp_content_kind'] = 'invalid-existing-value';
+$GLOBALS['test_post_meta_values'][207]['audio_url'] = 'https://example.test/must-fail-closed.mp3';
+$GLOBALS['test_post_meta_values'][210]['profiles'] = [ [ 'profile' => 44 ] ];
+$GLOBALS['test_post_meta_rows'][211]['_mpp_content_kind'] = [ 'episode', 'episode' ];
+$GLOBALS['test_post_meta_rows'][212]['_mpp_content_kind'] = [ 'episode', 'article' ];
 check( ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 201 ), 'unmarked regular posts are excluded from podcast operations' );
 check( SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 202 ), 'metadata-marked posts are included in podcast operations' );
+check( SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 205 ), 'explicit episodes are included without incidental podcast fields' );
+check( ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 206 ), 'explicit articles veto legacy podcast markers' );
+check( ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 206, false ), 'article veto also applies to compatibility checks that do not require markers' );
+check( ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 207 ), 'invalid explicit content-kind values fail closed instead of falling back' );
+check( ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 210 ), 'profiles metadata alone remains ordinary article data' );
+check(
+    SMP\Podcast\Content\ContentKind::has_explicit_value( 211 )
+    && '' === SMP\Podcast\Content\ContentKind::get( 211 )
+    && ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 211 ),
+    'duplicate identical protected-meta rows fail closed'
+);
+check(
+    SMP\Podcast\Content\ContentKind::has_explicit_value( 212 )
+    && '' === SMP\Podcast\Content\ContentKind::get( 212 )
+    && ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 212 ),
+    'duplicate conflicting protected-meta rows fail closed'
+);
+$GLOBALS['test_options'][SMP\Podcast\Settings\PodcastSettings::LEGACY_MARKER_FALLBACK_OPTION] = false;
+$cutover_scope = SMP\Podcast\Settings\PodcastSettings::content_scope_clause();
+check(
+    '_mpp_content_kind' === ( $cutover_scope['key'] ?? '' )
+    && 'episode' === ( $cutover_scope['value'] ?? '' )
+    && ! isset( $cutover_scope['relation'] ),
+    'post-backfill query scope accepts explicit episodes only'
+);
+check( ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 202 ), 'post-backfill cutover rejects unclassified posts with legacy podcast markers' );
+check( SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 205 ), 'post-backfill cutover retains explicit episodes' );
+check( ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 201, false ), 'post-backfill cutover rejects unclassified posts even in marker-optional compatibility checks' );
+unset( $GLOBALS['test_options'][SMP\Podcast\Settings\PodcastSettings::LEGACY_MARKER_FALLBACK_OPTION] );
+check( SMP\Podcast\Settings\PodcastSettings::legacy_marker_fallback_enabled(), 'missing cutover option preserves legacy episodes before migration' );
 check( ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 203 ), 'non-podcast post types are excluded from podcast operations' );
 check( SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 201, false ), 'explicit unscoped compatibility checks accept the configured post type' );
 
+$episode_rule = [ 'param' => 'post_type', 'operator' => '==', 'value' => 'post' ];
+$episode_group = [ 'key' => SMP\Podcast\Acf\EpisodeFieldGroup::GROUP_KEY, 'title' => 'Podcast Episode Fields' ];
+check(
+    false === $content_kind->match_episode_field_group_location( true, $episode_rule, [ 'post_id' => 206, 'post_type' => 'post' ], $episode_group ),
+    'podcast ACF field group is suppressed for explicit articles'
+);
+check(
+    $content_kind->match_episode_field_group_location( true, $episode_rule, [ 'post_id' => 205, 'post_type' => 'post' ], $episode_group ),
+    'podcast ACF field group remains available for explicit episodes'
+);
+check(
+    $content_kind->match_episode_field_group_location( true, $episode_rule, [ 'post_id' => 202, 'post_type' => 'post' ], $episode_group ),
+    'podcast ACF field group remains available for genuinely marked legacy episodes'
+);
+check(
+    ! $content_kind->match_episode_field_group_location( true, $episode_rule, [ 'post_id' => 201, 'post_type' => 'post' ], $episode_group ),
+    'unclassified Add New posts receive no podcast ACF field group'
+);
+$other_group = [ 'key' => 'group_unrelated' ];
+check(
+    $content_kind->match_episode_field_group_location( true, $episode_rule, [ 'post_id' => 206, 'post_type' => 'post' ], $other_group ),
+    'content-kind ACF filter never alters unrelated field groups'
+);
+check(
+    ! $content_kind->match_episode_field_group_location( true, $episode_rule, [ 'post_id' => 207, 'post_type' => 'post' ], $episode_group ),
+    'invalid explicit content kind also fails closed at the podcast ACF boundary'
+);
+check(
+    ! $content_kind->match_episode_field_group_location( false, $episode_rule, [ 'post_id' => 205, 'post_type' => 'post' ], $episode_group ),
+    'content-kind ACF filter cannot turn a failed location rule into a match'
+);
+check(
+    false === $content_kind->prevent_article_episode_field_update( null, 'changed', 206, [ 'key' => 'field_6844c7776e21e' ] ),
+    'ACF episode-field writes are short-circuited for explicit articles'
+);
+check(
+    null === $content_kind->prevent_article_episode_field_update( null, 'changed', 205, [ 'key' => 'field_6844c7776e21e' ] ),
+    'ACF episode-field writes continue for explicit episodes'
+);
+check(
+    false === $content_kind->prevent_article_episode_field_update( null, 'changed', 201, [ 'key' => 'field_6844c7776e21e' ] ),
+    'unclassified regular posts cannot acquire their first podcast marker through ACF'
+);
+check(
+    null === $content_kind->prevent_article_episode_field_update( null, 'changed', 202, [ 'key' => 'field_6844c7776e21e' ] ),
+    'existing marked legacy episodes retain their ACF editing path'
+);
+check(
+    null === $content_kind->prevent_article_episode_field_update( null, 'changed', 206, [ 'key' => 'field_unrelated' ] ),
+    'ACF write veto never affects fields outside the owned episode group'
+);
+check(
+    true === $content_kind->prevent_article_episode_field_update( true, 'changed', 206, [ 'key' => 'field_6844c7776e21e' ] ),
+    'ACF write veto preserves an earlier pre-update short circuit'
+);
+$GLOBALS['test_is_admin'] = true;
+$GLOBALS['test_current_screen'] = (object) [ 'base' => 'post', 'action' => 'add', 'post_type' => 'post' ];
+$GLOBALS['test_options']['option_podcast_default_host'] = 999;
+$GLOBALS['test_options']['enable_post_functionality'] = true;
+$default_host = new SMP\Podcast\Content\DefaultHost();
+$default_host->register();
+check(
+    isset( $GLOBALS['test_actions_registered']['smp_podcast_content_kind_saved'] ),
+    'default-host assignment listens to the first canonical episode classification'
+);
+$GLOBALS['post'] = (object) [ 'ID' => 206 ];
+$host_field = [ 'key' => 'field_hosts', 'value' => [] ];
+check( $host_field === $default_host->prepare_field( $host_field ), 'default-host ACF preparation does nothing for explicit articles' );
+$GLOBALS['post'] = (object) [ 'ID' => 201 ];
+check( $host_field === $default_host->prepare_field( $host_field ), 'unclassified Add New posts receive no accidental default host' );
+
+$editor_post = new WP_Post( [ 'ID' => 213, 'post_type' => 'post', 'post_status' => 'draft' ] );
+$GLOBALS['test_post_types'][213] = 'post';
+$_POST = [
+    'smp_podcast_content_kind_nonce' => $GLOBALS['test_valid_nonce'],
+    '_mpp_content_kind' => 'episode',
+];
+$content_kind->save_meta_box( 213, $editor_post, false );
+check( [ 'episode' ] === SMP\Podcast\Content\ContentKind::raw_values( 213 ), 'editor save writes one canonical episode metadata row' );
+check( [ 999 ] === ( $GLOBALS['test_fields']['213:hosts'] ?? null ), 'first episode classification assigns the configured default host without a second save' );
+$saved_action = end( $GLOBALS['test_actions_fired'] );
+check(
+    'smp_podcast_content_kind_saved' === ( $saved_action[0] ?? '' )
+    && [ 213, 'episode', '' ] === ( $saved_action[1] ?? [] ),
+    'content-kind transition emits the exact post, new kind, and prior state'
+);
+$action_count = count( $GLOBALS['test_actions_fired'] );
+$content_kind->save_meta_box( 213, $editor_post, true );
+check(
+    [ 'episode' ] === SMP\Podcast\Content\ContentKind::raw_values( 213 )
+    && $action_count === count( $GLOBALS['test_actions_fired'] ),
+    'saving an unchanged canonical kind does not churn metadata or repeat transition effects'
+);
+
+$GLOBALS['test_post_types'][214] = 'post';
+$GLOBALS['test_post_meta_rows'][214]['_mpp_content_kind'] = [ 'episode', 'article' ];
+$duplicate_post = new WP_Post( [ 'ID' => 214, 'post_type' => 'post' ] );
+$_POST['_mpp_content_kind'] = 'article';
+$content_kind->save_meta_box( 214, $duplicate_post, true );
+check( [ 'article' ] === SMP\Podcast\Content\ContentKind::raw_values( 214 ), 'editor save normalizes duplicate protected-meta rows to one explicit choice' );
+
+$meta_fixture_key = static fn( int $post_id ): string => $post_id . ':' . SMP\Podcast\Content\ContentKind::META_KEY;
+$GLOBALS['test_post_types'][220] = 'post';
+$GLOBALS['test_post_meta_rows'][220][SMP\Podcast\Content\ContentKind::META_KEY] = [ 'episode', 'article' ];
+$GLOBALS['test_delete_post_meta_failures'][ $meta_fixture_key( 220 ) ] = 1;
+$delete_failure_post = new WP_Post( [ 'ID' => 220, 'post_type' => 'post' ] );
+$action_count = count( $GLOBALS['test_actions_fired'] );
+$_POST['_mpp_content_kind'] = 'article';
+$content_kind->save_meta_box( 220, $delete_failure_post, true );
+check(
+    [ 'episode', 'article' ] === SMP\Podcast\Content\ContentKind::raw_values( 220 )
+    && $action_count === count( $GLOBALS['test_actions_fired'] ),
+    'failed duplicate-row deletion leaves the exact prior state and emits no transition'
+);
+
+$GLOBALS['test_post_types'][221] = 'post';
+$GLOBALS['test_post_meta_rows'][221][SMP\Podcast\Content\ContentKind::META_KEY] = [ 'episode', 'article' ];
+$GLOBALS['test_add_post_meta_failures'][ $meta_fixture_key( 221 ) ] = 1;
+$add_failure_post = new WP_Post( [ 'ID' => 221, 'post_type' => 'post' ] );
+$action_count = count( $GLOBALS['test_actions_fired'] );
+$_POST['_mpp_content_kind'] = 'article';
+$content_kind->save_meta_box( 221, $add_failure_post, true );
+check(
+    [ 'episode', 'article' ] === SMP\Podcast\Content\ContentKind::raw_values( 221 )
+    && $action_count === count( $GLOBALS['test_actions_fired'] ),
+    'failed canonical add restores every prior metadata row and emits no transition'
+);
+
+$GLOBALS['test_post_types'][222] = 'post';
+$GLOBALS['test_post_meta_rows'][222][SMP\Podcast\Content\ContentKind::META_KEY] = [ 'article' ];
+$GLOBALS['test_add_post_meta_duplicate_once'][ $meta_fixture_key( 222 ) ] = 1;
+$post_write_mismatch = new WP_Post( [ 'ID' => 222, 'post_type' => 'post' ] );
+$action_count = count( $GLOBALS['test_actions_fired'] );
+$_POST['_mpp_content_kind'] = 'episode';
+$content_kind->save_meta_box( 222, $post_write_mismatch, true );
+check(
+    [ 'article' ] === SMP\Podcast\Content\ContentKind::raw_values( 222 )
+    && $action_count === count( $GLOBALS['test_actions_fired'] ),
+    'post-write contract mismatch restores the exact prior row and emits no transition'
+);
+
+$GLOBALS['test_post_types'][215] = 'post';
+$GLOBALS['test_post_meta_rows'][215]['_mpp_content_kind'] = [ 'episode' ];
+$protected_post = new WP_Post( [ 'ID' => 215, 'post_type' => 'post' ] );
+$GLOBALS['test_current_user_can'] = false;
+$_POST['_mpp_content_kind'] = 'article';
+$content_kind->save_meta_box( 215, $protected_post, true );
+check( [ 'episode' ] === SMP\Podcast\Content\ContentKind::raw_values( 215 ), 'unauthorized editor requests cannot alter content kind' );
+$GLOBALS['test_current_user_can'] = true;
+
+$GLOBALS['test_post_types'][216] = 'post';
+$invalid_post = new WP_Post( [ 'ID' => 216, 'post_type' => 'post' ] );
+$_POST['_mpp_content_kind'] = 'podcast';
+$content_kind->save_meta_box( 216, $invalid_post, false );
+check( [] === SMP\Podcast\Content\ContentKind::raw_values( 216 ), 'invalid editor choices never create protected metadata' );
+$_POST = [];
+
+$GLOBALS['test_options']['smp_podcast_content_model'] = 'episode';
+$GLOBALS['test_post_types'][217] = 'episode';
+$default_host->assign_after_content_kind( 217, 'episode', '' );
+check(
+    ! array_key_exists( '217:hosts', $GLOBALS['test_fields'] ),
+    'dedicated episode mode keeps its existing ACF Add New default-host lifecycle'
+);
+$GLOBALS['test_options']['smp_podcast_content_model'] = 'post';
+
+$GLOBALS['test_current_screen'] = (object) [ 'base' => 'post', 'action' => '', 'post_type' => 'post' ];
+$GLOBALS['post'] = (object) [ 'ID' => 206 ];
+ob_start();
+( new SMP\Podcast\Integrations\PowerPressSync() )->render_readonly_fields();
+$article_powerpress_admin = (string) ob_get_clean();
+check( '' === $article_powerpress_admin, 'PowerPress admin field behavior does not render on explicit articles' );
+$GLOBALS['test_is_admin'] = false;
+$GLOBALS['test_current_screen'] = null;
+unset( $GLOBALS['post'], $GLOBALS['test_options']['option_podcast_default_host'], $GLOBALS['test_options']['enable_post_functionality'] );
+
 $GLOBALS['test_options']['smp_podcast_content_model'] = 'episode';
 $GLOBALS['test_post_types'][204] = 'episode';
+$GLOBALS['test_post_types'][208] = 'episode';
+$GLOBALS['test_post_types'][209] = 'episode';
+$GLOBALS['test_post_meta_values'][208]['_mpp_content_kind'] = 'article';
+$GLOBALS['test_post_meta_values'][209]['_mpp_content_kind'] = 'episode';
 $episode_scoped = SMP\Podcast\Settings\PodcastSettings::scoped_query_args( [ 'post_status' => 'publish' ] );
 check( 'episode' === $episode_scoped['post_type'], 'episode-mode queries use the dedicated content type' );
-check( ! isset( $episode_scoped['meta_query'] ), 'episode-mode queries do not require redundant metadata markers' );
+check( 'OR' === ( $episode_scoped['meta_query'][0]['relation'] ?? '' ), 'episode-mode queries retain unclassified CPT entries while enforcing article veto' );
 check( SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 204 ), 'dedicated episode posts are podcast content without markers' );
+check( ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 208 ), 'explicit article veto applies even on a dedicated episode post type' );
+check( SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 209 ), 'explicit episode authority applies on a dedicated episode post type' );
 $GLOBALS['test_options']['smp_podcast_content_model'] = 'post';
 
 $shortcodes = new SMP\Podcast\Frontend\Shortcodes();
@@ -248,6 +776,12 @@ $expected_tags = [ 'smp_listen_button', 'smp_watch_button', 'podcast_url', 'epis
 check( $expected_tags === SMP\Podcast\Frontend\Shortcodes::tags(), 'canonical media triggers and all nine legacy shortcode tags register' );
 check( [] === array_diff( $expected_tags, array_keys( $GLOBALS['test_shortcodes'] ) ), 'all shortcode callbacks register' );
 
+foreach ( [ 301, 302, 303, 304, 101, 21811 ] as $episode_post_id ) {
+    $GLOBALS['test_post_types'][ $episode_post_id ] = 'post';
+}
+$GLOBALS['test_post_meta_values'][301]['_mpp_content_kind'] = 'episode';
+$GLOBALS['test_post_meta_values'][302]['_mpp_content_kind'] = 'episode';
+$GLOBALS['test_post_meta_values'][101]['_mpp_content_kind'] = 'episode';
 $GLOBALS['test_fields']['301:audio'] = [ 'url' => 'https://example.test/direct-301.mp3' ];
 $GLOBALS['test_powerpress'][301] = [ 'url' => 'https://media.example.test/powerpress-301.mp3', 'duration' => '1:02:03' ];
 $resolved_audio = SMP\Podcast\Frontend\AudioSourceResolver::resolve( 301 );
@@ -306,6 +840,21 @@ check( 'https://cdn.example.test/direct-302.m4a' === $direct_audio['playback_url
 $GLOBALS['test_post_meta_values'][303]['enclosure'] = "https://cdn.example.test/enclosure-303.mp3\n12345\naudio/mpeg";
 $enclosure_audio = SMP\Podcast\Frontend\AudioSourceResolver::resolve( 303 );
 check( 'https://cdn.example.test/enclosure-303.mp3' === $enclosure_audio['playback_url'] && 'enclosure' === $enclosure_audio['source'], 'WordPress enclosure is the final playback fallback' );
+$GLOBALS['test_post_meta_values'][304]['_mpp_content_kind'] = 'article';
+$GLOBALS['test_fields']['304:audio'] = [ 'url' => 'https://example.test/article-audio.mp3' ];
+$GLOBALS['test_powerpress'][304] = [ 'url' => 'https://media.example.test/article-powerpress.mp3' ];
+$powerpress_calls_before_article = count( $GLOBALS['test_powerpress_calls'] );
+$acf_calls_before_article = count( $GLOBALS['test_get_field_calls'] );
+check( [] === SMP\Podcast\Frontend\AudioSourceResolver::resolve( 304 ), 'explicit articles cannot initialize the podcast player from ACF or enclosure data' );
+check( $powerpress_calls_before_article === count( $GLOBALS['test_powerpress_calls'] ), 'explicit articles never invoke the PowerPress resolver' );
+check( $acf_calls_before_article === count( $GLOBALS['test_get_field_calls'] ), 'explicit articles never invoke the podcast ACF audio resolver' );
+check( '' === SMP\Podcast\Frontend\ShortcodeCallbacks::episode_fields( [ 'name' => 'audio', 'post_id' => 304 ] ), 'podcast ACF shortcodes do not read explicit articles' );
+$acf_calls_before_default_host = count( $GLOBALS['test_get_field_calls'] );
+$article_host_result = SMP\Podcast\Content\DefaultHost::apply( 304 );
+check( false === $article_host_result['changed'] && str_starts_with( $article_host_result['message'], 'Skipped:' ), 'default-host mutations veto explicit articles' );
+check( $acf_calls_before_default_host === count( $GLOBALS['test_get_field_calls'] ), 'default-host operations do not read podcast ACF fields on explicit articles' );
+$article_sync_result = SMP\Podcast\Integrations\PowerPressSync::sync_audio( 304 );
+check( false === $article_sync_result['changed'] && str_starts_with( $article_sync_result['message'], 'Skipped:' ), 'PowerPress mutations veto explicit articles' );
 
 $GLOBALS['test_fields']['101:audio_url'] = 'https://cdn.example.test/audio.mp3';
 check( 'https://cdn.example.test/audio.mp3' === SMP\Podcast\Frontend\ShortcodeCallbacks::episode_fields( [ 'name' => 'audio_url', 'post_id' => 101 ] ), 'top-level audio_url shortcode is not misread as a group' );
