@@ -870,7 +870,9 @@
                 var name = names[index];
                 if (!definitions[name].test(id)) continue;
                 var escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                var assignment = new RegExp('^(?:var\\s+|window\\.)?' + escapedName + '\\s*=\\s*([\\s\\S]+);$').exec(cleaned);
+                var escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                var candidate = cleaned.replace(new RegExp('(?:^|\\n)//# sourceURL=' + escapedId + '\\s*$'), '').trim();
+                var assignment = new RegExp('^(?:var\\s+|window\\.)?' + escapedName + '\\s*=\\s*([\\s\\S]+);$').exec(candidate);
                 if (!assignment) return null;
                 try {
                     var value = JSON.parse(assignment[1]);

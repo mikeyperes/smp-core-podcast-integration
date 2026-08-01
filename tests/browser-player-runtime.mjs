@@ -586,8 +586,10 @@ function rejectedStyleDocument(path) {
 function elementorTargetDocument() {
     return `<!doctype html><html lang="en"><head><title>Elementor target</title>
 <link rel="canonical" href="/elementor-ready"><meta name="description" content="Elementor target description">
-<script id="elementor-frontend-js-before">var elementorFrontendConfig={"post":{"id":2,"title":"Elementor target"}};</script>
-<script id="elementor-pro-frontend-js-before">var ElementorProFrontendConfig={"version":"test-target"};</script>
+<script id="elementor-frontend-js-before">var elementorFrontendConfig={"post":{"id":2,"title":"Elementor target"}};
+//# sourceURL=elementor-frontend-js-before</script>
+<script id="elementor-pro-frontend-js-before">var ElementorProFrontendConfig={"version":"test-target"};
+//# sourceURL=elementor-pro-frontend-js-before</script>
 </head><body><main data-smp-ajax-root="content" class="elementor"><h1>Elementor target</h1><div class="elementor-element">Widget</div></main></body></html>`;
 }
 
