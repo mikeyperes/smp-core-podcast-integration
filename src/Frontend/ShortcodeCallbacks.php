@@ -6,6 +6,49 @@ use SMP\Podcast\Settings\PodcastSettings;
 
 final class ShortcodeCallbacks {
     /** @param array<string,mixed> $atts */
+    public static function listen_button( array $atts = [] ): string {
+        $atts = shortcode_atts(
+            [
+                'post_id' => 0,
+                'label' => 'Listen',
+                'class' => '',
+            ],
+            $atts,
+            'smp_listen_button'
+        );
+        $post_id = self::post_id( $atts );
+        $source = AudioSourceResolver::resolve( $post_id );
+        if ( [] === $source ) {
+            return '';
+        }
+
+        $classes = [ 'smp-listen-button' ];
+        foreach ( preg_split( '/\s+/', (string) $atts['class'] ) ?: [] as $class_name ) {
+            $class_name = preg_replace( '/[^A-Za-z0-9_-]/', '', $class_name ) ?: '';
+            if ( '' !== $class_name ) {
+                $classes[] = $class_name;
+            }
+        }
+        $label = sanitize_text_field( (string) $atts['label'] );
+        $label = '' !== $label ? $label : 'Listen';
+        $title = (string) ( $source['title'] ?? get_the_title( $post_id ) );
+
+        return '<button type="button" class="' . esc_attr( implode( ' ', array_unique( $classes ) ) ) . '"'
+            . ' data-smp-player-trigger'
+            . ' data-smp-post-id="' . (int) $post_id . '"'
+            . ' data-smp-audio-src="' . esc_attr( (string) $source['playback_url'] ) . '"'
+            . ' data-smp-download-src="' . esc_attr( (string) $source['download_url'] ) . '"'
+            . ' data-smp-title="' . esc_attr( $title ) . '"'
+            . ' data-smp-url="' . esc_attr( (string) $source['permalink'] ) . '"'
+            . ' data-smp-image="' . esc_attr( (string) $source['image'] ) . '"'
+            . ' data-smp-duration="' . esc_attr( (string) $source['duration'] ) . '"'
+            . ' data-smp-duration-seconds="' . (int) $source['duration_seconds'] . '"'
+            . ' aria-controls="smp-podcast-player" aria-pressed="false" aria-label="' . esc_attr( $label . ': ' . $title ) . '">'
+            . '<span data-smp-listen-icon aria-hidden="true">▶</span><span data-smp-listen-label>' . esc_html( $label ) . '</span>'
+            . '</button>';
+    }
+
+    /** @param array<string,mixed> $atts */
     public static function podcast_url( array $atts = [] ): string {
         $atts = shortcode_atts( [ 'social' => '' ], $atts, 'podcast_url' );
         $key = sanitize_key( (string) $atts['social'] );

@@ -1,6 +1,6 @@
 # Scale My Podcast - Core Functionality
 
-WordPress integration for podcast content, ACF field structures, profile relationships, PowerPress metadata, feeds, shortcodes, and release diagnostics.
+Hexa WordPress integration for podcast content, ACF field structures, profile relationships, PowerPress metadata, feeds, shortcodes, a persistent audio player, playback-preserving navigation, and release diagnostics.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ Only ACF is required for the field layer. Optional integrations never prevent th
 - `src/Admin`: Hexa WP Core dashboard and authenticated operations
 - `src/Acf`: canonical podcast field groups with stable ACF keys
 - `src/Content`: content and default-host behavior
-- `src/Frontend`: shortcodes, displays, and feeds
+- `src/Frontend`: shortcodes, audio-source resolution, the persistent player, playback navigation, displays, and feeds
 - `src/Integrations`: PowerPress synchronization
 - `src/Diagnostics`: shared Hexa integration tests
 - `lib/hexa-wordpress-plugin-core`: bundled shared UI, updater, registry, AJAX, and test runtime
@@ -31,14 +31,30 @@ The plugin defaults to existing WordPress posts. It does not migrate podcast arc
 
 - Existing post, option, ACF, and PowerPress metadata remains in place.
 - ACF group keys `group_6844c5d5cf57f` and `group_6848b7b0247cc` remain canonical.
-- All nine legacy shortcode tags remain registered.
+- All nine legacy shortcode tags remain registered, plus the canonical `[smp_listen_button]` player trigger.
 - The old active basename `smp-core-podcast-integration/initialization.php` migrates to the canonical plugin file automatically.
 - The public PowerPress feed remains `/feed/podcast/`.
 - Optional internal integration feed: `/feed/internal-rss/`.
+- The player uses one audio element. Playback URLs prefer PowerPress, then ACF `audio`, `audio_url`, and the WordPress `enclosure` value.
+- No unauthenticated admin AJAX action, public REST route, app shell, hash router, or alternate indexable response is introduced.
 
 ## Admin
 
 Open **Settings > Scale My Podcast**. The dashboard uses Hexa WP Core for sidebar tabs, collapsible structures, content-type and ACF controls, snippets, shortcodes, update panels, dynamic buttons, and integration tests.
+
+The **Persistent Player** tab saves through an authenticated, nonce-protected AJAX action. The player is opt-in by default and exposes independent switches for playback-preserving navigation, Media Session, remembered preferences, artwork, skip, rate, volume, download, and close controls. Playback-preserving navigation is eligible only while audio is actively playing; pause, close, end, and error immediately return links and history to ordinary browser behavior. The tab also controls the bounded content selector, excluded paths, timeout, transition, and skip intervals.
+
+## Player and Elementor Contract
+
+Use `[smp_listen_button]` in an Elementor Shortcode widget, WordPress content, or a PHP template. Optional attributes are `post_id`, `label`, and `class`. The server-rendered button includes the canonical `data-smp-player-trigger` metadata contract and remains keyboard-operable.
+
+For rebuilt Elementor templates, put `data-smp-ajax-root` on the one content island that should change between pages. Compatible explicit marker values may navigate to each other. Without explicit markers, selector changes are limited to the hardcoded Elementor page, post, single, and archive surface matrix; custom and bounded `main.site-main` or `main#content` selectors must match exactly. Keep the fixed player, persistent header, and persistent footer outside that island. Header, footer, navigation, whole-document, broad `main`, ambiguous selectors, and one-sided or mismatched explicit markers are rejected.
+
+Plugin-owned markup that must live outside the replaceable island uses the inert companion contract. The only currently supported companion is one outside-root `<template data-smp-ajax-companion="smpi-breadcrumbs">`. Its breadcrumb markup is restricted to an explicit tag/attribute allowlist and same-origin HTTP(S) links. The runtime replaces the prior template and rendered breadcrumb before `smp:content-ready`; duplicate, unknown, executable, or unsafe companion content rejects AJAX navigation and falls back to the full server-rendered page.
+
+No history listener, scroll-state mutation, or manual scroll restoration is installed on page load. A navigation session begins only after playback is eligible and the first fetched page passes root, script, style, and Elementor preflight. It fetches the exact same-origin public URL and accepts only an HTTP 200 HTML document. Any timeout, HTTP error, non-HTML response, mismatched root, unsupported executable inline script or localized configuration, missing script asset, unsupported style, unavailable Elementor lifecycle, external URL, account/checkout path, feed, media/download URL, modified click, target link, or excluded path uses ordinary browser navigation.
+
+After safe preflight, the runtime reconciles validated WordPress/Elementor inline styles, loads trusted stylesheets and a narrow handle-and-path allowlist of Elementor/JetEngine dependencies, replaces only the matched content island, synchronizes the document title/language, common canonical/alternate links, common SEO and social metadata, head JSON-LD, body classes, history, and scroll position, and invokes the supported Elementor ready trigger. It never evaluates fetched inline JavaScript, copies inline event handlers, or loads an unknown script. Direct requests remain complete server-rendered WordPress pages with their original status, metadata, schema, and crawlable links.
 
 ## Testing
 
@@ -46,11 +62,22 @@ Run the repository checks:
 
 ```bash
 php tests/run.php
+node tests/browser-player-runtime.mjs
 ```
 
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.1.0
+
+- Added an accessible singleton bottom audio player with play/pause, seek, skip, rate, volume, artwork, download, close, Media Session, and remembered-preference controls
+- Added PowerPress-first audio resolution with ACF `audio`, `audio_url`, and enclosure fallbacks
+- Added the canonical `[smp_listen_button]` shortcode and compatibility with redesign `.ep-listen[data-mp3]` and `#ap-toggle` triggers
+- Added playback-only same-origin HTML navigation with lazy history ownership, strict root/script/style/Elementor preflight, hard-navigation fallbacks, common head/schema synchronization, and bounded Elementor reinitialization
+- Added a fully AJAX-saved Persistent Player settings tab with granular feature, timing, selector, and exclusion controls
+- Preserved direct server-rendered HTTP documents, canonicals, JSON-LD, crawlable links, feeds, and the absence of public mutation endpoints
+- Expanded local and live integration contracts for settings, source resolution, accessibility, SEO, and navigation safety
 
 ### 3.0.3
 

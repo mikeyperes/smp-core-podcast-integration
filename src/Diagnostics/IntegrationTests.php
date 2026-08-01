@@ -7,8 +7,10 @@ use Hexa\PluginCore\IntegrationTests\TestRegistry;
 use SMP\Podcast\Acf\EpisodeFieldGroup;
 use SMP\Podcast\Acf\PodcastOptionsFieldGroup;
 use SMP\Podcast\Config;
+use SMP\Podcast\Frontend\AudioSourceResolver;
 use SMP\Podcast\Frontend\Shortcodes;
 use SMP\Podcast\Frontend\ShortcodeCallbacks;
+use SMP\Podcast\Settings\PlaybackSettings;
 use SMP\Podcast\Settings\PodcastSettings;
 use SMP\Podcast\Support\Dependencies;
 
@@ -110,7 +112,7 @@ final class IntegrationTests implements ModuleInterface {
 
         $registry->register(
             $host . '.shortcodes',
-            'All legacy podcast shortcodes are registered',
+            'All podcast shortcodes are registered',
             static function(): array {
                 $missing = array_values( array_filter( Shortcodes::tags(), static fn( string $tag ): bool => ! shortcode_exists( $tag ) ) );
                 return [
@@ -119,6 +121,86 @@ final class IntegrationTests implements ModuleInterface {
                     'expected' => count( Shortcodes::tags() ) . ' shortcode tags',
                     'actual' => ( count( Shortcodes::tags() ) - count( $missing ) ) . ' active',
                     'details' => [ 'missing' => implode( ', ', $missing ) ?: 'none' ],
+                ];
+            },
+            [ 'group' => $group, 'host' => $host ]
+        );
+
+        $registry->register(
+            $host . '.playback-settings',
+            'Persistent-player settings have a safe navigation contract',
+            static function(): array {
+                $settings = PlaybackSettings::get();
+                $selector = (string) $settings['content_selector'];
+                $normalized = PlaybackSettings::sanitize( [ 'content_selector' => $selector ] );
+                $passed = '' !== $selector && $selector === (string) $normalized['content_selector'];
+                return [
+                    'passed' => $passed,
+                    'summary' => $passed ? 'The player is opt-in and targets a bounded content island.' : 'The configured content selector is unsafe.',
+                    'expected' => 'One bounded, validated content-island selector',
+                    'actual' => $selector ?: 'missing',
+                    'details' => [
+                        'player' => $settings['enabled'] ? 'enabled' : 'disabled',
+                        'ajax_navigation' => $settings['ajax_navigation'] ? 'enabled' : 'disabled',
+                        'paused_navigation' => 'native full-page navigation',
+                    ],
+                ];
+            },
+            [ 'group' => $group, 'host' => $host, 'description' => 'Confirms the player cannot target the document, body, header, footer, navigation, or another broad wrapper.' ]
+        );
+
+        $registry->register(
+            $host . '.player-audio-source',
+            'Latest podcast audio resolves for the persistent player',
+            static function(): array {
+                $ids = get_posts( PodcastSettings::scoped_query_args( [ 'post_status' => 'publish', 'posts_per_page' => 1, 'fields' => 'ids', 'orderby' => 'date', 'order' => 'DESC' ] ) );
+                if ( ! $ids ) {
+                    return [ 'passed' => true, 'summary' => 'No published podcast content exists yet.', 'expected' => 'No destructive assumption', 'actual' => 'No sample available' ];
+                }
+                $post_id = (int) $ids[0];
+                $audio = AudioSourceResolver::resolve( $post_id );
+                $button = ShortcodeCallbacks::listen_button( [ 'post_id' => $post_id ] );
+                $passed = ! empty( $audio['playback_url'] ) && str_contains( $button, 'data-smp-player-trigger' );
+                return [
+                    'passed' => $passed,
+                    'summary' => $passed ? 'The newest episode has a resolved source and canonical listen button.' : 'The newest episode cannot initialize the persistent player.',
+                    'expected' => 'PowerPress, ACF audio, audio_url, or enclosure source',
+                    'actual' => (string) ( $audio['source'] ?? 'missing' ),
+                    'details' => [ 'post_id' => $post_id, 'playback_url' => (string) ( $audio['playback_url'] ?? '' ) ],
+                ];
+            },
+            [ 'group' => $group, 'host' => $host ]
+        );
+
+        $registry->register(
+            $host . '.ajax-navigation-contract',
+            'Playback navigation preserves public-document SEO',
+            static function(): array {
+                $script = (string) file_get_contents( SMP_PODCAST_PLUGIN_ROOT . '/assets/frontend-player.js' );
+                $markers = [
+                    'response.status !== 200',
+                    'state.playbackActivated',
+                    'return !audio.paused;',
+                    'beginNavigationSession();',
+                    'parkNavigationSession();',
+                    'pendingNavigationActive(navigationId)',
+                    'content-root-mismatch',
+                    'unsupported-inline-script',
+                    'missing-script-asset',
+                    'sanitizeImportedContent(importedRoot)',
+                    'inline-event-handler',
+                    'link[rel="canonical"]',
+                    'application/ld+json',
+                    'runReadyTrigger(window.jQuery(root))',
+                    'window.location.assign',
+                ];
+                $missing = array_values( array_filter( $markers, static fn( string $marker ): bool => ! str_contains( $script, $marker ) ) );
+                return [
+                    'passed' => [] === $missing,
+                    'summary' => [] === $missing ? 'The runtime lazily owns history, rejects unsupported pages before swapping, and synchronizes the supported SEO and Elementor state.' : 'One or more navigation safeguards are missing.',
+                    'expected' => count( $markers ) . ' runtime safeguards',
+                    'actual' => ( count( $markers ) - count( $missing ) ) . ' present',
+                    'details' => [ 'missing' => implode( ', ', $missing ) ?: 'none', 'public_ajax_endpoint' => 'none' ],
                 ];
             },
             [ 'group' => $group, 'host' => $host ]
@@ -301,6 +383,13 @@ final class IntegrationTests implements ModuleInterface {
                 return self::http_test( get_permalink( (int) $ids[0] ), 'application/ld+json', 'Published podcast schema' );
             },
             [ 'group' => $group, 'host' => $host ]
+        );
+
+        $registry->register(
+            $host . '.homepage-canonical-http',
+            'Direct homepage remains an HTTP 200 canonical document',
+            static fn(): array => self::http_test( home_url( '/' ), 'rel="canonical"', 'Direct homepage canonical' ),
+            [ 'group' => $group, 'host' => $host, 'description' => 'Fetches the ordinary public URL without a query flag or AJAX endpoint.' ]
         );
 
         $registry->register(

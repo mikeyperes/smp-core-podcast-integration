@@ -14,6 +14,7 @@ use Hexa\PluginCore\WpAdminTabs\HostTabsRenderer;
 use SMP\Podcast\Acf\PodcastOptionsFieldGroup;
 use SMP\Podcast\Bootstrap\Registries;
 use SMP\Podcast\Config;
+use SMP\Podcast\Settings\PlaybackSettings;
 use SMP\Podcast\Settings\PodcastSettings;
 use SMP\Podcast\Support\Dependencies;
 
@@ -158,6 +159,7 @@ final class Dashboard implements ModuleInterface {
             [
                 'overview' => 'Overview',
                 'settings' => 'Podcast Settings',
+                'playback' => 'Persistent Player',
                 'custom-fields' => 'Custom Fields',
                 'snippets' => 'Snippets',
                 'shortcodes' => 'Shortcodes',
@@ -172,7 +174,7 @@ final class Dashboard implements ModuleInterface {
     private function groups(): array {
         return [
             'overview' => [ 'label' => 'Overview', 'tabs' => [ 'overview' ] ],
-            'podcast' => [ 'label' => 'Podcast', 'tabs' => [ 'settings', 'custom-fields', 'snippets', 'shortcodes' ] ],
+            'podcast' => [ 'label' => 'Podcast', 'tabs' => [ 'settings', 'playback', 'custom-fields', 'snippets', 'shortcodes' ] ],
             'operations' => [ 'label' => 'Operations', 'tabs' => [ 'operations', 'integrations' ] ],
             'system' => [ 'label' => 'System', 'tabs' => [ 'updates', 'hexa-core' ] ],
         ];
@@ -185,6 +187,7 @@ final class Dashboard implements ModuleInterface {
 
         match ( $tab ) {
             'settings' => $this->render_settings(),
+            'playback' => $this->render_playback(),
             'custom-fields' => $this->render_custom_fields(),
             'snippets' => $this->render_snippets(),
             'shortcodes' => $this->render_shortcodes(),
@@ -255,6 +258,73 @@ final class Dashboard implements ModuleInterface {
         echo ( new AcfFieldGroupRenderer() )->render( Registries::option_fields(), [ 'title' => 'Podcast Option Fields', 'description' => 'The settings field group is separately managed through the same shared Hexa WP Core structure.', 'persist_prefix' => 'smp-podcast' ] );
     }
 
+    private function render_playback(): void {
+        $settings = PlaybackSettings::get();
+        ?>
+        <section class="smp-podcast-intro">
+            <h2>Persistent Player and Playback Navigation</h2>
+            <p>One fixed audio player can remain active while listeners browse. Navigation is enhanced only during an active track; every public URL remains a complete server-rendered WordPress document for search engines, sharing, and direct visits.</p>
+        </section>
+        <form class="smp-podcast-playback-form" data-smp-playback-form>
+            <section class="hpc-card">
+                <div class="smp-podcast-setting-heading"><div><h3>Runtime</h3><p>Enable the singleton player first, then choose when same-origin links use the playback-preserving navigation layer.</p></div><?php echo CoreUi::pill( $settings['enabled'] ? 'Enabled' : 'Disabled', $settings['enabled'] ? 'success' : 'warning' ); ?></div>
+                <div class="smp-podcast-toggle-grid">
+                    <?php $this->playback_toggle( 'enabled', 'Enable persistent podcast player', 'Renders one accessible audio element and fixed bottom control bar.', (bool) $settings['enabled'] ); ?>
+                    <?php $this->playback_toggle( 'ajax_navigation', 'Enable playback-preserving navigation', 'Fetches the clicked public HTML page only while audio is playing.', (bool) $settings['ajax_navigation'] ); ?>
+                    <?php $this->playback_toggle( 'media_session', 'Use browser Media Session controls', 'Adds lock-screen and hardware play, pause, seek, and metadata support.', (bool) $settings['media_session'] ); ?>
+                    <?php $this->playback_toggle( 'remember_preferences', 'Remember speed and volume', 'Stores only playback rate and volume in local browser storage.', (bool) $settings['remember_preferences'] ); ?>
+                </div>
+            </section>
+
+            <section class="hpc-card">
+                <h3>Navigation Safety</h3>
+                <p>The browser fetches the exact canonical link with cookies and an HTML accept header. It swaps only a matching bounded root after scripts, styles, and Elementor readiness pass preflight. Unsupported pages, HTTP errors, non-HTML responses, missing roots, timeouts, downloads, external links, feeds, account paths, and modified clicks use normal navigation.</p>
+                <div class="smp-podcast-field-grid">
+                    <label class="hpc-field"><span>Preferred content root selector</span><input type="text" name="content_selector" value="<?php echo esc_attr( (string) $settings['content_selector'] ); ?>" spellcheck="false"><small>Add <code>data-smp-ajax-root</code> to the rebuilt content island. Header, footer, navigation, whole-document, and ambiguous roots are rejected.</small></label>
+                    <label class="hpc-field"><span>Request timeout (milliseconds)</span><input type="number" name="timeout_ms" min="2000" max="30000" step="500" value="<?php echo (int) $settings['timeout_ms']; ?>"><small>A timeout performs an ordinary browser navigation.</small></label>
+                    <label class="hpc-field"><span>Transition duration (milliseconds)</span><input type="number" name="transition_ms" min="0" max="1000" step="10" value="<?php echo (int) $settings['transition_ms']; ?>"><small>Reduced-motion preferences always disable this effect.</small></label>
+                    <label class="hpc-field smp-podcast-field-wide"><span>Additional excluded paths</span><textarea name="excluded_paths" rows="8" spellcheck="false"><?php echo esc_textarea( (string) $settings['excluded_paths'] ); ?></textarea><small>One site-relative path or wildcard per line. Built-in admin, login, REST, feed, checkout, account, media, and download exclusions cannot be removed.</small></label>
+                </div>
+            </section>
+
+            <section class="hpc-card">
+                <h3>Player Controls</h3>
+                <div class="smp-podcast-field-grid smp-podcast-skip-grid">
+                    <label class="hpc-field"><span>Skip backward (seconds)</span><input type="number" name="skip_back" min="5" max="120" step="5" value="<?php echo (int) $settings['skip_back']; ?>"></label>
+                    <label class="hpc-field"><span>Skip forward (seconds)</span><input type="number" name="skip_forward" min="5" max="120" step="5" value="<?php echo (int) $settings['skip_forward']; ?>"></label>
+                </div>
+                <div class="smp-podcast-toggle-grid">
+                    <?php $this->playback_toggle( 'show_cover', 'Episode cover', 'Show the current episode artwork.', (bool) $settings['show_cover'] ); ?>
+                    <?php $this->playback_toggle( 'show_skip', 'Skip controls', 'Show backward and forward buttons.', (bool) $settings['show_skip'] ); ?>
+                    <?php $this->playback_toggle( 'show_rate', 'Playback speed', 'Show the playback-rate selector.', (bool) $settings['show_rate'] ); ?>
+                    <?php $this->playback_toggle( 'show_volume', 'Volume controls', 'Show mute and volume controls.', (bool) $settings['show_volume'] ); ?>
+                    <?php $this->playback_toggle( 'show_download', 'Download control', 'Use the direct media URL when one is available.', (bool) $settings['show_download'] ); ?>
+                    <?php $this->playback_toggle( 'show_close', 'Close control', 'Allow listeners to stop and clear the active track.', (bool) $settings['show_close'] ); ?>
+                </div>
+            </section>
+
+            <section class="hpc-card smp-podcast-seo-note">
+                <h3>SEO contract</h3>
+                <ul><li>No public AJAX endpoint or app shell is introduced.</li><li>Direct pages retain their normal HTTP status, canonical URL, metadata, JSON-LD, crawlable anchors, and complete Elementor HTML.</li><li>After safe preflight, client navigation synchronizes the document title/language, common canonical and alternate links, common SEO/social metadata, head JSON-LD, body classes, history, scroll state, and supported Elementor handlers. Other page-specific scripts or assets force a full navigation.</li></ul>
+            </section>
+
+            <div class="hpc-actions smp-podcast-playback-actions">
+                <?php echo DynamicButton::render( [ 'label' => 'Save Player Settings', 'class' => 'smp-podcast-save-playback' ] ); ?>
+                <span data-smp-playback-status aria-live="polite"></span>
+            </div>
+        </form>
+        <?php
+    }
+
+    private function playback_toggle( string $name, string $label, string $description, bool $enabled ): void {
+        ?>
+        <label class="smp-podcast-toggle">
+            <input type="checkbox" name="<?php echo esc_attr( $name ); ?>" value="1"<?php checked( $enabled ); ?>>
+            <span><strong><?php echo esc_html( $label ); ?></strong><small><?php echo esc_html( $description ); ?></small></span>
+        </label>
+        <?php
+    }
+
     private function render_snippets(): void {
         echo ( new SnippetsTableRenderer() )->render(
             Registries::snippets(),
@@ -280,7 +350,7 @@ final class Dashboard implements ModuleInterface {
         echo ( new ShortcodeCatalogRenderer() )->render_page(
             [
                 'title' => 'Podcast Shortcodes',
-                'intro' => 'Every legacy shortcode remains available. Use the exact stored tag in Elementor, the block editor, or templates.',
+                'intro' => 'Every legacy shortcode remains available, with one canonical player trigger for Elementor, the block editor, and templates.',
                 'catalog' => $this->shortcode_catalog(),
                 'show_author_search' => false,
                 'show_post_search' => false,
@@ -337,6 +407,7 @@ final class Dashboard implements ModuleInterface {
             [
                 'key' => 'episode', 'title' => 'Episode Data', 'layer' => 'Post layer', 'live' => 'shortcode', 'register_file' => 'src/Frontend/ShortcodeCallbacks.php', 'access' => 'Podcast content',
                 'items' => [
+                    [ 'tag' => 'smp_listen_button', 'code' => '[smp_listen_button label="Listen"]', 'desc' => 'Render the canonical persistent-player trigger with resolved PowerPress or ACF audio metadata.', 'type' => 'Accessible button', 'params' => 'post_id, label, class' ],
                     [ 'tag' => 'episode_fields', 'code' => '[episode_fields name="audio_url"]', 'desc' => 'Output any podcast episode field or grouped URL subfield.', 'type' => 'Text or URL', 'params' => 'name' ],
                     [ 'tag' => 'article_guests', 'code' => '[article_guests]', 'desc' => 'Display linked guest profiles for the current podcast item.', 'type' => 'HTML' ],
                     [ 'tag' => 'podcast_hosts', 'code' => '[podcast_hosts]', 'desc' => 'Display linked host profiles.', 'type' => 'HTML' ],

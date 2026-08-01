@@ -11,13 +11,16 @@ use Hexa\PluginCore\WpAdminTabs\CoreTabConfig;
 use Hexa\PluginCore\WpAdminTabs\CoreTabModule;
 use SMP\Podcast\Admin\Dashboard;
 use SMP\Podcast\Admin\OperationsController;
+use SMP\Podcast\Admin\PlaybackSettingsController;
 use SMP\Podcast\Compatibility\LegacyCompatibility;
 use SMP\Podcast\Config;
 use SMP\Podcast\Content\DefaultHost;
 use SMP\Podcast\Content\DefaultHostFieldPreview;
 use SMP\Podcast\Diagnostics\IntegrationTests;
 use SMP\Podcast\Frontend\ExternalLinks;
+use SMP\Podcast\Frontend\HomeInteractions;
 use SMP\Podcast\Frontend\InternalFeed;
+use SMP\Podcast\Frontend\PersistentPlayer;
 use SMP\Podcast\Frontend\Shortcodes;
 use SMP\Podcast\Integrations\PowerPressSync;
 use SMP\Podcast\Settings\LegacyOptionSynchronizer;
@@ -50,6 +53,8 @@ final class Plugin {
             ->add_module( Registries::content_types() )
             ->add_module( Registries::option_fields() )
             ->add_module( new Shortcodes() )
+            ->add_module( new HomeInteractions() )
+            ->add_module( new PersistentPlayer() )
             ->add_module( new DefaultHostFieldPreview() )
             ->add_module( new DefaultHost() )
             ->add_module( new PowerPressSync() )
@@ -78,6 +83,7 @@ final class Plugin {
                 )
                 ->add_module( $this->core_tab_module() )
                 ->add_module( new OperationsController() )
+                ->add_module( new PlaybackSettingsController() )
                 ->add_module( new Dashboard() );
 
             add_action( 'admin_notices', [ Dependencies::class, 'render_notices' ] );

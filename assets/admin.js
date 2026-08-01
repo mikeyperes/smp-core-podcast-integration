@@ -149,6 +149,41 @@
             });
     }
 
+    function savePlayback(button) {
+        var form = button.closest('[data-smp-playback-form]');
+        if (!form) return;
+        var status = form.querySelector('[data-smp-playback-status]');
+        var data = {
+            action: 'smp_podcast_save_playback_settings',
+            nonce: window.smpPodcastAdmin.nonce
+        };
+        var checkboxNames = [
+            'enabled', 'ajax_navigation', 'show_cover', 'show_skip',
+            'show_rate', 'show_volume', 'show_download', 'show_close', 'media_session',
+            'remember_preferences'
+        ];
+        checkboxNames.forEach(function (name) {
+            var field = form.querySelector('[name="' + name + '"]');
+            data[name] = field && field.checked ? '1' : '0';
+        });
+        ['content_selector', 'excluded_paths', 'timeout_ms', 'transition_ms', 'skip_back', 'skip_forward'].forEach(function (name) {
+            var field = form.querySelector('[name="' + name + '"]');
+            data[name] = field ? field.value : '';
+        });
+
+        buttonStart(button, 'Saving...');
+        if (status) status.textContent = 'Saving player settings...';
+        request(data)
+            .then(function (report) {
+                if (status) status.textContent = report.message || 'Saved.';
+                buttonDone(button, report.changed ? 'Saved' : 'Unchanged', true);
+            })
+            .catch(function (error) {
+                if (status) status.textContent = error.message;
+                buttonDone(button, 'Failed', false);
+            });
+    }
+
     document.addEventListener('click', function (event) {
         var operation = event.target.closest('.smp-podcast-operation-run');
         if (operation) {
@@ -160,7 +195,21 @@
         if (model) {
             event.preventDefault();
             saveModel(model);
+            return;
         }
+        var playback = event.target.closest('.smp-podcast-save-playback');
+        if (playback) {
+            event.preventDefault();
+            savePlayback(playback);
+        }
+    });
+
+    document.addEventListener('submit', function (event) {
+        var form = event.target.closest('[data-smp-playback-form]');
+        if (!form) return;
+        event.preventDefault();
+        var button = form.querySelector('.smp-podcast-save-playback');
+        if (button && !button.disabled) savePlayback(button);
     });
 
     document.addEventListener('hexa-core-host-tab-loaded', function (event) {
