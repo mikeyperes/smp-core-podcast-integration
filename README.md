@@ -69,6 +69,11 @@ On an authenticated WordPress installation, use **Tools > Hexa Integration Tests
 
 ## Release History
 
+### 3.1.6
+
+- Preserved active audio on an immediate first navigation to a Wordfence-protected page by recognizing only its exact same-host human-detection bootstrap with a 32-character hexadecimal ID
+- Added browser coverage proving the exact bootstrap remains inert while any modified Wordfence-like inline script forces a safe hard-navigation fallback
+
 ### 3.1.5
 
 - Reconciled the strict JetEngine initializer and Elementor reCAPTCHA policies into one runtime so both Loop Grid and form destinations preserve active playback

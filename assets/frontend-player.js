@@ -795,13 +795,11 @@
             var existingExternal = new Set(Array.prototype.map.call(document.querySelectorAll('script[src]'), function (node) { return absoluteAsset(node.src); }));
             var missingExternal = new Set();
             var currentInlineSignatures = new Set();
-            var wordfenceInitialized = false;
             document.querySelectorAll('script:not([src])').forEach(function (node) {
                 var text = normalizedAssetText(node.textContent);
                 if (!text) return;
                 var signature = scriptType(node) + '\n' + text;
                 currentInlineSignatures.add(signature);
-                if (alreadyInitializedInlineScript(node, text)) wordfenceInitialized = true;
             });
 
             parsed.querySelectorAll('script').forEach(function (source) {
@@ -835,7 +833,7 @@
 
                 if (!text) return;
                 if (currentInlineSignatures.has(signature)) return;
-                if (wordfenceInitialized && alreadyInitializedInlineScript(source, text)) return;
+                if (ignorableWordfenceHumanDetectionScript(source, text)) return;
                 var localized = parseSupportedLocalizedConfig(source, text);
                 if (localized) {
                     plan.configs.push(localized);
@@ -1358,14 +1356,52 @@
             }
         }
 
-        function alreadyInitializedInlineScript(source, text) {
+        function ignorableWordfenceHumanDetectionScript(source, text) {
             var type = scriptType(source);
             if (source.id || (type && type !== 'text/javascript' && type !== 'application/javascript')) return false;
-            return text.indexOf('WordfenceTestMonBot') !== -1
-                && text.indexOf('window.wfLogHumanRan') !== -1
-                && text.indexOf("document.createElement('script')") !== -1
-                && /[?&]wordfence_lh=1&hid=[a-f0-9]+/i.test(text);
+            var escapedHost = window.location.host.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            var endpoint = new RegExp('//' + escapedHost + '/\\?wordfence_lh=1&hid=[a-f0-9]{32}', 'i');
+            var canonical = String(text || '').trim();
+            if (!endpoint.test(canonical)) return false;
+            canonical = canonical.replace(endpoint, '//__SMP_HOST__/?wordfence_lh=1&hid=__SMP_HID__');
+            return canonical === ignorableWordfenceHumanDetectionScript.source;
         }
+
+        ignorableWordfenceHumanDetectionScript.source = [
+            '(function(url){',
+            "\tif(/(?:Chrome\\/26\\.0\\.1410\\.63 Safari\\/537\\.31|WordfenceTestMonBot)/.test(navigator.userAgent)){ return; }",
+            '\tvar addEvent = function(evt, handler) {',
+            '\t\tif (window.addEventListener) {',
+            '\t\t\tdocument.addEventListener(evt, handler, false);',
+            '\t\t} else if (window.attachEvent) {',
+            "\t\t\tdocument.attachEvent('on' + evt, handler);",
+            '\t\t}',
+            '\t};',
+            '\tvar removeEvent = function(evt, handler) {',
+            '\t\tif (window.removeEventListener) {',
+            '\t\t\tdocument.removeEventListener(evt, handler, false);',
+            '\t\t} else if (window.detachEvent) {',
+            "\t\t\tdocument.detachEvent('on' + evt, handler);",
+            '\t\t}',
+            '\t};',
+            "\tvar evts = 'contextmenu dblclick drag dragend dragenter dragleave dragover dragstart drop keydown keypress keyup mousedown mousemove mouseout mouseover mouseup mousewheel scroll'.split(' ');",
+            '\tvar logHuman = function() {',
+            '\t\tif (window.wfLogHumanRan) { return; }',
+            '\t\twindow.wfLogHumanRan = true;',
+            "\t\tvar wfscr = document.createElement('script');",
+            "\t\twfscr.type = 'text/javascript';",
+            '\t\twfscr.async = true;',
+            "\t\twfscr.src = url + '&r=' + Math.random();",
+            "\t\t(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(wfscr);",
+            '\t\tfor (var i = 0; i < evts.length; i++) {',
+            '\t\t\tremoveEvent(evts[i], logHuman);',
+            '\t\t}',
+            '\t};',
+            '\tfor (var i = 0; i < evts.length; i++) {',
+            '\t\taddEvent(evts[i], logHuman);',
+            '\t}',
+            "})('//__SMP_HOST__/?wordfence_lh=1&hid=__SMP_HID__');"
+        ].join('\n');
 
         function unsupportedNavigation(reason) {
             var error = new Error(reason || 'unsupported-page');

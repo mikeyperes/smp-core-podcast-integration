@@ -32,6 +32,8 @@ const scenarios = [
     'unsupported-inline',
     'missing-script',
     'spoofed-recaptcha',
+    'wordfence-first-target',
+    'spoofed-wordfence',
     'self-removing-cloudflare',
     'unmatched-root',
     'malicious-style-onload',
@@ -179,6 +181,19 @@ const server = createServer((request, response) => {
         response.end(directRequest
             ? fallbackDocument('missing-script-asset')
             : recaptchaTargetDocument('https://recaptcha.attacker.example/recaptcha/api.js?render=explicit'));
+        return;
+    }
+    if (url.pathname === '/wordfence-first-target') {
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(wordfenceTargetDocument(false));
+        return;
+    }
+    if (url.pathname === '/spoofed-wordfence') {
+        const directRequest = request.headers['sec-fetch-dest'] === 'document';
+        response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        response.end(directRequest
+            ? fallbackDocument('unsupported-inline-script')
+            : wordfenceTargetDocument(true));
         return;
     }
     if (url.pathname === '/self-removing-cloudflare') {
@@ -329,6 +344,8 @@ function scenarioDocument(mode) {
         'unsupported-inline': '/unsupported-inline',
         'missing-script': '/missing-script',
         'spoofed-recaptcha': '/spoofed-recaptcha',
+        'wordfence-first-target': '/wordfence-first-target',
+        'spoofed-wordfence': '/spoofed-wordfence',
         'self-removing-cloudflare': '/self-removing-cloudflare',
         'unmatched-root': '/unmatched-root',
         'malicious-style-onload': '/malicious-style-onload',
@@ -394,7 +411,7 @@ function surfaceMatrixInitialDocument() {
 <script>${instrumentationScript()}</script>
 ${elementorTestBootstrap()}
 <script>${companionRuntimeBootstrap()}</script>
-<script type="text/javascript">(function(url){var marker='WordfenceTestMonBot';window.wfLogHumanRan=window.wfLogHumanRan||false;document.createElement('script');return url+marker;})('//127.0.0.1/?wordfence_lh=1&hid=AAAA1111');</script>
+<script type="text/javascript">${wordfenceHumanDetectionSource('A'.repeat(32))}</script>
 <script>window.smpPodcastPlayerConfig=${JSON.stringify(config)};</script>
 <script src="/assets/home-interactions.js"></script>
 <script src="/assets/frontend-player.js"></script>
@@ -472,7 +489,7 @@ function surfaceDocument(surface) {
 <link rel="stylesheet" href="/assets/home-interactions.css">
 <meta name="description" content="${escapeHtml(surface.label)} description">
 <script id="elementor-frontend-js-before">var elementorFrontendConfig={"post":{"id":${surface.id},"title":${JSON.stringify(surface.label)}}};</script>
-<script type="text/javascript">window.__fetchedInlineExecuted=true;(function(url){var marker='WordfenceTestMonBot';window.wfLogHumanRan=window.wfLogHumanRan||false;document.createElement('script');return url+marker;})('//127.0.0.1/?wordfence_lh=1&hid=${String(surface.id).padStart(8, '0')}');</script>
+<script type="text/javascript">${wordfenceHumanDetectionSource(surface.id.toString(16).padStart(32, '0'))}</script>
 <script src="/assets/home-interactions.js"></script>
 <script src="/assets/frontend-player.js"></script>
 </head><body class="surface-body">${root}${breadcrumbCompanionTemplate(surface.label + ' breadcrumb')}</body></html>`;
@@ -544,7 +561,7 @@ function initialAssetMarkup(mode) {
 <style id="elementor-post-1">.elementor-post-1{color:#111}</style>
 <style id="loop-10">.loop-10{display:grid}</style>
 <style>.shared-anonymous{box-sizing:border-box}</style>
-<script type="text/javascript">(function(url){var marker='WordfenceTestMonBot';window.wfLogHumanRan=window.wfLogHumanRan||false;document.createElement('script');return url+marker;})('//127.0.0.1/?wordfence_lh=1&hid=AAAA1111');</script>`;
+<script type="text/javascript">${wordfenceHumanDetectionSource('A'.repeat(32))}</script>`;
 }
 
 function cloudflareTargetDocument() {
@@ -552,6 +569,53 @@ function cloudflareTargetDocument() {
 <link rel="canonical" href="/self-removing-cloudflare"><meta name="description" content="Cloudflare target description">
 </head><body class="cloudflare-target"><main data-smp-ajax-root="content"><h1>Cloudflare target</h1><p>Known self-removing decoder remains inert.</p></main>
 <script src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script></body></html>`;
+}
+
+function wordfenceTargetDocument(tampered) {
+    return `<!doctype html><html lang="en"><head><title>Wordfence target</title>
+<link rel="canonical" href="/${tampered ? 'spoofed-wordfence' : 'wordfence-first-target'}"><meta name="description" content="Wordfence target description">
+<script type="text/javascript">${wordfenceHumanDetectionSource('D'.repeat(32), tampered)}</script>
+</head><body><main data-smp-ajax-root="content"><h1>Wordfence target</h1></main></body></html>`;
+}
+
+function wordfenceHumanDetectionSource(hid, tampered = false) {
+    const host = new URL(origin).host;
+    const source = [
+        '(function(url){',
+        "\tif(/(?:Chrome\\/26\\.0\\.1410\\.63 Safari\\/537\\.31|WordfenceTestMonBot)/.test(navigator.userAgent)){ return; }",
+        '\tvar addEvent = function(evt, handler) {',
+        '\t\tif (window.addEventListener) {',
+        '\t\t\tdocument.addEventListener(evt, handler, false);',
+        '\t\t} else if (window.attachEvent) {',
+        "\t\t\tdocument.attachEvent('on' + evt, handler);",
+        '\t\t}',
+        '\t};',
+        '\tvar removeEvent = function(evt, handler) {',
+        '\t\tif (window.removeEventListener) {',
+        '\t\t\tdocument.removeEventListener(evt, handler, false);',
+        '\t\t} else if (window.detachEvent) {',
+        "\t\t\tdocument.detachEvent('on' + evt, handler);",
+        '\t\t}',
+        '\t};',
+        "\tvar evts = 'contextmenu dblclick drag dragend dragenter dragleave dragover dragstart drop keydown keypress keyup mousedown mousemove mouseout mouseover mouseup mousewheel scroll'.split(' ');",
+        '\tvar logHuman = function() {',
+        '\t\tif (window.wfLogHumanRan) { return; }',
+        '\t\twindow.wfLogHumanRan = true;',
+        "\t\tvar wfscr = document.createElement('script');",
+        "\t\twfscr.type = 'text/javascript';",
+        '\t\twfscr.async = true;',
+        "\t\twfscr.src = url + '&r=' + Math.random();",
+        "\t\t(document.getElementsByTagName('head')[0]||document.getElementsByTagName('body')[0]).appendChild(wfscr);",
+        '\t\tfor (var i = 0; i < evts.length; i++) {',
+        '\t\t\tremoveEvent(evts[i], logHuman);',
+        '\t\t}',
+        '\t};',
+        '\tfor (var i = 0; i < evts.length; i++) {',
+        '\t\taddEvent(evts[i], logHuman);',
+        '\t}',
+        `})('//${host}/?wordfence_lh=1&hid=${hid}');`,
+    ].join('\n');
+    return tampered ? `${source}\nwindow.__spoofedWordfence = true;` : source;
 }
 
 function continuityTargetDocument() {
@@ -586,7 +650,7 @@ ${managedStyles}
 <style>.shared-anonymous{box-sizing:border-box}</style>
 <script id="elementor-frontend-js-before">var elementorFrontendConfig={"post":{"id":${episode ? 2 : 1},"title":"${title}"}};</script>
 <script id="elementor-pro-frontend-js-before">var ElementorProFrontendConfig={"version":"${kind}"};</script>
-<script type="text/javascript">(function(url){var marker='WordfenceTestMonBot';window.wfLogHumanRan=window.wfLogHumanRan||false;document.createElement('script');return url+marker;})('//127.0.0.1/?wordfence_lh=1&hid=${episode ? 'BBBB2222' : 'CCCC3333'}');</script>
+<script type="text/javascript">${wordfenceHumanDetectionSource((episode ? 'B' : 'C').repeat(32))}</script>
 ${dynamicAssets}
 </head><body class="${kind}-body"><main data-smp-ajax-root="content" class="elementor"><h1>${title}</h1><div class="elementor-element">${title} widget</div><a id="surface-next" href="${destination}">Switch surface</a></main></body></html>`;
 }
@@ -933,6 +997,25 @@ document.addEventListener('DOMContentLoaded',function(){setTimeout(async functio
         assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>cloudflareBefore,'audio continuity was lost on the Cloudflare-script surface');
         assert(counters.pushes===1&&counters.popstateBindings===1,'Cloudflare-script surface did not use one AJAX history transition');
         pass('PASS known same-origin Cloudflare email decoder is ignored without execution');
+        return;
+    }
+
+    if(mode==='wordfence-first-target'){
+        var wordfenceBefore=playerAudio.currentTime;
+        var wordfenceReady=waitFor('smp:after-navigate');
+        assert(observedClick(document.getElementById('navigate'))===true,'first Wordfence target navigation was not intercepted');
+        await wordfenceReady;
+        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Wordfence target','first Wordfence target content was not swapped');
+        assert(!document.querySelector('script:not([src])')?.textContent.includes('wordfence_lh=1'),'fetched Wordfence bootstrap was imported into the live document');
+        assert(window.__spoofedWordfence!==true,'untrusted Wordfence fixture executed');
+        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>wordfenceBefore,'audio continuity was lost on the first Wordfence target');
+        assert(counters.pushes===1&&counters.popstateBindings===1,'first Wordfence target did not use one AJAX history transition');
+        pass('PASS exact first-target Wordfence bootstrap is omitted without interrupting audio');
+        return;
+    }
+
+    if(mode==='spoofed-wordfence'){
+        assert(observedClick(document.getElementById('navigate'))===true,'spoofed Wordfence target navigation was not intercepted before fallback');
         return;
     }
 
