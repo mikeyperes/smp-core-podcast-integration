@@ -1050,6 +1050,12 @@ check(
 );
 $bootstrap_source = (string) file_get_contents( $root . '/src/Bootstrap/Plugin.php' );
 check( str_contains( $bootstrap_source, 'new HomeInteractions()' ) && str_contains( $bootstrap_source, 'new PersistentPlayer()' ) && str_contains( $bootstrap_source, 'new PlaybackSettingsController()' ), 'homepage initializer, player runtime, and authenticated settings controller are bootstrapped' );
+$integration_tests_source = (string) file_get_contents( $root . '/src/Diagnostics/IntegrationTests.php' );
+check(
+    str_contains( $integration_tests_source, "'runReadyTrigger(element)'" )
+    && ! str_contains( $integration_tests_source, 'runReadyTrigger(window.jQuery(root))' ),
+    'live AJAX diagnostic tracks the current per-element Elementor ready lifecycle'
+);
 $playback_controller_source = (string) file_get_contents( $root . '/src/Admin/PlaybackSettingsController.php' );
 $admin_js = (string) file_get_contents( $root . '/assets/admin.js' );
 check( str_contains( $playback_controller_source, 'smp_podcast_save_playback_settings' ) && str_contains( $playback_controller_source, 'AjaxActionRegistry' ), 'player settings use the authenticated Hexa admin-AJAX registry' );

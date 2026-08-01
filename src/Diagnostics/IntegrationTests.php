@@ -223,7 +223,7 @@ final class IntegrationTests implements ModuleInterface {
                     'inline-event-handler',
                     'link[rel="canonical"]',
                     'application/ld+json',
-                    'runReadyTrigger(window.jQuery(root))',
+                    'runReadyTrigger(element)',
                     'window.location.assign',
                 ];
                 $missing = array_values( array_filter( $markers, static fn( string $marker ): bool => ! str_contains( $script, $marker ) ) );
