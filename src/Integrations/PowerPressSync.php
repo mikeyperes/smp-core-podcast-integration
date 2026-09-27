@@ -15,8 +15,8 @@ final class PowerPressSync implements ModuleInterface {
         }
 
         add_action( 'save_post_' . PodcastSettings::content_type(), [ $this, 'sync_from_powerpress' ], 20, 3 );
-        add_action( 'acf/save_post', [ $this, 'sync_to_powerpress' ], 30 );
-        add_action( 'acf/input/admin_footer', [ $this, 'render_readonly_fields' ] );
+        \Hexa\PluginCore\Fields\Hooks::on( 'save_post', [ $this, 'sync_to_powerpress' ], 30 );
+        \Hexa\PluginCore\Fields\Hooks::on( 'input/admin_footer', [ $this, 'render_readonly_fields' ] );
     }
 
     public function sync_from_powerpress( int $post_id, \WP_Post $post, bool $update ): void {
@@ -73,7 +73,7 @@ final class PowerPressSync implements ModuleInterface {
             return [ 'changed' => false, 'before' => $before, 'after' => $before, 'message' => 'Skipped: content type does not match.' ];
         }
 
-        $audio = function_exists( 'get_field' ) ? get_field( 'audio', $post_id ) : get_post_meta( $post_id, 'audio', true );
+        $audio = \Hexa\PluginCore\Fields\Field::available() ? \Hexa\PluginCore\Fields\Field::get( 'audio', $post_id ) : get_post_meta( $post_id, 'audio', true );
         [ $url, $attachment_id ] = self::normalize_audio( $audio );
         if ( '' === $url ) {
             return [ 'changed' => false, 'before' => $before, 'after' => $before, 'message' => 'Skipped: no valid audio file is attached.' ];
@@ -160,13 +160,13 @@ final class PowerPressSync implements ModuleInterface {
     }
 
     private static function update_acf_if_changed( string $field, mixed $value, int $post_id ): void {
-        $current = function_exists( 'get_field' ) ? get_field( $field, $post_id, false ) : get_post_meta( $post_id, $field, true );
+        $current = \Hexa\PluginCore\Fields\Field::available() ? \Hexa\PluginCore\Fields\Field::get( $field, $post_id, false ) : get_post_meta( $post_id, $field, true );
         if ( $current == $value ) {
             return;
         }
 
-        if ( function_exists( 'update_field' ) ) {
-            update_field( $field, $value, $post_id );
+        if ( \Hexa\PluginCore\Fields\Field::available() ) {
+            \Hexa\PluginCore\Fields\Field::update( $field, $value, $post_id );
         } else {
             update_post_meta( $post_id, $field, $value );
         }

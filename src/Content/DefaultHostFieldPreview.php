@@ -8,7 +8,7 @@ final class DefaultHostFieldPreview implements ModuleInterface {
     private const FIELD_KEY = 'field_6848b7b0373d3';
 
     public function register(): void {
-        add_action( 'acf/render_field/key=' . self::FIELD_KEY, [ $this, 'render' ], 20 );
+        \Hexa\PluginCore\Fields\Hooks::on( 'render_field/key=' . self::FIELD_KEY, [ $this, 'render' ], 20 );
     }
 
     /** @param array<string,mixed> $field */
@@ -20,7 +20,7 @@ final class DefaultHostFieldPreview implements ModuleInterface {
         }
 
         $image = get_the_post_thumbnail( $profile_id, 'medium' );
-        $links = function_exists( 'get_field' ) ? get_field( 'url', $profile_id ) : [];
+        $links = \Hexa\PluginCore\Fields\Field::available() ? \Hexa\PluginCore\Fields\Field::get( 'url', $profile_id ) : [];
         ?>
         <div class="smp-podcast-default-host-preview">
             <?php echo $image; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>

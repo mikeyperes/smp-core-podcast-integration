@@ -14,6 +14,7 @@ final class GettingStartedChecklistAssets {
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-template-picker label span{color:#243044;font-size:12px;font-weight:900;text-transform:uppercase}
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-template-picker select{background:#fff;border:1px solid #cbd6e2;border-radius:6px;box-shadow:none;color:#111827;font-size:13px;min-height:34px;padding:5px 30px 5px 10px}
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-template-status{background:#eaf8ef;border:1px solid #ccefd7;border-radius:999px;color:var(--hpc-green);font-size:11px;font-weight:900;line-height:1;padding:7px 9px}
+            #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-template-status[data-state="selected"]{background:#eef2ff;border-color:#c7d4ff;color:var(--hpc-blue)}
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-template-picker small{color:var(--hpc-muted);display:block;flex-basis:100%;font-size:11px;line-height:1.35}
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-list{background:#fff;border:1px solid var(--hpc-line);border-radius:8px;display:block;margin:0 0 16px;overflow:hidden}
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-step{background:#fff;border:0;border-top:1px solid var(--hpc-line);border-radius:0;overflow:hidden}
@@ -75,6 +76,10 @@ final class GettingStartedChecklistAssets {
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-input-field .hpc-gsc-input-error{color:var(--hpc-red);font-weight:700;min-height:0}
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-state{background:#eef2f7;border:1px solid #d7e0ea;border-radius:999px;color:#475569;font-size:11px;font-weight:800;line-height:1;padding:5px 8px;text-transform:uppercase}
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-type{background:#fff;border:1px solid #d8e1ec;border-radius:5px;color:#536173;font-size:11px;font-weight:800;line-height:1;padding:5px 7px;text-transform:uppercase}
+            #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-safety{border:1px solid;border-radius:999px;font-size:10px;font-weight:900;line-height:1;padding:5px 7px;text-transform:uppercase}
+            #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-safety.destructive{background:#fff0f2;border-color:#ffd0d8;color:var(--hpc-red)}
+            #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-safety.individual{background:#fff8e6;border-color:#f3d59a;color:#805000}
+            #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-summary{color:var(--hpc-muted);font-size:12px;font-weight:800}
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-row[data-status="running"] .hpc-gsc-state{background:#eef2ff;border-color:#c7d4ff;color:var(--hpc-blue)}
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-row[data-status="success"] .hpc-gsc-state{background:#eaf8ef;border-color:#ccefd7;color:var(--hpc-green)}
             #<?php echo esc_attr( $root_id ); ?> .hpc-gsc-row[data-status="failed"] .hpc-gsc-state{background:#fff0f2;border-color:#ffd0d8;color:var(--hpc-red)}
@@ -267,16 +272,35 @@ final class GettingStartedChecklistAssets {
                 root.querySelectorAll('[data-hpc-dynamic-button]').forEach(dynamicReset);
                 refreshInputState();
             }
+            function stateRow(item){
+                if (!item) return null;
+                var selector = '[data-gsc-item][data-step-id="' + css(item.step_id || '') + '"][data-subtask-id="' + css(item.subtask_id || '') + '"]';
+                return root.querySelector(selector);
+            }
+            function applyState(state){
+                state = state || {};
+                Object.keys(state.items || {}).forEach(function(key){
+                    var item = state.items[key] || {}, row = stateRow(item);
+                    if (row) setRowState(row, item.status || 'pending', item.message || '');
+                });
+                var summary = state.summary || {}, target = root.querySelector('[data-gsc-summary]');
+                if (target) target.textContent = summary.total ? ((summary.success || 0) + '/' + summary.total + ' complete' + ((summary.failed || 0) ? ', ' + summary.failed + ' failed' : '')) : 'Not run';
+            }
             function templateSelect(){ return root.querySelector('[data-gsc-template-select]'); }
             function templateList(){ return root.querySelector('[data-gsc-list]'); }
             function templateSource(templateId){ return root.querySelector('template[data-gsc-template-source="' + css(templateId) + '"]'); }
+            function templateLoadButton(){ return root.querySelector('[data-gsc-load-template]'); }
             function currentTemplateId(){ return root.dataset.currentTemplateId || root.dataset.defaultTemplateId || 'default'; }
             function updateTemplateStatus(){
                 var select = templateSelect();
                 var status = root.querySelector('[data-gsc-template-status]');
                 var description = root.querySelector('[data-gsc-template-description]');
                 var option = select ? select.options[select.selectedIndex] : null;
-                if (status && option) status.textContent = option.textContent + ' loaded';
+                var isLoaded = option && option.value === currentTemplateId();
+                if (status && option) {
+                    status.textContent = option.textContent + (isLoaded ? ' loaded' : ' selected — click Load Template');
+                    status.dataset.state = isLoaded ? 'loaded' : 'selected';
+                }
                 if (description && option) description.textContent = option.dataset.description || '';
             }
             function loadTemplate(templateId){
@@ -286,11 +310,12 @@ final class GettingStartedChecklistAssets {
                     return false;
                 }
                 list.innerHTML = source.innerHTML;
-                root.dataset.currentTemplateId = templateId;
-                resetRows();
+                    root.dataset.currentTemplateId = templateId;
+                    resetRows();
                 clearLog();
                 updateTemplateStatus();
-                addLog({level:'info', message:'Checklist template loaded.', context:{template_id:templateId, step_count:list.querySelectorAll('[data-gsc-step-row]').length}});
+                    addLog({level:'info', message:'Checklist template loaded.', context:{template_id:templateId, step_count:list.querySelectorAll('[data-gsc-step-row]').length}});
+                    loadStatus();
                 return true;
             }
             function rowInputs(row){
@@ -335,15 +360,6 @@ final class GettingStartedChecklistAssets {
             function validateRowInputs(row, showErrors){
                 return rowInputMessages(row, showErrors).length === 0;
             }
-            function rowAndChildrenInputMessages(stepRow, showErrors){
-                var messages = rowInputMessages(stepRow, showErrors);
-                var card = stepRow ? root.querySelector('[data-gsc-step-card][data-step-id="' + css(stepRow.dataset.stepId || '') + '"]') : null;
-                var childRows = card ? Array.prototype.slice.call(card.querySelectorAll('[data-gsc-subtask-row]')) : [];
-                childRows.forEach(function(childRow){
-                    messages = messages.concat(rowInputMessages(childRow, showErrors));
-                });
-                return messages;
-            }
             function disabledReason(messages){
                 messages = (messages || []).filter(Boolean);
                 if (!messages.length) return '';
@@ -351,6 +367,7 @@ final class GettingStartedChecklistAssets {
             }
             function setButtonBlocked(button, messages){
                 if (!button) return;
+                if (button.classList.contains('is-loading')) return;
                 var reason = disabledReason(messages);
                 button.disabled = !!reason;
                 setDisabledReason(button, reason);
@@ -362,9 +379,6 @@ final class GettingStartedChecklistAssets {
                 });
                 return values;
             }
-            function rowAndChildrenInputsValid(stepRow, showErrors){
-                return rowAndChildrenInputMessages(stepRow, showErrors).length === 0;
-            }
             function refreshInputState(){
                 root.querySelectorAll('[data-gsc-item]').forEach(function(row){
                     var rowMessages = rowInputMessages(row, false);
@@ -373,16 +387,10 @@ final class GettingStartedChecklistAssets {
                 });
                 root.querySelectorAll('[data-gsc-step-row]').forEach(function(stepRow){
                     var stepButton = stepRow.querySelector('[data-gsc-run-step]');
-                    setButtonBlocked(stepButton, rowAndChildrenInputMessages(stepRow, false));
+                    setButtonBlocked(stepButton, rowInputMessages(stepRow, false));
                 });
                 var runAllButton = root.querySelector('[data-gsc-run-all]');
-                if (runAllButton) {
-                    var allMessages = [];
-                    root.querySelectorAll('[data-gsc-step-row]').forEach(function(stepRow){
-                        allMessages = allMessages.concat(rowAndChildrenInputMessages(stepRow, false));
-                    });
-                    setButtonBlocked(runAllButton, allMessages);
-                }
+                setButtonBlocked(runAllButton, []);
             }
             function postItem(stepId, subtaskId, inputs){
                 var body = new URLSearchParams();
@@ -432,6 +440,22 @@ final class GettingStartedChecklistAssets {
                     return payload.data || {};
                 });
             }
+            function loadStatus(){
+                if (root.dataset.persistenceEnabled !== '1' || !root.dataset.statusAction) return Promise.resolve({});
+                return postAction(root.dataset.statusAction, {template_id:currentTemplateId()}).then(function(state){ applyState(state); return state; }).catch(function(error){
+                    addLog({level:'warning', message:'Saved checklist state could not be loaded.', context:{error:error.message || ''}});
+                    return {};
+                });
+            }
+            function resetStatus(){
+                resetRows();
+                clearLog();
+                if (root.dataset.persistenceEnabled !== '1' || !root.dataset.resetAction) { applyState({items:{},summary:{}}); return Promise.resolve({}); }
+                return postAction(root.dataset.resetAction, {template_id:currentTemplateId()}).then(function(state){ applyState(state); return state; });
+            }
+            function rowMutates(row){ if (!row) return true; if (row.dataset.mutating === '1') return true; if (row.dataset.mutating === '0') return false; return row.dataset.destructive === '1' || (row.dataset.requestType || '') !== 'status_check'; }
+            function runOutcome(success, row, mutatingFailure){ success = !!success; return {success:success, mutatingFailure:success ? false : (typeof mutatingFailure === 'boolean' ? mutatingFailure : rowMutates(row))}; }
+            function normalizeRunOutcome(result, row){ if (result && typeof result === 'object' && Object.prototype.hasOwnProperty.call(result, 'success')) { var failureMutates = Object.prototype.hasOwnProperty.call(result, 'mutatingFailure') ? !!result.mutatingFailure : (Object.prototype.hasOwnProperty.call(result, 'mutating') ? !!result.mutating : rowMutates(row)); return runOutcome(result.success !== false, row, failureMutates); } return runOutcome(result !== false, row); }
             var extensionApi = {
                 root: root,
                 text: text,
@@ -447,7 +471,8 @@ final class GettingStartedChecklistAssets {
                 addLog: addLog,
                 addLogs: addLogs,
                 refreshInputState: refreshInputState,
-                postAction: postAction
+                postAction: postAction, rowMutates: rowMutates, normalizeRunOutcome: normalizeRunOutcome,
+                runItem: runItem, runStep: runStep, runAll: runAll
             };
             root.hexaChecklistApi = extensionApi;
             root.dispatchEvent(new CustomEvent('hexa:checklist:ready', {detail:{api:extensionApi}}));
@@ -463,10 +488,10 @@ final class GettingStartedChecklistAssets {
                 };
                 root.dispatchEvent(new CustomEvent('hexa:checklist:run', {detail:detail}));
                 if (!detail.handled) return null;
-                return Promise.resolve(detail.promise).then(function(result){ return result !== false; }).catch(function(error){
+                return Promise.resolve(detail.promise).then(function(result){ return normalizeRunOutcome(result, row); }).catch(function(error){
                     setRowState(row, 'failed', error && error.message ? error.message : 'Failed');
                     addLog({level:'error', message:error && error.message ? error.message : 'Checklist workflow extension failed.', context:{step_id:detail.stepId, subtask_id:detail.subtaskId}});
-                    return false;
+                    return runOutcome(false, row);
                 });
             }
             function runItem(row){
@@ -476,7 +501,7 @@ final class GettingStartedChecklistAssets {
                     setRowState(row, 'failed', 'Needs Input');
                     addLog({level:'error', message:'Required input missing or invalid.', context:{step_id:stepId, subtask_id:subtaskId}});
                     refreshInputState();
-                    return Promise.resolve(false);
+                    return Promise.resolve(runOutcome(false, row));
                 }
                 var extension = runExtension(row, 'item');
                 if (extension) return extension;
@@ -485,45 +510,52 @@ final class GettingStartedChecklistAssets {
                 return postItem(stepId, subtaskId, collectRowInputs(row)).then(function(data){
                     addLogs(data.logs);
                     renderReports(row, data.data || data);
+                    if (data.state) applyState(data.state);
                     if (data.success) {
                         setRowState(row, 'success', data.message || 'Complete');
-                        return true;
+                        return runOutcome(true, row);
                     }
                     setRowState(row, 'failed', data.message || 'Failed');
-                    return false;
+                    return runOutcome(false, row, typeof data.mutating === 'boolean' ? data.mutating : rowMutates(row));
                 }).catch(function(error){
                     setRowState(row, 'failed', error.message || 'Failed');
                     addLog({level:'error', message:error.message || 'Checklist item failed.', context:{step_id:stepId, subtask_id:subtaskId}});
-                    return false;
+                    return runOutcome(false, row);
                 });
             }
             function runParentAction(stepRow){
                 var stepId = stepRow ? stepRow.dataset.stepId : '';
                 if (!validateRowInputs(stepRow, true)) {
                     addLog({level:'error', message:'Required parent-step input missing or invalid.', context:{step_id:stepId}});
-                    return Promise.resolve(false);
+                    return Promise.resolve(runOutcome(false, stepRow));
                 }
                 return postItem(stepId, '', collectRowInputs(stepRow)).then(function(data){
                     addLogs(data.logs);
+                    if (data.state) applyState(data.state);
                     if (!data.success) {
                         addLog({level:'error', message:data.message || 'Parent step action failed.', context:{step_id:stepId}});
                     }
-                    return !!data.success;
+                    return runOutcome(!!data.success, stepRow, typeof data.mutating === 'boolean' ? data.mutating : rowMutates(stepRow));
                 }).catch(function(error){
                     addLog({level:'error', message:error.message || 'Parent step action failed.', context:{step_id:stepId}});
-                    return false;
+                    return runOutcome(false, stepRow);
                 });
             }
-            async function runStep(stepRow){
-                if (!stepRow) return false;
+            async function runStep(stepRow, batchMode){
+                if (!stepRow) return runOutcome(false, stepRow);
                 var stepId = stepRow.dataset.stepId || '';
+                if (batchMode && stepRow.dataset.batchEnabled === '0') {
+                    setRowState(stepRow, 'pending', 'Individual only');
+                    addLog({level:'warning', message:'Skipped individual-only checklist step during batch run.', context:{step_id:stepId, destructive:stepRow.dataset.destructive === '1'}});
+                    return runOutcome(true, stepRow);
+                }
                 var card = root.querySelector('[data-gsc-step-card][data-step-id="' + css(stepId) + '"]');
                 var subtasks = card ? Array.prototype.slice.call(card.querySelectorAll('[data-gsc-subtask-row]')) : [];
-                if (!rowAndChildrenInputsValid(stepRow, true)) {
+                if (!validateRowInputs(stepRow, true)) {
                     setRowState(stepRow, 'failed', 'Needs Input');
-                    addLog({level:'error', message:'Required input missing or invalid for this step.', context:{step_id:stepId}});
+                    addLog({level:'error', message:'Required parent-step input missing or invalid.', context:{step_id:stepId}});
                     refreshInputState();
-                    return false;
+                    return runOutcome(false, stepRow);
                 }
                 var extension = runExtension(stepRow, 'step');
                 if (extension) return extension;
@@ -534,19 +566,33 @@ final class GettingStartedChecklistAssets {
                 addLog({level:'info', message:'Starting parent step subtasks.', context:{step_id:stepId, subtask_count:subtasks.length}});
                 var allOk = true;
                 if (stepRow.dataset.hasAction === '1') {
-                    allOk = await runParentAction(stepRow);
-                    if (!allOk) {
-                        setRowState(stepRow, 'failed', 'Parent action failed');
-                        return false;
+                    var parentOutcome = await runParentAction(stepRow);
+                    if (!parentOutcome.success) {
+                        allOk = false;
+                        if (parentOutcome.mutatingFailure) {
+                            setRowState(stepRow, 'failed', 'Parent action failed'); addLog({level:'error', message:'Batch stopped after a mutating parent action failed.', context:{step_id:stepId}});
+                            return parentOutcome;
+                        }
                     }
                 }
                 for (var i = 0; i < subtasks.length; i++) {
-                    var ok = await runItem(subtasks[i]);
-                    if (!ok) allOk = false;
+                    if (batchMode && subtasks[i].dataset.batchEnabled === '0') {
+                        setRowState(subtasks[i], 'pending', 'Individual only');
+                        addLog({level:'warning', message:'Skipped individual-only checklist subtask during batch run.', context:{step_id:stepId, subtask_id:subtasks[i].dataset.subtaskId || '', destructive:subtasks[i].dataset.destructive === '1'}});
+                        continue;
+                    }
+                    var itemOutcome = await runItem(subtasks[i]);
+                    if (!itemOutcome.success) {
+                        allOk = false;
+                        if (itemOutcome.mutatingFailure) {
+                            setRowState(stepRow, 'failed', 'Mutating subtask failed'); addLog({level:'error', message:'Batch stopped after a mutating subtask failed.', context:{step_id:stepId, subtask_id:subtasks[i].dataset.subtaskId || ''}});
+                            return itemOutcome;
+                        }
+                    }
                 }
                 setRowState(stepRow, allOk ? 'success' : 'failed', allOk ? 'All subtasks complete' : 'Subtask failed');
                 addLog({level:allOk ? 'success' : 'error', message:allOk ? 'Parent step completed.' : 'Parent step completed with failures.', context:{step_id:stepId}});
-                return allOk;
+                return runOutcome(allOk, stepRow, false);
             }
             async function runAll(button){
                 resetRows();
@@ -554,12 +600,12 @@ final class GettingStartedChecklistAssets {
                 dynamicStart(button, 'Running...');
                 addLog({level:'info', message:'Starting full getting started checklist run.', context:{steps:root.querySelectorAll('[data-gsc-step-row]').length}});
                 var rows = Array.prototype.slice.call(root.querySelectorAll('[data-gsc-step-row]'));
-                var allOk = true;
+                var allOk = true, stopped = false;
                 for (var i = 0; i < rows.length; i++) {
-                    var ok = await runStep(rows[i]);
-                    if (!ok) allOk = false;
+                    var stepOutcome = await runStep(rows[i], true); if (!stepOutcome.success) allOk = false;
+                    if (stepOutcome.mutatingFailure) { stopped = true; addLog({level:'error', message:'Checklist batch halted; remaining items were not run after a mutating failure.', context:{step_id:rows[i].dataset.stepId || ''}}); break; }
                 }
-                addLog({level:allOk ? 'success' : 'error', message:allOk ? 'Checklist run finished successfully.' : 'Checklist run finished with failures.', context:{}});
+                addLog({level:allOk ? 'success' : 'error', message:allOk ? 'Checklist run finished successfully.' : (stopped ? 'Checklist run stopped after a mutating failure.' : 'Checklist status scan finished with failures.'), context:{stopped:stopped}});
                 if (allOk) dynamicSuccess(button, 'Checklist Finished'); else dynamicError(button, 'Checklist Failed');
             }
             root.addEventListener('click', function(event){
@@ -573,22 +619,25 @@ final class GettingStartedChecklistAssets {
                 var reset = event.target.closest('[data-gsc-reset]');
                 if (reset) {
                     event.preventDefault();
-                    resetRows();
-                    clearLog();
+                    resetStatus().catch(function(error){ addLog({level:'error', message:error.message || 'Checklist state reset failed.', context:{}}); });
                     return;
                 }
                 var loadTemplateButton = event.target.closest('[data-gsc-load-template]');
                 if (loadTemplateButton) {
                     event.preventDefault();
                     var select = templateSelect();
-                    loadTemplate(select ? select.value : root.dataset.defaultTemplateId || 'default');
+                    dynamicStart(loadTemplateButton, 'Loading...');
+                    if (loadTemplate(select ? select.value : root.dataset.defaultTemplateId || 'default')) {
+                        dynamicSuccess(loadTemplateButton, 'Template Loaded');
+                    } else {
+                        dynamicError(loadTemplateButton, 'Load Failed');
+                    }
                     return;
                 }
                 var runAllButton = event.target.closest('[data-gsc-run-all]');
                 if (runAllButton) {
                     event.preventDefault();
-                    runAll(runAllButton);
-                    return;
+                    runAll(runAllButton); return;
                 }
                 var runStepButton = event.target.closest('[data-gsc-run-step]');
                 if (runStepButton) {
@@ -596,14 +645,14 @@ final class GettingStartedChecklistAssets {
                     event.stopPropagation();
                     dynamicStart(runStepButton, 'Running...');
                     var stepRow = root.querySelector('[data-gsc-step-row][data-step-id="' + css(runStepButton.dataset.stepId || '') + '"]');
-                    if (!rowAndChildrenInputsValid(stepRow, true)) {
+                    if (!validateRowInputs(stepRow, true)) {
                         setRowState(stepRow, 'failed', 'Needs Input');
-                        addLog({level:'error', message:'Required input missing or invalid for this step.', context:{step_id:runStepButton.dataset.stepId || ''}});
+                        addLog({level:'error', message:'Required parent-step input missing or invalid.', context:{step_id:runStepButton.dataset.stepId || ''}});
                         refreshInputState();
                         dynamicError(runStepButton, 'Needs Input');
                         return;
                     }
-                    runStep(stepRow).then(function(ok){ if (ok) dynamicSuccess(runStepButton, 'Done'); else dynamicError(runStepButton, 'Failed'); });
+                    runStep(stepRow, false).then(function(outcome){ if (outcome.success) dynamicSuccess(runStepButton, 'Done'); else dynamicError(runStepButton, 'Failed'); });
                     return;
                 }
                 var runItemButton = event.target.closest('[data-gsc-run-item]');
@@ -620,7 +669,7 @@ final class GettingStartedChecklistAssets {
                         dynamicError(runItemButton, 'Needs Input');
                         return;
                     }
-                    runItem(row).then(function(ok){ if (ok) dynamicSuccess(runItemButton, 'Done'); else dynamicError(runItemButton, 'Failed'); });
+                    runItem(row).then(function(outcome){ if (outcome.success) dynamicSuccess(runItemButton, 'Done'); else dynamicError(runItemButton, 'Failed'); });
                 }
             });
             root.addEventListener('input', function(event){
@@ -629,6 +678,7 @@ final class GettingStartedChecklistAssets {
             });
             root.addEventListener('change', function(event){
                 if (!event.target.closest('[data-gsc-template-select]')) return;
+                dynamicReset(templateLoadButton());
                 updateTemplateStatus();
             });
             root.addEventListener('click', function(event){
@@ -637,9 +687,9 @@ final class GettingStartedChecklistAssets {
                 }
             }, true);
             if (document.readyState === "loading") {
-                document.addEventListener("DOMContentLoaded", function(){ updateTemplateStatus(); refreshInputState(); }, {once:true});
+                document.addEventListener("DOMContentLoaded", function(){ updateTemplateStatus(); refreshInputState(); loadStatus(); }, {once:true});
             } else {
-                window.setTimeout(function(){ updateTemplateStatus(); refreshInputState(); }, 0);
+                window.setTimeout(function(){ updateTemplateStatus(); refreshInputState(); loadStatus(); }, 0);
             }
         })();
         </script>

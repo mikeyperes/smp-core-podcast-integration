@@ -108,20 +108,20 @@ final class ShortcodeCallbacks {
     public static function podcast_url( array $atts = [] ): string {
         $atts = shortcode_atts( [ 'social' => '' ], $atts, 'podcast_url' );
         $key = sanitize_key( (string) $atts['social'] );
-        if ( '' === $key || ! function_exists( 'get_field' ) ) {
+        if ( '' === $key || ! \Hexa\PluginCore\Fields\Field::available() ) {
             return '';
         }
 
-        $website = get_field( 'website', 'option' );
+        $website = \Hexa\PluginCore\Fields\Field::get( 'website', 'option' );
         $user_id = self::website_user_id( $website );
         if ( $user_id > 0 ) {
-            $user_urls = get_field( 'urls', 'user_' . $user_id );
+            $user_urls = \Hexa\PluginCore\Fields\Field::get( 'urls', 'user_' . $user_id );
             if ( is_array( $user_urls ) && ! empty( $user_urls[ $key ] ) ) {
                 return esc_url( (string) $user_urls[ $key ] );
             }
         }
 
-        $option_urls = get_field( 'podcast_urls', PodcastSettings::OPTIONS_POST_ID );
+        $option_urls = \Hexa\PluginCore\Fields\Field::get( 'podcast_urls', PodcastSettings::OPTIONS_POST_ID );
         if ( is_array( $option_urls ) && ! empty( $option_urls[ $key ] ) ) {
             return esc_url( (string) $option_urls[ $key ] );
         }
@@ -135,14 +135,14 @@ final class ShortcodeCallbacks {
         $atts = shortcode_atts( [ 'name' => '', 'post_id' => 0 ], $atts, 'episode_fields' );
         $field = sanitize_key( (string) $atts['name'] );
         $post_id = self::post_id( $atts );
-        if ( '' === $field || ! self::is_episode( $post_id ) || ! function_exists( 'get_field' ) ) {
+        if ( '' === $field || ! self::is_episode( $post_id ) || ! \Hexa\PluginCore\Fields\Field::available() ) {
             return '';
         }
 
-        $value = get_field( $field, $post_id );
+        $value = \Hexa\PluginCore\Fields\Field::get( $field, $post_id );
         if ( self::empty_field( $value ) && str_contains( $field, '_' ) ) {
             [ $group_key, $sub_key ] = explode( '_', $field, 2 );
-            $group = get_field( $group_key, $post_id );
+            $group = \Hexa\PluginCore\Fields\Field::get( $group_key, $post_id );
             $value = is_array( $group ) && array_key_exists( $sub_key, $group ) ? $group[ $sub_key ] : null;
         }
 
@@ -152,11 +152,11 @@ final class ShortcodeCallbacks {
     /** @param array<string,mixed> $atts */
     public static function article_guests( array $atts = [] ): string {
         $post_id = self::post_id( $atts );
-        if ( $post_id < 1 || ! function_exists( 'get_field' ) ) {
+        if ( $post_id < 1 || ! \Hexa\PluginCore\Fields\Field::available() ) {
             return '';
         }
 
-        $rows = get_field( 'profiles', $post_id );
+        $rows = \Hexa\PluginCore\Fields\Field::get( 'profiles', $post_id );
         $ids = [];
         foreach ( is_array( $rows ) ? $rows : [] as $row ) {
             $value = is_array( $row ) && array_key_exists( 'profile', $row ) ? $row['profile'] : $row;
@@ -172,11 +172,11 @@ final class ShortcodeCallbacks {
     /** @param array<string,mixed> $atts */
     public static function podcast_hosts( array $atts = [] ): string {
         $post_id = self::post_id( $atts );
-        if ( ! self::is_episode( $post_id ) || ! function_exists( 'get_field' ) ) {
+        if ( ! self::is_episode( $post_id ) || ! \Hexa\PluginCore\Fields\Field::available() ) {
             return '';
         }
 
-        $ids = array_map( [ self::class, 'object_id' ], (array) get_field( 'hosts', $post_id ) );
+        $ids = array_map( [ self::class, 'object_id' ], (array) \Hexa\PluginCore\Fields\Field::get( 'hosts', $post_id ) );
         return self::relationship_links( $ids, 'shortcode_podcast_hosts' );
     }
 
@@ -184,13 +184,13 @@ final class ShortcodeCallbacks {
     public static function episode_hosts( array $atts = [] ): string {
         $atts = shortcode_atts( [ 'must_have_thumbnail' => false, 'post_id' => 0 ], $atts, 'display_single_episode_hosts' );
         $post_id = self::post_id( $atts );
-        if ( ! self::is_episode( $post_id ) || ! function_exists( 'get_field' ) ) {
+        if ( ! self::is_episode( $post_id ) || ! \Hexa\PluginCore\Fields\Field::available() ) {
             return '';
         }
 
         $must_have_thumbnail = filter_var( $atts['must_have_thumbnail'], FILTER_VALIDATE_BOOLEAN );
         $ids = [];
-        foreach ( (array) get_field( 'hosts', $post_id ) as $host ) {
+        foreach ( (array) \Hexa\PluginCore\Fields\Field::get( 'hosts', $post_id ) as $host ) {
             $id = self::object_id( $host );
             if ( $id > 0 && ( ! $must_have_thumbnail || has_post_thumbnail( $id ) ) ) {
                 $ids[] = $id;
@@ -264,11 +264,11 @@ final class ShortcodeCallbacks {
     /** @param array<string,mixed> $atts */
     public static function guest_profiles( array $atts = [] ): string {
         $post_id = self::post_id( $atts );
-        if ( ! self::is_episode( $post_id ) || ! function_exists( 'get_field' ) ) {
+        if ( ! self::is_episode( $post_id ) || ! \Hexa\PluginCore\Fields\Field::available() ) {
             return '';
         }
 
-        $rows = get_field( 'guests', $post_id );
+        $rows = \Hexa\PluginCore\Fields\Field::get( 'guests', $post_id );
         if ( ! is_array( $rows ) ) {
             $rows = self::legacy_repeater_rows( $post_id, 'guests', 'guest' );
         }
@@ -288,12 +288,12 @@ final class ShortcodeCallbacks {
     /** @param array<string,mixed> $atts */
     public static function host_profiles( array $atts = [] ): string {
         $post_id = self::post_id( $atts );
-        if ( ! self::is_episode( $post_id ) || ! function_exists( 'get_field' ) ) {
+        if ( ! self::is_episode( $post_id ) || ! \Hexa\PluginCore\Fields\Field::available() ) {
             return '';
         }
 
         $cards = '';
-        foreach ( (array) get_field( 'hosts', $post_id ) as $host ) {
+        foreach ( (array) \Hexa\PluginCore\Fields\Field::get( 'hosts', $post_id ) as $host ) {
             $host_id = self::object_id( $host );
             if ( $host_id > 0 ) {
                 $cards .= self::profile_post_card( $host_id );
@@ -317,13 +317,13 @@ final class ShortcodeCallbacks {
         if ( 'title' === $request ) {
             return esc_html( get_the_title( $profile_id ) );
         }
-        if ( 'biography' === $request && function_exists( 'get_field' ) ) {
-            $bio = get_field( 'biography', $profile_id ) ?: get_field( 'bio', $profile_id );
+        if ( 'biography' === $request && \Hexa\PluginCore\Fields\Field::available() ) {
+            $bio = \Hexa\PluginCore\Fields\Field::get( 'biography', $profile_id ) ?: \Hexa\PluginCore\Fields\Field::get( 'bio', $profile_id );
             return is_scalar( $bio ) ? wp_kses_post( (string) $bio ) : '';
         }
-        if ( str_starts_with( $request, 'url_' ) && function_exists( 'get_field' ) ) {
+        if ( str_starts_with( $request, 'url_' ) && \Hexa\PluginCore\Fields\Field::available() ) {
             $key = sanitize_key( substr( $request, 4 ) );
-            $urls = get_field( 'url', $profile_id );
+            $urls = \Hexa\PluginCore\Fields\Field::get( 'url', $profile_id );
             return $key && is_array( $urls ) && ! empty( $urls[ $key ] ) ? esc_url( (string) $urls[ $key ] ) : '';
         }
 
@@ -415,11 +415,11 @@ final class ShortcodeCallbacks {
         }
 
         $links = [];
-        if ( function_exists( 'get_field' ) ) {
-            $socials = get_field( 'socials', 'user_' . $user_id );
+        if ( \Hexa\PluginCore\Fields\Field::available() ) {
+            $socials = \Hexa\PluginCore\Fields\Field::get( 'socials', 'user_' . $user_id );
             foreach ( [ 'facebook', 'linkedin', 'x', 'youtube', 'instagram', 'soundcloud', 'tiktok' ] as $key ) {
                 $value = is_array( $socials ) ? ( $socials[ $key ] ?? '' ) : '';
-                $value = $value ?: get_field( $key, 'user_' . $user_id );
+                $value = $value ?: \Hexa\PluginCore\Fields\Field::get( $key, 'user_' . $user_id );
                 if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
                     $links[ $key ] = (string) $value;
                 }

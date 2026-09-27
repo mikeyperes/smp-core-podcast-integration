@@ -63,8 +63,8 @@ final class InternalFeed implements ModuleInterface {
 
     private function item(): void {
         $post_id = get_the_ID();
-        $urls = function_exists( 'get_field' ) ? (array) get_field( 'urls', $post_id ) : [];
-        $hosts = function_exists( 'get_field' ) ? (array) get_field( 'hosts', $post_id ) : [];
+        $urls = \Hexa\PluginCore\Fields\Field::available() ? (array) \Hexa\PluginCore\Fields\Field::get( 'urls', $post_id ) : [];
+        $hosts = \Hexa\PluginCore\Fields\Field::available() ? (array) \Hexa\PluginCore\Fields\Field::get( 'hosts', $post_id ) : [];
         ?>
         <item>
             <title><?php the_title_rss(); ?></title>

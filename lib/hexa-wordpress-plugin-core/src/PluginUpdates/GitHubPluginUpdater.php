@@ -9,6 +9,8 @@ final class GitHubPluginUpdater implements ModuleInterface {
 
     private GitHubVersionClient $client;
 
+    private ?string $activation_scope = null;
+
     public function __construct( UpdaterConfig $config, ?GitHubVersionClient $client = null ) {
         $this->config = $config;
         $this->client = $client ?: new GitHubVersionClient( $config );
@@ -132,6 +134,8 @@ final class GitHubPluginUpdater implements ModuleInterface {
             return $response;
         }
 
+        $this->activation_scope = $this->capture_activation_scope();
+
         $targets = array_unique(
             array_filter(
                 [
@@ -190,11 +194,11 @@ final class GitHubPluginUpdater implements ModuleInterface {
         return trailingslashit( $target );
     }
 
-    public function post_install( mixed $response, array $hook_extra, array $result ): array {
+    public function post_install( mixed $response, array $hook_extra, array $result ): mixed {
         global $wp_filesystem;
 
         if ( ! $this->matches_plugin_update_target( $hook_extra ) ) {
-            return $result;
+            return $response;
         }
 
         if ( ! $wp_filesystem ) {
@@ -209,7 +213,12 @@ final class GitHubPluginUpdater implements ModuleInterface {
                 $wp_filesystem->delete( $proper_destination, true );
             }
 
-            $wp_filesystem->move( $result['destination'], $proper_destination, true );
+            if ( ! $wp_filesystem->move( $result['destination'], $proper_destination, true ) ) {
+                return new \WP_Error(
+                    'hexa_plugin_core_updater_destination_failed',
+                    'The updated plugin could not be moved into its canonical folder.'
+                );
+            }
             $result['destination'] = $proper_destination;
         }
 
@@ -224,11 +233,12 @@ final class GitHubPluginUpdater implements ModuleInterface {
             $wp_filesystem->delete( $legacy_destination, true );
         }
 
-        if ( function_exists( 'activate_plugin' ) ) {
-            activate_plugin( $this->config->canonical_plugin_basename() );
+        $restored = $this->restore_activation_scope();
+        if ( is_wp_error( $restored ) ) {
+            return $restored;
         }
 
-        return $result;
+        return $response;
     }
 
     public function clear_cache(): void {
@@ -255,6 +265,88 @@ final class GitHubPluginUpdater implements ModuleInterface {
 
     private function package_url(): string {
         return $this->config->zip_url();
+    }
+
+    private function capture_activation_scope(): string {
+        $this->load_plugin_functions();
+
+        foreach ( $this->managed_basenames() as $plugin ) {
+            if ( function_exists( 'is_plugin_active_for_network' ) && is_plugin_active_for_network( $plugin ) ) {
+                return 'network';
+            }
+        }
+
+        $active_plugins = function_exists( 'get_option' ) ? (array) get_option( 'active_plugins', [] ) : [];
+        foreach ( $this->managed_basenames() as $plugin ) {
+            if ( in_array( $plugin, $active_plugins, true ) ) {
+                return 'site';
+            }
+        }
+
+        return 'inactive';
+    }
+
+    private function restore_activation_scope(): true|\WP_Error {
+        if ( null === $this->activation_scope || 'inactive' === $this->activation_scope ) {
+            return true;
+        }
+
+        $this->load_plugin_functions();
+        if ( function_exists( 'wp_clean_plugins_cache' ) ) {
+            wp_clean_plugins_cache( true );
+        }
+        clearstatcache( true, WP_PLUGIN_DIR . '/' . $this->config->canonical_plugin_basename() );
+
+        if ( ! function_exists( 'activate_plugin' ) ) {
+            return new \WP_Error(
+                'hexa_plugin_core_reactivation_unavailable',
+                'The updated plugin could not be reactivated because the WordPress activation API is unavailable.'
+            );
+        }
+
+        $network_wide = 'network' === $this->activation_scope;
+        $activated    = activate_plugin( $this->config->canonical_plugin_basename(), '', $network_wide, true );
+        if ( is_wp_error( $activated ) ) {
+            return new \WP_Error(
+                'hexa_plugin_core_reactivation_failed',
+                'The plugin update installed, but WordPress could not restore its prior activation state: ' . $activated->get_error_message()
+            );
+        }
+
+        $verified = $network_wide
+            ? function_exists( 'is_plugin_active_for_network' ) && is_plugin_active_for_network( $this->config->canonical_plugin_basename() )
+            : in_array( $this->config->canonical_plugin_basename(), (array) get_option( 'active_plugins', [] ), true );
+
+        if ( ! $verified ) {
+            return new \WP_Error(
+                'hexa_plugin_core_reactivation_unverified',
+                'The plugin update installed, but its prior activation state could not be verified.'
+            );
+        }
+
+        return true;
+    }
+
+    /** @return list<string> */
+    private function managed_basenames(): array {
+        return array_values(
+            array_unique(
+                array_filter(
+                    [
+                        $this->config->plugin_basename(),
+                        $this->config->canonical_plugin_basename(),
+                        $this->config->runtime_folder_name() . '/' . $this->config->plugin_starter_file(),
+                        $this->config->proper_folder_name() . '/' . $this->config->plugin_starter_file(),
+                    ]
+                )
+            )
+        );
+    }
+
+    private function load_plugin_functions(): void {
+        if ( defined( 'ABSPATH' ) && ( ! function_exists( 'activate_plugin' ) || ! function_exists( 'is_plugin_active_for_network' ) ) ) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
     }
 
     private function matches_plugin_update_target( array $hook_extra ): bool {

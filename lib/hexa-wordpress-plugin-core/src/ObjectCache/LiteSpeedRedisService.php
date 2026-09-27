@@ -5,6 +5,9 @@ namespace Hexa\PluginCore\ObjectCache;
 final class LiteSpeedRedisService {
     private string $plugin_file = 'litespeed-cache/litespeed-cache.php';
 
+    /** @param array<string,callable> $callbacks */
+    public function __construct( private array $callbacks = [] ) {}
+
     /**
      * @return array<string,mixed>
      */
@@ -14,12 +17,12 @@ final class LiteSpeedRedisService {
         $installed = defined( 'WP_PLUGIN_DIR' ) && file_exists( trailingslashit( WP_PLUGIN_DIR ) . $this->plugin_file );
         $active    = $installed && function_exists( 'is_plugin_active' ) && is_plugin_active( $this->plugin_file );
 
-        $object_enabled = $this->truthy_option( 'litespeed.conf.object' );
-        $object_kind    = get_option( 'litespeed.conf.object-kind', '' );
+        $object_enabled = $this->truthy_value( $this->conf_value( 'object', false ) );
+        $object_kind    = $this->conf_value( 'object-kind', '' );
         $driver_redis   = $this->truthy_value( $object_kind );
-        $host           = trim( (string) get_option( 'litespeed.conf.object-host', 'localhost' ) );
-        $port           = (int) get_option( 'litespeed.conf.object-port', 6379 );
-        $db_index       = (int) get_option( 'litespeed.conf.object-db_id', 0 );
+        $host           = trim( (string) $this->conf_value( 'object-host', 'localhost' ) );
+        $port           = (int) $this->conf_value( 'object-port', 6379 );
+        $db_index       = (int) $this->conf_value( 'object-db_id', 0 );
         $dropin_path    = defined( 'WP_CONTENT_DIR' ) ? WP_CONTENT_DIR . '/object-cache.php' : '';
         $dropin_present = '' !== $dropin_path && file_exists( $dropin_path );
         $dropin_lscwp   = $dropin_present && is_readable( $dropin_path ) && false !== strpos( (string) file_get_contents( $dropin_path, false, null, 0, 5000 ), 'LSCWP_OBJECT_CACHE' );
@@ -27,8 +30,9 @@ final class LiteSpeedRedisService {
         $raw = $this->redis_connection_status( $host, $port, $db_index );
         $wp  = $this->wp_object_cache_round_trip();
 
-        $enabled = $active && $object_enabled && $driver_redis && '' !== $host && $dropin_present;
-        $active_running = $enabled && ! empty( $raw['connected'] ) && ! empty( $wp['success'] );
+        $wp_using_ext = $this->wp_using_external_object_cache();
+        $enabled = $active && $object_enabled && $driver_redis && '' !== $host && $dropin_present && $dropin_lscwp;
+        $active_running = $enabled && ! empty( $raw['connected'] ) && $wp_using_ext && ! empty( $wp['success'] );
 
         return [
             'installed'        => $installed,
@@ -42,10 +46,10 @@ final class LiteSpeedRedisService {
             'db_index'         => $db_index,
             'dropin_present'   => $dropin_present,
             'dropin_litespeed' => $dropin_lscwp,
-            'wp_using_ext'     => function_exists( 'wp_using_ext_object_cache' ) ? wp_using_ext_object_cache() : false,
+            'wp_using_ext'     => $wp_using_ext,
             'wp_round_trip'    => $wp,
             'redis'            => $raw,
-            'message'          => $this->status_message( $installed, $active, $enabled, $active_running, $raw, $wp ),
+            'message'          => $this->status_message( $installed, $active, $enabled, $active_running, $dropin_present, $dropin_lscwp, $wp_using_ext, $raw, $wp ),
         ];
     }
 
@@ -84,8 +88,8 @@ final class LiteSpeedRedisService {
             $log[] = $this->log_entry( 'success', 'Activated LiteSpeed Cache.' );
         }
 
-        $host = trim( (string) get_option( 'litespeed.conf.object-host', '' ) );
-        $port = (int) get_option( 'litespeed.conf.object-port', 0 );
+        $host = trim( (string) $this->conf_value( 'object-host', '' ) );
+        $port = (int) $this->conf_value( 'object-port', 0 );
 
         if ( '' === $host || 'localhost' === strtolower( $host ) || '127.0.0.1' === $host ) {
             $host = '' !== $host ? $host : 'localhost';
@@ -95,48 +99,83 @@ final class LiteSpeedRedisService {
             $port = 6379;
         }
 
-        update_option( 'litespeed.conf.object', 1 );
-        update_option( 'litespeed.conf.object-kind', 1 );
-        update_option( 'litespeed.conf.object-host', $host );
-        update_option( 'litespeed.conf.object-port', $port );
-        update_option( 'litespeed.conf.object-db_id', max( 0, (int) get_option( 'litespeed.conf.object-db_id', 0 ) ) );
-        update_option( 'litespeed.conf.object-persistent', 1 );
-        update_option( 'litespeed.conf.object-admin', 1 );
-        update_option( 'litespeed.conf.object-transients', 1 );
-
-        $log[] = $this->log_entry( 'success', 'Saved LiteSpeed object cache settings for Redis.' );
-
-        if ( class_exists( '\LiteSpeed\Activation' ) && method_exists( '\LiteSpeed\Activation', 'cls' ) ) {
-            try {
-                \LiteSpeed\Activation::cls()->update_files();
-                $log[] = $this->log_entry( 'success', 'Asked LiteSpeed Cache to refresh its managed cache files.' );
-            } catch ( \Throwable $throwable ) {
-                $log[] = $this->log_entry( 'warning', 'LiteSpeed file refresh reported: ' . $throwable->getMessage() );
-            }
-        } else {
-            $log[] = $this->log_entry( 'warning', 'LiteSpeed Activation class was not available for file refresh.' );
+        $changes = [
+            'object'            => 1,
+            'object-kind'       => 1,
+            'object-host'       => $host,
+            'object-port'       => $port,
+            'object-db_id'      => max( 0, (int) $this->conf_value( 'object-db_id', 0 ) ),
+            'object-persistent' => 1,
+            'object-admin'      => 1,
+        ];
+        $saved = $this->save_litespeed_configuration( $changes );
+        if ( empty( $saved['success'] ) ) {
+            return [
+                'success' => false,
+                'message' => (string) ( $saved['message'] ?? 'LiteSpeed configuration API is unavailable.' ),
+                'before'  => $before,
+                'after'   => $this->status(),
+                'log'     => array_merge( $log, [ $this->log_entry( 'error', (string) ( $saved['message'] ?? 'LiteSpeed configuration API is unavailable.' ) ) ] ),
+            ];
         }
+        $log[] = $this->log_entry( 'success', 'Saved Redis settings through LiteSpeed Conf and refreshed its managed files.' );
 
         if ( function_exists( 'wp_cache_flush' ) ) {
             wp_cache_flush();
         }
 
-        $after   = $this->status();
-        $success = ! empty( $after['enabled'] ) && ! empty( $after['active'] );
+        $after      = $this->status();
+        $configured = ! empty( $after['enabled'] ) && ! empty( $after['redis']['connected'] );
+        $active     = ! empty( $after['active'] );
+        $success    = $configured;
+        $message    = $active
+            ? 'LiteSpeed Redis object cache is enabled and active.'
+            : ( $configured
+                ? 'LiteSpeed Redis is configured with its managed drop-in; verify it on the next WordPress request.'
+                : (string) $after['message'] );
 
         return [
             'success' => $success,
-            'message' => $success ? 'LiteSpeed Redis object cache is enabled and active.' : (string) $after['message'],
+            'message' => $message,
             'before'  => $before,
             'after'   => $after,
+            'configured' => $configured,
+            'active'     => $active,
+            'requires_new_request' => $configured && ! $active,
             'log'     => $log,
         ];
+    }
+
+    /** @param array<string,mixed> $changes @return array{success:bool,message:string} */
+    private function save_litespeed_configuration( array $changes ): array {
+        if ( isset( $this->callbacks['save_configuration'] ) ) {
+            return (array) call_user_func( $this->callbacks['save_configuration'], $changes );
+        }
+        if ( ! class_exists( '\LiteSpeed\Conf' ) || ! method_exists( '\LiteSpeed\Conf', 'cls' ) ) {
+            return [ 'success' => false, 'message' => 'LiteSpeed configuration API is unavailable.' ];
+        }
+        try {
+            $conf = \LiteSpeed\Conf::cls();
+            if ( ! is_object( $conf ) || ! method_exists( $conf, 'update_confs' ) ) {
+                return [ 'success' => false, 'message' => 'LiteSpeed configuration API is unavailable.' ];
+            }
+            $conf->update_confs( $changes );
+            return [ 'success' => true, 'message' => 'LiteSpeed configuration saved.' ];
+        } catch ( \Throwable $throwable ) {
+            return [ 'success' => false, 'message' => 'LiteSpeed could not save its Redis configuration.' ];
+        }
     }
 
     /**
      * @return array<string,mixed>
      */
     private function redis_connection_status( string $host, int $port, int $db_index ): array {
+        if ( isset( $this->callbacks['redis_connection_status'] ) ) {
+            return array_merge(
+                [ 'extension' => false, 'connected' => false, 'version' => '', 'memory' => '', 'keys' => null, 'error' => '' ],
+                (array) call_user_func( $this->callbacks['redis_connection_status'], $host, $port, $db_index )
+            );
+        }
         $result = [
             'extension' => extension_loaded( 'redis' ),
             'connected' => false,
@@ -163,8 +202,8 @@ final class LiteSpeedRedisService {
                 return $result;
             }
 
-            $password = (string) get_option( 'litespeed.conf.object-pswd', '' );
-            $user     = (string) get_option( 'litespeed.conf.object-user', '' );
+            $password = (string) $this->conf_value( 'object-pswd', '' );
+            $user     = (string) $this->conf_value( 'object-user', '' );
             if ( '' !== $password ) {
                 '' !== $user ? $redis->auth( [ $user, $password ] ) : $redis->auth( $password );
             }
@@ -198,6 +237,9 @@ final class LiteSpeedRedisService {
      * @return array<string,mixed>
      */
     private function wp_object_cache_round_trip(): array {
+        if ( isset( $this->callbacks['wp_object_cache_round_trip'] ) ) {
+            return (array) call_user_func( $this->callbacks['wp_object_cache_round_trip'] );
+        }
         if ( ! function_exists( 'wp_cache_set' ) || ! function_exists( 'wp_cache_get' ) || ! function_exists( 'wp_cache_delete' ) ) {
             return [
                 'success' => false,
@@ -220,18 +262,24 @@ final class LiteSpeedRedisService {
         ];
     }
 
-    private function status_message( bool $installed, bool $active, bool $enabled, bool $active_running, array $raw, array $wp ): string {
+    private function status_message( bool $installed, bool $active, bool $enabled, bool $active_running, bool $dropin_present, bool $dropin_lscwp, bool $wp_using_ext, array $raw, array $wp ): string {
         if ( ! $installed ) {
             return 'LiteSpeed Cache is not installed.';
         }
         if ( ! $active ) {
             return 'LiteSpeed Cache is installed but inactive.';
         }
+        if ( $dropin_present && ! $dropin_lscwp ) {
+            return 'Another object-cache drop-in is present; LiteSpeed Redis was not reported as active.';
+        }
         if ( ! $enabled ) {
             return 'Redis object cache is not fully enabled in LiteSpeed.';
         }
         if ( empty( $raw['connected'] ) ) {
             return (string) ( $raw['error'] ?? 'Redis connection failed.' );
+        }
+        if ( ! $wp_using_ext ) {
+            return 'LiteSpeed Redis is configured; a new WordPress request is required to load its managed drop-in.';
         }
         if ( empty( $wp['success'] ) ) {
             return (string) ( $wp['message'] ?? 'WordPress object-cache test failed.' );
@@ -240,8 +288,28 @@ final class LiteSpeedRedisService {
         return $active_running ? 'Redis object cache is enabled and active.' : 'Redis object cache needs attention.';
     }
 
-    private function truthy_option( string $option ): bool {
-        return $this->truthy_value( get_option( $option, false ) );
+    private function wp_using_external_object_cache(): bool {
+        if ( isset( $this->callbacks['wp_using_ext_object_cache'] ) ) {
+            return (bool) call_user_func( $this->callbacks['wp_using_ext_object_cache'] );
+        }
+        return function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache();
+    }
+
+    private function conf_value( string $id, mixed $default ): mixed {
+        if ( isset( $this->callbacks['conf_value'] ) ) {
+            return call_user_func( $this->callbacks['conf_value'], $id, $default );
+        }
+        if ( class_exists( '\LiteSpeed\Conf' ) && method_exists( '\LiteSpeed\Conf', 'cls' ) ) {
+            try {
+                $conf = \LiteSpeed\Conf::cls();
+                if ( is_object( $conf ) && method_exists( $conf, 'conf' ) ) {
+                    return $conf->conf( $id );
+                }
+            } catch ( \Throwable $throwable ) {
+                // Fall back to the legacy option only for older LiteSpeed versions.
+            }
+        }
+        return get_option( 'litespeed.conf.' . $id, $default );
     }
 
     private function truthy_value( mixed $value ): bool {

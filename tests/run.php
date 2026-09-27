@@ -287,6 +287,7 @@ function flush_rewrite_rules( bool $hard = true ): void { unset( $hard ); }
 function update_field( string $field, mixed $value, int $post_id ): bool { $GLOBALS['test_fields'][ $post_id . ':' . $field ] = $value; return true; }
 
 require $root . '/lib/hexa-wordpress-plugin-core/bootstrap.php';
+require $root . '/lib/hexa-wordpress-plugin-core/tests/support/fields.php';
 hexa_plugin_core_register_package( 'podcast-tests', $root . '/lib/hexa-wordpress-plugin-core', [ 'minimum_version' => '1.1.9' ] );
 HexaPluginCorePackageRegistry::resolve();
 require $root . '/src/Support/Autoloader.php';
@@ -296,13 +297,13 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.2.3' === $header_version, 'plugin header reports 3.2.3', $header_version );
+check( '3.3.0' === $header_version, 'plugin header reports 3.3.0', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
 $declared_hash = trim( (string) file_get_contents( $root . '/lib/hexa-wordpress-plugin-core/PACKAGE_HASH' ) );
 $actual_hash = HexaPluginCorePackageRegistry::source_hash( $root . '/lib/hexa-wordpress-plugin-core' );
-check( '1.1.9' === trim( (string) file_get_contents( $root . '/lib/hexa-wordpress-plugin-core/VERSION' ) ), 'bundled Core version is 1.1.9' );
+check( '3.4.8' === trim( (string) file_get_contents( $root . '/lib/hexa-wordpress-plugin-core/VERSION' ) ), 'bundled Core version is 3.4.8' );
 check( hash_equals( $declared_hash, $actual_hash ), 'bundled Core source matches PACKAGE_HASH' );
 
 $episode = SMP\Podcast\Acf\EpisodeFieldGroup::definition();

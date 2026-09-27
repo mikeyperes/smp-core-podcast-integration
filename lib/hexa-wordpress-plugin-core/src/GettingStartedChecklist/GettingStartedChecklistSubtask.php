@@ -18,6 +18,14 @@ final class GettingStartedChecklistSubtask {
 
     public string $action_label;
 
+    public bool $batch_enabled;
+
+    public bool $destructive;
+
+    public bool $mutating;
+
+    public string $capability;
+
     /**
      * @var array<string,mixed>
      */
@@ -43,6 +51,12 @@ final class GettingStartedChecklistSubtask {
         $this->type        = GettingStartedChecklistStep::normalize_type( (string) ( $definition['type'] ?? $definition['kind'] ?? $definition['mode'] ?? GettingStartedChecklistStep::TYPE_CALLBACK ) );
         $this->callback    = isset( $definition['callback'] ) && is_callable( $definition['callback'] ) ? $definition['callback'] : null;
         $this->action_label = trim( (string) ( $definition['action_label'] ?? GettingStartedChecklistStep::default_action_label( $this->type ) ) );
+        $this->batch_enabled = (bool) ( $definition['batch_enabled'] ?? true );
+        $this->destructive   = (bool) ( $definition['destructive'] ?? false );
+        $this->mutating      = $this->destructive || ( array_key_exists( 'mutating', $definition )
+            ? (bool) $definition['mutating']
+            : GettingStartedChecklistStep::type_is_mutating( $this->type ) );
+        $this->capability    = trim( (string) ( $definition['capability'] ?? '' ) );
         $this->request     = is_array( $definition['request'] ?? null ) ? $definition['request'] : [];
         $this->required_inputs = GettingStartedChecklistStep::normalize_required_inputs( (array) ( $definition['required_inputs'] ?? $definition['inputs'] ?? [] ) );
         $this->context     = is_array( $definition['context'] ?? null ) ? $definition['context'] : [];
@@ -81,6 +95,10 @@ final class GettingStartedChecklistSubtask {
             'description'  => $this->description,
             'type'         => $this->type,
             'action_label' => $this->action_label,
+            'batch_enabled'=> $this->batch_enabled,
+            'destructive'  => $this->destructive,
+            'mutating'     => $this->mutating,
+            'capability'   => $this->capability,
             'request'      => $this->public_request(),
             'required_inputs' => $this->required_inputs,
             'has_callback' => $this->has_callback(),

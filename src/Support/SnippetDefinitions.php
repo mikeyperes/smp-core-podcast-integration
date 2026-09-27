@@ -48,7 +48,6 @@ final class SnippetDefinitions {
                 'default_enabled' => true,
                 'test_rules' => [
                     [ 'id' => 'option', 'label' => 'Field structure is enabled', 'type' => 'option_enabled', 'required' => true ],
-                    [ 'id' => 'acf', 'label' => 'ACF is available', 'type' => 'callback', 'callback' => static fn( ...$unused ): bool => Dependencies::acf_ready(), 'required' => true ],
                 ],
             ],
             [
@@ -59,7 +58,6 @@ final class SnippetDefinitions {
                 'default_enabled' => true,
                 'test_rules' => [
                     [ 'id' => 'option', 'label' => 'Field structure is enabled', 'type' => 'option_enabled', 'required' => true ],
-                    [ 'id' => 'acf', 'label' => 'ACF is available', 'type' => 'callback', 'callback' => static fn( ...$unused ): bool => Dependencies::acf_ready(), 'required' => true ],
                 ],
             ],
             [

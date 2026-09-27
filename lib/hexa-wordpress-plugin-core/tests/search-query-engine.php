@@ -121,6 +121,7 @@ final class FakeQuery {
 $root = dirname( __DIR__ );
 require $root . '/src/SearchQuery/SearchQueryConfiguration.php';
 require $root . '/src/SearchQuery/SearchTermParser.php';
+require $root . '/src/SearchQuery/SearchMatchSql.php';
 require $root . '/src/SearchQuery/SearchQueryEngine.php';
 require $root . '/src/SearchQuery/JetEngineSearchAdapter.php';
 
@@ -222,8 +223,12 @@ $exact_sql = $engine->build_search_sql( 'red shoes', $exact, $wpdb );
 $expect( str_contains( $exact_sql, "LIKE '%red shoes%'" ) && ! str_contains( $exact_sql, "LIKE '%red%'" ), 'Exact phrase mode searches the contiguous phrase once.' );
 
 $engine->register();
+$engine->register();
 $query_vars_filter = $test_filters['query_vars'][10][0] ?? null;
 $expect( is_callable( $query_vars_filter ) && in_array( 'hexa_search', $query_vars_filter( [ 's' ] ), true ), 'The request marker is registered as a public query variable.' );
+$expect( 1 === count( $test_filters['query_vars'][10] ?? [] ), 'Repeated registration must not duplicate the query-variable filter.' );
+$expect( 1 === count( $test_filters['pre_get_posts'][20] ?? [] ), 'Repeated registration must not duplicate the preparation hook.' );
+$expect( 1 === count( $test_filters['posts_search'][999] ?? [] ), 'One permanent exact-query SQL dispatcher must be registered.' );
 
 $target = new FakeQuery( [ 's' => 'red shoes', 'hexa_search' => '1' ] );
 $engine->prepare_query( $target );
@@ -232,10 +237,26 @@ $expect( 12 === $target->get( 'posts_per_page' ) && 'date' === $target->get( 'or
 
 $search_filter = array_values( $test_filters['posts_search'][999] ?? [] )[0] ?? null;
 $other = new FakeQuery( [ 's' => 'other', 'hexa_search' => '1' ] );
-$expect( is_callable( $search_filter ) && 'ORIGINAL' === $search_filter( 'ORIGINAL', $other ), 'The temporary SQL filter ignores every other query instance.' );
+$expect( is_callable( $search_filter ) && 'ORIGINAL' === $search_filter( 'ORIGINAL', $other ), 'The SQL dispatcher ignores every unprepared query instance.' );
 $target_sql = is_callable( $search_filter ) ? $search_filter( 'ORIGINAL', $target ) : '';
-$expect( str_contains( $target_sql, "post_title LIKE '%red%'" ), 'The temporary SQL filter replaces only the target search clause.' );
-$expect( [] === array_values( $test_filters['posts_search'][999] ?? [] ), 'The temporary SQL filter removes itself immediately after the target query.' );
+$expect( str_contains( $target_sql, "post_title LIKE '%red%'" ), 'The SQL dispatcher replaces only the prepared target search clause.' );
+$expect( 'ORIGINAL' === ( is_callable( $search_filter ) ? $search_filter( 'ORIGINAL', $target ) : '' ), 'Prepared state must be consumed after the exact target reaches the dispatcher.' );
+$expect( 1 === count( $test_filters['posts_search'][999] ?? [] ), 'The permanent dispatcher must remain singular after consuming a target.' );
+
+$duplicate = new FakeQuery( [ 's' => 'duplicate prepare', 'hexa_search' => '1' ] );
+$engine->prepare_query( $duplicate );
+$engine->prepare_query( $duplicate );
+$expect( 1 === count( $test_filters['posts_search'][999] ?? [] ), 'Duplicate prepare calls must not stack SQL callbacks.' );
+$duplicate_sql = is_callable( $search_filter ) ? $search_filter( 'ORIGINAL', $duplicate ) : '';
+$expect( str_contains( $duplicate_sql, "post_title LIKE '%duplicate%'" ), 'Duplicate preparation must leave one usable exact-query state.' );
+$expect( 'ORIGINAL' === ( is_callable( $search_filter ) ? $search_filter( 'ORIGINAL', $duplicate ) : '' ), 'Duplicate preparation state must still be consumed once.' );
+
+$abandoned = new FakeQuery( [ 's' => 'abandoned query', 'hexa_search' => '1' ] );
+$engine->prepare_query( $abandoned );
+$abandoned_reference = \WeakReference::create( $abandoned );
+unset( $abandoned );
+gc_collect_cycles();
+$expect( null === $abandoned_reference->get(), 'An abandoned prepared query must not be retained when posts_search never runs.' );
 
 $before = count( $test_filters['posts_search'][999] ?? [] );
 $engine->prepare_query( new FakeQuery( [ 's' => 'unmarked' ] ) );
@@ -248,7 +269,7 @@ $test_context['rest'] = true;
 $engine->prepare_query( new FakeQuery( [ 's' => 'rest', 'hexa_search' => '1' ] ) );
 $test_context['rest'] = false;
 $after = count( $test_filters['posts_search'][999] ?? [] );
-$expect( $before === $after, 'Unmarked, nested, feed, AJAX, and REST requests never receive a SQL filter.' );
+$expect( $before === $after, 'Unmarked, nested, feed, AJAX, and REST requests never add SQL callbacks.' );
 
 $explicit = new FakeQuery(
     [
@@ -259,10 +280,10 @@ $explicit = new FakeQuery(
     false
 );
 $engine->prepare_query( $explicit );
-$explicit_filter = array_values( $test_filters['posts_search'][999] ?? [] )[0] ?? null;
-$expect( is_callable( $explicit_filter ), 'A trusted explicitly marked template query is eligible.' );
-if ( is_callable( $explicit_filter ) ) {
-    $explicit_filter( 'ORIGINAL', $explicit );
+$expect( is_callable( $search_filter ), 'A trusted explicitly marked template query is eligible.' );
+if ( is_callable( $search_filter ) ) {
+    $explicit_sql = $search_filter( 'ORIGINAL', $explicit );
+    $expect( str_contains( $explicit_sql, "post_title LIKE '%adapted%'" ), 'The permanent dispatcher consumes an explicitly marked template query.' );
 }
 
 $provider_calls = 0;
@@ -312,6 +333,24 @@ $unmarked_args = is_callable( $adapter_filter )
     ? $adapter_filter( [ 'post_type' => 'post' ], null, [ 'is_archive_template' => '' ] )
     : [];
 $expect( [ 'post_type' => 'post' ] === $unmarked_args, 'Shortcode-only scope leaves unmarked JetEngine search grids untouched.' );
+
+define( 'WP_CLI', true );
+$cli_adapter_calls_before = $adapter_provider_calls;
+$cli_adapter_args = is_callable( $adapter_filter )
+    ? $adapter_filter( [ 'post_type' => 'post' ], null, [ 'is_archive_template' => '' ] )
+    : [];
+$expect( [ 'post_type' => 'post' ] === $cli_adapter_args, 'WP-CLI requests must leave JetEngine query arguments untouched.' );
+$expect( $cli_adapter_calls_before === $adapter_provider_calls, 'WP-CLI requests must reject JetEngine adaptation before the settings provider runs.' );
+
+$cli_provider_calls = 0;
+$cli_engine = new SearchQueryEngine(
+    static function () use ( &$cli_provider_calls, $settings ): array {
+        ++$cli_provider_calls;
+        return $settings;
+    }
+);
+$cli_engine->prepare_query( new FakeQuery( [ 's' => 'cli search', 'hexa_search' => '1' ] ) );
+$expect( 0 === $cli_provider_calls, 'WP-CLI queries must be rejected before the settings provider runs.' );
 
 if ( [] !== $failures ) {
     foreach ( $failures as $failure ) {

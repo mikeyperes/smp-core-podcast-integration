@@ -30,8 +30,8 @@ final class ContentKind implements ModuleInterface {
         add_action( 'added_post_meta', [ self::class, 'invalidate_duplicate_ids' ], 10, 4 );
         add_action( 'updated_post_meta', [ self::class, 'invalidate_duplicate_ids' ], 10, 4 );
         add_action( 'deleted_post_meta', [ self::class, 'invalidate_duplicate_ids' ], 10, 4 );
-        add_filter( 'acf/location/match_rule', [ $this, 'match_episode_field_group_location' ], 20, 4 );
-        add_filter( 'acf/pre_update_value', [ $this, 'prevent_article_episode_field_update' ], 20, 4 );
+        \Hexa\PluginCore\Fields\Hooks::on( 'location/match_rule', [ $this, 'match_episode_field_group_location' ], 20, 4 );
+        \Hexa\PluginCore\Fields\Hooks::on( 'pre_update_value', [ $this, 'prevent_article_episode_field_update' ], 20, 4 );
     }
 
     public function register_meta(): void {
@@ -367,8 +367,8 @@ final class ContentKind implements ModuleInterface {
      * Resolve the edited/rendered post without trusting a single request path.
      */
     public static function current_post_id(): int {
-        if ( function_exists( 'acf_get_form_data' ) ) {
-            $acf_post_id = acf_get_form_data( 'post_id' );
+        if ( \Hexa\PluginCore\Fields\Field::available() ) {
+            $acf_post_id = \Hexa\PluginCore\Fields\Form::data( 'post_id' );
             if ( is_numeric( $acf_post_id ) && (int) $acf_post_id > 0 ) {
                 return (int) $acf_post_id;
             }

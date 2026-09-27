@@ -40,6 +40,7 @@ The plugin update namespace starts with the HWS Base Tools updater behavior and 
 - the direct updater downloads, extracts, backs up, installs, cleans duplicate folders, and clears caches
 - package builders and installers exclude nested VCS metadata such as `.git`, `.svn`, `.hg`, and `.bzr`
 - native WordPress plugin updates purge ignored metadata before install and return a clear `WP_Error` if locked metadata remains
+- native updates capture whether the plugin was inactive, site-active, or network-active before WordPress's silent deactivation, then clear discovery caches and verify silent restoration under the canonical basename
 - GitHub access tokens never belong in package URLs; private GitHub auth must use request headers
 - the admin panel can render the same update-status flow for any host plugin
 - a separate core-package panel compares a vendored Hexa WordPress Plugin Core `VERSION` file against the public core GitHub repository
@@ -91,6 +92,24 @@ CorePackageInstaller
 CorePackageAjaxController
 CorePackagePanelRenderer
 ```
+
+`CorePackageInstaller::run()` preserves the low-level single-host contract. `registered_hosts()` reads distinct Core roots from the bootstrap registry. `run_registered_hosts()` downloads and verifies once, stages the clean package for every registered root, then commits the fleet as one rollback unit; without candidates it falls back to `run()`. The shared AJAX updater calls the fleet method, so an update launched from any host plugin updates every registered vendored copy.
+
+```php
+$installer = new CorePackageInstaller($core_config, $progress_store);
+$result = $installer->run_registered_hosts();
+```
+
+`CoreBootstrap` also registers `CorePackageFleetSyncModule`. After a plugin
+install, update, or activation—and on a later authorized admin request—the
+module compares the fresh on-disk version and `PACKAGE_HASH` for every
+registered host. It stages every target before changing any live package,
+retains all prior packages until every target passes post-commit verification,
+removes stale files, and rolls the whole fleet back after any commit or
+verification failure. It performs no network download; a released host plugin
+must still bundle the canonical current Core package.
+
+Fleet results report `new_version`, `updated_count`, per-host `{host, core_root, new_version}` rows, and `core_roots`. Test discovery with `php tests/core-package-fleet.php`; unit tests must use temporary roots rather than production packages.
 
 ## Minimal Host Integration
 

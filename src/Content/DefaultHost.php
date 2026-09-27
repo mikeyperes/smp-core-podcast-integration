@@ -11,7 +11,7 @@ final class DefaultHost implements ModuleInterface {
             return;
         }
 
-        add_filter( 'acf/prepare_field/name=hosts', [ $this, 'prepare_field' ] );
+        \Hexa\PluginCore\Fields\Hooks::on( 'prepare_field/name=hosts', [ $this, 'prepare_field' ] );
         add_action( 'smp_podcast_content_kind_saved', [ $this, 'assign_after_content_kind' ], 20, 3 );
     }
 
@@ -60,7 +60,7 @@ final class DefaultHost implements ModuleInterface {
             return [ 'changed' => false, 'before' => [], 'after' => [], 'message' => 'Skipped: content type does not match.' ];
         }
 
-        $before = function_exists( 'get_field' ) ? get_field( 'hosts', $post_id, false ) : get_post_meta( $post_id, 'hosts', true );
+        $before = \Hexa\PluginCore\Fields\Field::available() ? \Hexa\PluginCore\Fields\Field::get( 'hosts', $post_id, false ) : get_post_meta( $post_id, 'hosts', true );
         $before = is_array( $before ) ? array_values( $before ) : ( empty( $before ) ? [] : [ $before ] );
         if ( $before ) {
             return [ 'changed' => false, 'before' => $before, 'after' => $before, 'message' => 'Skipped: a host is already assigned.' ];
@@ -71,8 +71,8 @@ final class DefaultHost implements ModuleInterface {
             return [ 'changed' => false, 'before' => [], 'after' => [], 'message' => 'Skipped: no default host is configured.' ];
         }
 
-        $updated = function_exists( 'update_field' )
-            ? update_field( 'hosts', [ $host_id ], $post_id )
+        $updated = \Hexa\PluginCore\Fields\Field::available()
+            ? \Hexa\PluginCore\Fields\Field::update( 'hosts', [ $host_id ], $post_id )
             : update_post_meta( $post_id, 'hosts', [ $host_id ] );
 
         return [

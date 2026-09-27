@@ -88,6 +88,9 @@ final class JetEngineSearchAdapter {
         if ( function_exists( 'is_admin' ) && is_admin() ) {
             return null;
         }
+        if ( defined( 'WP_CLI' ) && WP_CLI ) {
+            return null;
+        }
         if ( ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) ) {
             return null;
         }

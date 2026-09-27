@@ -93,10 +93,10 @@ final class AudioSourceResolver {
     /** @return array{url:string} */
     private static function direct_audio( int $post_id ): array {
         $values = [];
-        if ( function_exists( 'get_field' ) ) {
-            $values[] = get_field( 'audio', $post_id );
-            $values[] = get_field( 'audio', $post_id, false );
-            $values[] = get_field( 'audio_url', $post_id );
+        if ( \Hexa\PluginCore\Fields\Field::available() ) {
+            $values[] = \Hexa\PluginCore\Fields\Field::get( 'audio', $post_id );
+            $values[] = \Hexa\PluginCore\Fields\Field::get( 'audio', $post_id, false );
+            $values[] = \Hexa\PluginCore\Fields\Field::get( 'audio_url', $post_id );
         }
         $values[] = get_post_meta( $post_id, 'audio', true );
         $values[] = get_post_meta( $post_id, 'audio_url', true );

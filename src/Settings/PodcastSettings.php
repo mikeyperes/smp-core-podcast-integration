@@ -199,9 +199,9 @@ final class PodcastSettings {
             }
         }
 
-        if ( function_exists( 'get_field' ) ) {
+        if ( \Hexa\PluginCore\Fields\Field::available() ) {
             foreach ( [ self::OPTIONS_POST_ID, 'option' ] as $context ) {
-                $value = get_field( 'default_host', $context, false );
+                $value = \Hexa\PluginCore\Fields\Field::get( 'default_host', $context, false );
                 if ( $value instanceof \WP_Post ) {
                     return (int) $value->ID;
                 }

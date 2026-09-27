@@ -51,7 +51,7 @@ Preserves quoted phrases, removes duplicate terms case-insensitively, strips exp
 
 `new SearchQueryEngine(callable $settings_provider, string $marker_key = 'hexa_search')`
 
-`SearchQueryEngine::register(): void` registers the public marker query variable and the guarded query hook. `SearchQueryEngine::build_search_sql()` is public for deterministic testing; hosts should normally let WordPress call the registered hooks.
+`SearchQueryEngine::register(): void` idempotently registers the public marker query variable, guarded preparation hook, and one exact-query SQL dispatcher. `SearchQueryEngine::build_search_sql()` is public for deterministic testing; hosts should normally let WordPress call the registered hooks.
 
 ### `JetEngineSearchAdapter`
 
@@ -59,7 +59,7 @@ Preserves quoted phrases, removes duplicate terms case-insensitively, strips exp
 
 `JetEngineSearchAdapter::register(): void` bridges a JetEngine posts listing grid to the same engine when a search-results template creates a secondary `WP_Query` instead of rendering the native main query. It copies only the current main search text and host marker, then applies Core's private explicit-query marker. The engine still owns post-type, source, count, ordering, and SQL behavior.
 
-The adapter rejects admin, AJAX, REST, cron, XML-RPC, feed, empty, suppressed, disabled, non-search, and non-main request contexts before loading host settings. It skips JetEngine grids configured as archive templates because those already consume the native main query. A host can reject a specific grid with `hexa_plugin_core_search_query_jet_engine_should_handle` or the `hexa_search_query_disabled` query argument.
+The adapter rejects admin, WP-CLI, AJAX, REST, cron, XML-RPC, feed, empty, suppressed, disabled, non-search, and non-main request contexts before loading host settings. It skips JetEngine grids configured as archive templates because those already consume the native main query. A host can reject a specific grid with `hexa_plugin_core_search_query_jet_engine_should_handle` or the `hexa_search_query_disabled` query argument.
 
 ## Required Host Protocol
 
@@ -114,7 +114,7 @@ The host should cache its normalized settings within a request if another host c
 The engine uses `pre_get_posts` only as a narrow coordination point. Before invoking the host settings provider it rejects:
 
 - non-object or incompatible query values;
-- wp-admin;
+- wp-admin and WP-CLI;
 - AJAX, cron, REST, and XML-RPC requests;
 - non-main and non-search queries, except a secondary query carrying Core's trusted explicit adapter marker;
 - feeds;
@@ -122,9 +122,9 @@ The engine uses `pre_get_posts` only as a narrow coordination point. Before invo
 - `suppress_filters` queries;
 - queries carrying `hexa_search_query_disabled`.
 
-After normalization it rejects disabled configurations and unmarked requests in `shortcode` scope. Only then does it set allowed post types, count, and ordering. Its temporary `posts_search` callback compares the candidate query by object identity and removes itself immediately after the exact object reaches the filter. Host code must never add the explicit adapter marker to ordinary loops.
+After normalization it rejects disabled configurations and unmarked requests in `shortcode` scope. Only then does it set allowed post types, count, and ordering. One idempotently registered `posts_search` dispatcher checks weak exact-object state and consumes that state when the target reaches the filter. Repeated preparation replaces the same object's pending state instead of stacking callbacks, and an abandoned query cannot be retained by Core when `posts_search` never runs. Host code must never add the explicit adapter marker to ordinary loops.
 
-Never replace this with a permanent global `posts_search` callback. Never perform option, post-type, or taxonomy discovery before the cheap request/query guards. This ordering is part of the public performance contract.
+Never replace the exact-object dispatcher with broad unconditional SQL or a query-capturing closure. Never perform option, post-type, or taxonomy discovery before the cheap request/query guards. This ordering is part of the public performance contract.
 
 Host code can make a final request-specific decision with:
 
@@ -166,5 +166,10 @@ Every host release must additionally use the visible frontend workflow to verify
 5. Post-type and field selections exclude controlled nonmatching fixtures.
 6. Native form submission reaches `/?s=...` with the marker.
 7. No PHP notice, page error, console error, or unrelated query mutation occurs.
+8. Repeated preparation does not add another `posts_search` callback, and abandoned query objects remain collectible.
 
 Restore the original host option and remove every test fixture after verification.
+
+## Related
+
+Public directory pages with live search over posts or users use `Hexa\PluginCore\DirectorySearch` (`docs/directory-search.md`), which shares this module's term parser and `SearchMatchSql` matcher.

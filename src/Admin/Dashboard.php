@@ -50,10 +50,10 @@ final class Dashboard implements ModuleInterface {
     }
 
     public function prepare_acf_form(): void {
-        if ( ! $this->is_dashboard_request() || ! function_exists( 'acf_form_head' ) ) {
+        if ( ! $this->is_dashboard_request() || ! \Hexa\PluginCore\Fields\Field::available() ) {
             return;
         }
-        acf_form_head();
+        \Hexa\PluginCore\Fields\Form::head();
     }
 
     public function enqueue_assets( string $hook_suffix ): void {
@@ -236,9 +236,9 @@ final class Dashboard implements ModuleInterface {
         }
         echo CoreUi::collapsible( [ 'title' => 'Default Host', 'body_html' => $host_body, 'meta_html' => CoreUi::pill( $host_id ? 'Configured' : 'Optional', $host_id ? 'success' : 'warning' ), 'open' => true, 'persist_key' => 'smp-podcast-default-host' ] );
 
-        if ( function_exists( 'acf_form' ) && function_exists( 'acf_get_field_group' ) && acf_get_field_group( PodcastOptionsFieldGroup::GROUP_KEY ) ) {
+        if ( \Hexa\PluginCore\Fields\Field::available() && \Hexa\PluginCore\Fields\Field::available() && \Hexa\PluginCore\Fields\FieldGroups::get_group( PodcastOptionsFieldGroup::GROUP_KEY ) ) {
             echo '<section class="hpc-card smp-podcast-acf-form"><h3>Podcast Data</h3><p>These are the existing saved podcast options. Field names and storage keys remain unchanged.</p>';
-            acf_form(
+            \Hexa\PluginCore\Fields\Form::render(
                 [
                     'post_id' => PodcastSettings::OPTIONS_POST_ID,
                     'field_groups' => [ PodcastOptionsFieldGroup::GROUP_KEY ],

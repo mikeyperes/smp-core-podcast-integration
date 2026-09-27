@@ -93,6 +93,21 @@ ob_start();
 ( new GettingStartedChecklistRenderer( $config ) )->render();
 $html = (string) ob_get_clean();
 $ui_source = (string) file_get_contents( $root . '/src/WpAdminComponents/CoreUi.php' );
+$checklist_source = (string) file_get_contents( $root . '/src/GettingStartedChecklist/GettingStartedChecklistAssets.php' );
+
+$template_config = new GettingStartedChecklistConfig(
+    [
+        'root_id'              => 'template-checklist',
+        'show_template_picker' => true,
+        'templates'            => [
+            'default'   => [ 'label' => 'Default', 'steps' => [] ],
+            'alternate' => [ 'label' => 'Alternate', 'steps' => [] ],
+        ],
+    ]
+);
+ob_start();
+( new GettingStartedChecklistRenderer( $template_config ) )->render();
+$template_html = (string) ob_get_clean();
 
 $checks = [
     'Enables search only when the host opts in.' => $config->show_search(),
@@ -112,6 +127,20 @@ $checks = [
     'Uses an explicit filter state that cannot be overridden by row display rules.' => str_contains( $ui_source, "item.setAttribute('data-hpc-filter-hidden', '1')" )
         && str_contains( $ui_source, '[data-hpc-filter-hidden="1"]{display:none!important}' ),
     'Allows long collapsible titles to wrap instead of truncating.' => str_contains( $ui_source, '.hpc-section-title{min-width:0;overflow-wrap:anywhere;white-space:normal}' ),
+    'Renders template loading as an explicit dynamic button state.' => str_contains( $template_html, 'data-gsc-load-template' )
+        && str_contains( $template_html, 'data-working-label="Loading..."' )
+        && str_contains( $template_html, 'data-success-label="Template Loaded"' )
+        && str_contains( $template_html, 'data-error-label="Load Failed"' ),
+    'Does not claim a newly selected template was loaded before the button succeeds.' => str_contains( $checklist_source, "option.value === currentTemplateId()" )
+        && str_contains( $checklist_source, "' selected — click Load Template'" )
+        && str_contains( $checklist_source, "dynamicStart(loadTemplateButton, 'Loading...')" )
+        && str_contains( $checklist_source, "dynamicSuccess(loadTemplateButton, 'Template Loaded')" )
+        && str_contains( $checklist_source, "dynamicError(loadTemplateButton, 'Load Failed')" ),
+    'Keeps parent and full checklist runs available when only child tasks need input.' => str_contains( $checklist_source, 'setButtonBlocked(stepButton, rowInputMessages(stepRow, false));' )
+        && str_contains( $checklist_source, 'setButtonBlocked(runAllButton, []);' )
+        && str_contains( $checklist_source, "if (!validateRowInputs(stepRow, true))" )
+        && ! str_contains( $checklist_source, 'rowAndChildrenInputMessages' )
+        && ! str_contains( $checklist_source, 'rowAndChildrenInputsValid' ),
 ];
 
 foreach ( $checks as $message => $passed ) {

@@ -60,7 +60,7 @@ final class Registries {
                         'legacy_option' => 'regsiter_acf_post_podcast',
                         'definition' => [ EpisodeFieldGroup::class, 'definition' ],
                         'fields' => EpisodeFieldGroup::field_labels(),
-                        'dependencies' => [ 'Advanced Custom Fields Pro' ],
+                        'dependencies' => [],
                     ],
                 ],
             ]
@@ -94,7 +94,7 @@ final class Registries {
                 'definition' => [ PodcastOptionsFieldGroup::class, 'definition' ],
                 'fields' => PodcastOptionsFieldGroup::field_labels(),
                 'location' => 'Podcast settings option object',
-                'dependencies' => [ 'Advanced Custom Fields Pro' ],
+                'dependencies' => [],
             ]
         );
 

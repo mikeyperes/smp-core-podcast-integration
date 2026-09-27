@@ -87,6 +87,8 @@ final class IntegrationTestRuntime {
             static function(): array {
                 $classes = [
                     'Hexa\\PluginCore\\CoreBootstrap\\CoreBootstrap',
+                    'Hexa\\PluginCore\\QuerySafety\\QueryEligibility',
+                    'Hexa\\PluginCore\\QuerySafety\\StaticFrontPageQueryGuard',
                     'Hexa\\PluginCore\\WpAdminComponents\\CoreUi',
                     'Hexa\\PluginCore\\WpAdminAjax\\AjaxActionRegistry',
                     'Hexa\\PluginCore\\EntitySources\\CanonicalEntityResolver',

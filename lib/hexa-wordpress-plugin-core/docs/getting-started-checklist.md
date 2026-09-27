@@ -18,6 +18,7 @@ Set `show_search` to `true` when a checklist contains enough actions to need fil
 - `GettingStartedChecklistStep`: one top-level checklist item. A step may have a callback, subtasks, or both.
 - `GettingStartedChecklistSubtask`: one nested checklist item under a parent step.
 - `GettingStartedChecklistRunner`: executes one step or subtask and normalizes callback results.
+- `GettingStartedChecklistStateStore`: persists per-template outcomes, derives parent status, builds summaries, and resets state.
 - `GettingStartedChecklistAjaxController`: registers the guarded AJAX endpoint through `WpAdminAjax\AjaxActionRegistry`.
 - `GettingStartedChecklistRenderer`: renders the checklist UI, sequential AJAX runner, spinner/check/X states, nested subtasks, and technical activity log.
 - `GettingStartedChecklistAssets`: internal scoped CSS and browser behavior used by the renderer.
@@ -25,6 +26,12 @@ Set `show_search` to `true` when a checklist contains enough actions to need fil
 ## Internal Rendering Boundary
 
 `GettingStartedChecklistRenderer` owns checklist markup and host configuration. `GettingStartedChecklistAssets` owns only the reusable scoped CSS and browser runtime. Host plugins continue to instantiate the renderer and must not call or replace the asset collaborator.
+
+State persistence is enabled by default. `state_option` is derived from the checklist root/action unless the host supplies a stable option key. `status_action` and `reset_action` are registered beside `run_action`; the browser restores state on load and after template changes. Set `persistence_enabled => false` only for an intentionally ephemeral checklist.
+
+Every step and subtask accepts `batch_enabled` (default `true`), `destructive` (default `false`), `mutating`, and an optional additional `capability`. `status_check` is read-only by default; every other type is mutating unless the host explicitly declares a read-only callback with `mutating => false`, and destructive items are always mutating. Full-checklist runs skip batch-disabled items, continue after failed read-only status checks, and halt on the first mutating failure. Core labels destructive and individual-only items; hosts remain responsible for confirmations and callback safety.
+
+The checklist-level capability remains mandatory on every AJAX action. Step and subtask capabilities are cumulative item-level requirements checked again by the controller and runner; a subtask cannot replace or weaken its parent or host capability. Explicit template IDs are matched exactly. Invalid or crafted IDs never resolve to the default template and a step is never looked up in another template.
 
 Verify the boundary with `php -n tests/architecture-boundaries.php`; it checks class sizes and renders the extracted asset payload.
 
@@ -148,7 +155,7 @@ Each rendered checklist root exposes `root.hexaChecklistApi` and dispatches:
 - `hexa:checklist:ready` when the API is available.
 - `hexa:checklist:run` before Core runs a step or item.
 
-The run event detail includes `api`, `row`, `scope`, `stepId`, `subtaskId`, `handled`, and `promise`. A host claims only its own step by setting `handled = true` and assigning a promise. The promise must resolve to `true` or `false`.
+The run event detail includes `api`, `row`, `scope`, `stepId`, `subtaskId`, `handled`, and `promise`. A host claims only its own step by setting `handled = true` and assigning a promise. The promise may resolve to `true`/`false` or `{success, mutating}`. Core normalizes that result through `api.normalizeRunOutcome`; `api.rowMutates`, `api.runItem`, `api.runStep`, and `api.runAll` support host-owned programmatic workflows while preserving the same batch-stop behavior.
 
 ```js
 const root = document.querySelector('[data-hpc-getting-started-checklist]');
@@ -180,6 +187,9 @@ $config = new GettingStartedChecklistConfig([
     'nonce_action' => 'my_plugin_getting_started',
     'nonce_field'  => 'nonce',
     'run_action'   => 'my_plugin_getting_started_run_item',
+    'status_action'=> 'my_plugin_getting_started_status',
+    'reset_action' => 'my_plugin_getting_started_reset',
+    'state_option' => 'my_plugin_getting_started_state',
     'steps'        => [
         [
             'id'          => 'environment',
@@ -199,7 +209,7 @@ $config = new GettingStartedChecklistConfig([
 ]);
 
 add_action('init', function() use ($config) {
-    ( new GettingStartedChecklistAjaxController($config) )->register();
+    ( new GettingStartedChecklistAjaxController($config) )->register(); // run, status, reset
 });
 
 function my_plugin_render_getting_started_tab(): void {

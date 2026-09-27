@@ -32,6 +32,10 @@ final class GettingStartedChecklistConfig {
             'nonce_action'         => 'hpc_getting_started_checklist',
             'nonce_field'          => 'nonce',
             'run_action'           => 'hpc_getting_started_checklist_run_item',
+            'status_action'        => 'hpc_getting_started_checklist_status',
+            'reset_action'         => 'hpc_getting_started_checklist_reset',
+            'persistence_enabled'  => true,
+            'state_option'         => '',
             'empty_message'        => 'No getting started steps have been registered.',
             'template_id'          => 'default',
             'template_label'       => 'Checklist Template',
@@ -50,9 +54,15 @@ final class GettingStartedChecklistConfig {
         $values['root_id']      = $this->clean_html_id( (string) $values['root_id'] );
         $values['nonce_field']  = $this->clean_key( (string) $values['nonce_field'] );
         $values['run_action']   = $this->clean_key( (string) $values['run_action'] );
+        $values['status_action'] = $this->clean_key( (string) $values['status_action'] );
+        $values['reset_action']  = $this->clean_key( (string) $values['reset_action'] );
         $values['capability']   = trim( (string) $values['capability'] );
         $values['nonce_action'] = trim( (string) $values['nonce_action'] );
         $values['template_id']  = $this->clean_key( (string) $values['template_id'] ) ?: 'default';
+        $values['state_option'] = $this->clean_key( (string) $values['state_option'] );
+        if ( '' === $values['state_option'] ) {
+            $values['state_option'] = 'hpc_gsc_state_' . md5( $values['root_id'] . '|' . $values['run_action'] );
+        }
 
         $this->templates           = $this->normalize_templates( (array) $values['templates'], (array) $values['steps'], $values['template_id'] );
         $this->default_template_id = $this->resolve_template_id( $values['template_id'] );
@@ -93,6 +103,22 @@ final class GettingStartedChecklistConfig {
 
     public function run_action(): string {
         return (string) $this->get( 'run_action' );
+    }
+
+    public function status_action(): string {
+        return (string) $this->get( 'status_action' );
+    }
+
+    public function reset_action(): string {
+        return (string) $this->get( 'reset_action' );
+    }
+
+    public function persistence_enabled(): bool {
+        return (bool) $this->get( 'persistence_enabled', true );
+    }
+
+    public function state_option(): string {
+        return (string) $this->get( 'state_option' );
     }
 
     public function empty_message(): string {
@@ -150,6 +176,23 @@ final class GettingStartedChecklistConfig {
     }
 
     /**
+     * Resolve an operator-supplied template ID without normalizing an invalid
+     * value into a different registered template.
+     */
+    public function match_template_id( string $template_id = '' ): ?string {
+        if ( '' === $template_id ) {
+            return isset( $this->templates[ $this->default_template_id ] ) ? $this->default_template_id : null;
+        }
+
+        $normalized = $this->clean_key( $template_id );
+        if ( $normalized !== $template_id || ! isset( $this->templates[ $normalized ] ) ) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    /**
      * @return array<string,GettingStartedChecklistTemplate>
      */
     public function templates(): array {
@@ -167,33 +210,15 @@ final class GettingStartedChecklistConfig {
      * @return array<int,GettingStartedChecklistStep>
      */
     public function template_steps( string $template_id = '' ): array {
-        $template_id = $this->resolve_template_id( $template_id ?: $this->default_template_id );
-        return isset( $this->templates[ $template_id ] ) ? $this->templates[ $template_id ]->steps : [];
+        $template_id = $this->match_template_id( $template_id );
+        return null !== $template_id ? $this->templates[ $template_id ]->steps : [];
     }
 
     public function find_step( string $step_id, string $template_id = '' ): ?GettingStartedChecklistStep {
         $step_id = $this->clean_key( $step_id );
-        $template_id = $this->resolve_template_id( $template_id );
+        $template_id = $this->match_template_id( $template_id );
 
-        if ( isset( $this->templates[ $template_id ] ) ) {
-            $step = $this->templates[ $template_id ]->find_step( $step_id );
-            if ( $step instanceof GettingStartedChecklistStep ) {
-                return $step;
-            }
-        }
-
-        foreach ( $this->templates as $template ) {
-            if ( $template->id === $template_id ) {
-                continue;
-            }
-
-            $step = $template->find_step( $step_id );
-            if ( $step instanceof GettingStartedChecklistStep ) {
-                return $step;
-            }
-        }
-
-        return null;
+        return null !== $template_id ? $this->templates[ $template_id ]->find_step( $step_id ) : null;
     }
 
     /**

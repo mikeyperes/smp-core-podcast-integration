@@ -41,13 +41,15 @@ final class PluginProvisioner {
         $folder      = self::sanitize_slug( $folder );
         $plugin_file = self::find_plugin_file_by_folder( $folder );
         $installed   = $plugin_file !== '';
+        $network_active = $installed && self::plugin_is_network_active( $plugin_file );
 
         return [
             'slug'        => $folder,
             'folder'      => $folder,
             'plugin_file' => $plugin_file,
             'installed'   => $installed,
-            'active'      => $installed && is_plugin_active( $plugin_file ),
+            'active'      => $installed && self::plugin_is_active( $plugin_file ),
+            'network_active' => $network_active,
             'folder_path' => WP_PLUGIN_DIR . '/' . $folder,
         ];
     }
@@ -60,12 +62,13 @@ final class PluginProvisioner {
 
         $plugin_file    = trim( wp_normalize_path( $plugin_file ), '/' );
         $all_plugins    = get_plugins();
-        $active_plugins = (array) get_option( 'active_plugins', [] );
         $auto_updates   = (array) get_site_option( 'auto_update_plugins', [] );
+        $network_active = self::plugin_is_network_active( $plugin_file );
 
         return [
             'installed'   => isset( $all_plugins[ $plugin_file ] ),
-            'active'      => in_array( $plugin_file, $active_plugins, true ),
+            'active'      => self::plugin_is_active( $plugin_file ),
+            'network_active' => $network_active,
             'auto_update' => in_array( $plugin_file, $auto_updates, true ),
             'version'     => isset( $all_plugins[ $plugin_file ] ) ? $all_plugins[ $plugin_file ]['Version'] : null,
         ];
@@ -122,8 +125,8 @@ final class PluginProvisioner {
             }
 
             foreach ( get_plugins() as $plugin_file => $plugin_data ) {
-                if ( dirname( $plugin_file ) === $github_folder && is_plugin_active( $plugin_file ) ) {
-                    deactivate_plugins( $plugin_file, true, false );
+                if ( dirname( $plugin_file ) === $github_folder && self::plugin_is_active( $plugin_file ) ) {
+                    deactivate_plugins( $plugin_file, true, self::plugin_is_network_active( $plugin_file ) );
                 }
             }
 
@@ -289,7 +292,7 @@ final class PluginProvisioner {
             return new \WP_Error( 'hexa_plugin_core_plugin_file_missing', 'Plugin file not found: ' . $plugin_file );
         }
 
-        if ( is_plugin_active( $plugin_file ) ) {
+        if ( self::plugin_is_active( $plugin_file ) ) {
             return [
                 'message'     => 'Plugin is already active.',
                 'activated'   => true,
@@ -361,6 +364,24 @@ final class PluginProvisioner {
         if ( ! function_exists( 'get_plugins' ) || ! function_exists( 'is_plugin_active' ) ) {
             require_once ABSPATH . 'wp-admin/includes/plugin.php';
         }
+    }
+
+    private static function plugin_is_active( string $plugin_file ): bool {
+        return ( function_exists( 'is_plugin_active' ) && is_plugin_active( $plugin_file ) )
+            || self::plugin_is_network_active( $plugin_file );
+    }
+
+    private static function plugin_is_network_active( string $plugin_file ): bool {
+        if ( function_exists( 'is_plugin_active_for_network' ) ) {
+            return is_plugin_active_for_network( $plugin_file );
+        }
+
+        if ( function_exists( 'is_multisite' ) && is_multisite() && function_exists( 'get_site_option' ) ) {
+            $network_plugins = get_site_option( 'active_sitewide_plugins', [] );
+            return is_array( $network_plugins ) && isset( $network_plugins[ $plugin_file ] );
+        }
+
+        return false;
     }
 
     private static function sanitize_slug( string $slug ): string {

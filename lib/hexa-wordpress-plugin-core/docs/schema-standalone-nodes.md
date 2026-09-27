@@ -13,4 +13,19 @@ $schema = apply_filters( 'host_schema_array', $schema, $post_id );
 $schema = SchemaGraph::standalone_nodes( $schema );
 ```
 
-The optional second argument overrides the typed-summary property map. Run `php tests/schema-standalone-nodes.php` and the full Core test suite after changes.
+The optional second argument overrides the typed-summary property map. Include both
+`@id` and `@type` when a host needs a relationship to remain explicitly linked to
+its independent top-level node without repeating the node's descriptive fields:
+
+```php
+$schema = SchemaGraph::standalone_nodes(
+    $schema,
+    [
+        'author'    => [ '@id', '@type' ],
+        'publisher' => [ '@id', '@type' ],
+        'image'     => [ '@id', '@type' ],
+    ]
+);
+```
+
+Run `php tests/schema-standalone-nodes.php` and the full Core test suite after changes.

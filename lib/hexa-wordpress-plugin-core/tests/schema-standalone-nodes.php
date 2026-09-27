@@ -59,4 +59,32 @@ if ( [] !== SchemaGraph::validation_issues( $standalone ) ) {
     $fail( 'Standalone graph introduced malformed URL values.' );
 }
 
-echo "PASS: Graph nodes remain independently detectable with typed relationship summaries.\n";
+$linked = SchemaGraph::standalone_nodes(
+    $schema,
+    [
+        'author'             => [ '@id', '@type' ],
+        'publisher'          => [ '@id', '@type' ],
+        'copyrightHolder'    => [ '@id', '@type' ],
+        'image'              => [ '@id', '@type' ],
+        'primaryImageOfPage' => [ '@id', '@type' ],
+    ]
+);
+$linked_nodes = [];
+foreach ( $linked['@graph'] as $node ) {
+    $linked_nodes[ $node['@type'] ] = $node;
+}
+
+if ( [ '@id' => $org_id, '@type' => 'NewsMediaOrganization' ] !== $linked_nodes['NewsArticle']['publisher'] ) {
+    $fail( 'Article publisher did not retain its independent organization identifier.' );
+}
+if ( [ '@id' => $person_id, '@type' => 'Person' ] !== $linked_nodes['NewsArticle']['author'] ) {
+    $fail( 'Article author did not retain its independent person identifier.' );
+}
+if ( [ '@id' => $image_id, '@type' => 'ImageObject' ] !== $linked_nodes['WebPage']['primaryImageOfPage'] ) {
+    $fail( 'Primary image did not retain its independent image identifier.' );
+}
+if ( 7 !== count( $linked['@graph'] ) || [] !== SchemaGraph::validation_issues( $linked ) ) {
+    $fail( 'Identifier-linked relationships changed or invalidated top-level graph nodes.' );
+}
+
+echo "PASS: Graph nodes remain independently detectable with typed or identifier-linked relationships.\n";

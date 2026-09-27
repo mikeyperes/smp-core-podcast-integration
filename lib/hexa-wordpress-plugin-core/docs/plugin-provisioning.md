@@ -17,7 +17,7 @@ PluginProvisioner
 ## Responsibilities
 
 - Find an installed plugin file by folder slug.
-- Return plugin status by folder slug or plugin file.
+- Return plugin status by folder slug or plugin file, including network-only activation.
 - Prepare the WordPress filesystem safely.
 - Remove temporary install work directories under `wp-content/upgrade`.
 - Normalize GitHub archive folders from `plugin-main` or `plugin-master` to the canonical plugin slug.
@@ -47,6 +47,8 @@ $result = PluginProvisioner::ensure_github_plugin_active(
     ]
 );
 ```
+
+Status arrays expose both `active` and `network_active`. A network-activated plugin is always reported as active and is not activated a second time as a site-only plugin.
 
 ## Method Reference
 

@@ -5,8 +5,8 @@ namespace Hexa\PluginCore\SearchQuery;
 /**
  * Applies a host-provided search configuration to one exact frontend query.
  *
- * The SQL filter is attached from pre_get_posts, checks object identity, and
- * removes itself immediately after the target query reaches posts_search.
+ * One permanent SQL dispatcher consumes weakly stored state for exact query
+ * objects, so duplicate preparation cannot stack query-capturing closures.
  */
 final class SearchQueryEngine {
     public const EXPLICIT_QUERY_VAR = 'hexa_search_query_explicit';
@@ -15,6 +15,11 @@ final class SearchQueryEngine {
     private $settings_provider;
 
     private string $marker_key;
+
+    private bool $registered = false;
+
+    /** @var \WeakMap<object,array{raw_query:string,settings:array<string,mixed>}>|null */
+    private ?\WeakMap $prepared_queries = null;
 
     public function __construct( callable $settings_provider, string $marker_key = 'hexa_search' ) {
         $this->settings_provider = $settings_provider;
@@ -26,8 +31,14 @@ final class SearchQueryEngine {
     }
 
     public function register(): void {
+        if ( $this->registered ) {
+            return;
+        }
+
         add_filter( 'query_vars', [ $this, 'register_query_var' ] );
         add_action( 'pre_get_posts', [ $this, 'prepare_query' ], 20 );
+        add_filter( 'posts_search', [ $this, 'filter_search_sql' ], 999, 2 );
+        $this->registered = true;
     }
 
     /** @param string[] $query_vars @return string[] */
@@ -41,6 +52,8 @@ final class SearchQueryEngine {
 
     /** @param object $query */
     public function prepare_query( $query ): void {
+        $this->forget_prepared_query( $query );
+
         if ( ! $this->is_candidate_query( $query ) ) {
             return;
         }
@@ -67,19 +80,28 @@ final class SearchQueryEngine {
         $this->apply_ordering( $query, (string) $settings['orderby'] );
         $query->set( 'hexa_search_query_active', 1 );
 
-        $raw_query = trim( (string) $query->get( 's' ) );
-        $filter = null;
-        $filter = function ( $search_sql, $candidate_query ) use ( &$filter, $query, $settings, $raw_query ) {
-            if ( $candidate_query !== $query ) {
-                return $search_sql;
-            }
+        if ( ! $this->prepared_queries instanceof \WeakMap ) {
+            $this->prepared_queries = new \WeakMap();
+        }
+        $this->prepared_queries[ $query ] = [
+            'raw_query' => trim( (string) $query->get( 's' ) ),
+            'settings'  => $settings,
+        ];
+    }
 
-            remove_filter( 'posts_search', $filter, 999 );
+    /** @param mixed $search_sql @param mixed $query */
+    public function filter_search_sql( $search_sql, $query ): string {
+        if ( ! is_object( $query )
+            || ! $this->prepared_queries instanceof \WeakMap
+            || ! isset( $this->prepared_queries[ $query ] )
+        ) {
+            return (string) $search_sql;
+        }
 
-            return $this->build_search_sql( $raw_query, $settings );
-        };
+        $prepared = $this->prepared_queries[ $query ];
+        unset( $this->prepared_queries[ $query ] );
 
-        add_filter( 'posts_search', $filter, 999, 2 );
+        return $this->build_search_sql( $prepared['raw_query'], $prepared['settings'] );
     }
 
     /**
@@ -133,6 +155,9 @@ final class SearchQueryEngine {
             return false;
         }
         if ( function_exists( 'is_admin' ) && is_admin() ) {
+            return false;
+        }
+        if ( defined( 'WP_CLI' ) && WP_CLI ) {
             return false;
         }
         if ( ( function_exists( 'wp_doing_ajax' ) && wp_doing_ajax() ) || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) ) {
@@ -255,22 +280,22 @@ final class SearchQueryEngine {
 
     /** @param object $database */
     private function match_condition( $database, string $column, string $term, string $matching ): string {
-        if ( 'contains' === $matching ) {
-            return $database->prepare( $column . ' LIKE %s', '%' . $database->esc_like( $term ) . '%' );
-        }
-
-        $literal = preg_quote( $term, '/' );
-        $pattern = '(^|[^[:alnum:]_])' . $literal;
-        if ( 'whole' === $matching ) {
-            $pattern .= '([^[:alnum:]_]|$)';
-        }
-
-        return $database->prepare( $column . ' REGEXP %s', $pattern );
+        return SearchMatchSql::condition( $database, $column, $term, $matching );
     }
 
     private static function key( string $value ): string {
         $value = strtolower( trim( $value ) );
 
         return (string) preg_replace( '/[^a-z0-9_\-]/', '', $value );
+    }
+
+    /** @param mixed $query */
+    private function forget_prepared_query( $query ): void {
+        if ( is_object( $query )
+            && $this->prepared_queries instanceof \WeakMap
+            && isset( $this->prepared_queries[ $query ] )
+        ) {
+            unset( $this->prepared_queries[ $query ] );
+        }
     }
 }

@@ -31,6 +31,8 @@ $root = dirname( __DIR__ );
 require $root . '/src/CoreContracts/PluginContextInterface.php';
 require $root . '/src/CoreRuntime/PluginContext.php';
 require $root . '/src/CoreContracts/ModuleInterface.php';
+require $root . '/src/QuerySafety/QueryEligibility.php';
+require $root . '/src/QuerySafety/StaticFrontPageQueryGuard.php';
 require $root . '/src/CoreBootstrap/CoreBootstrap.php';
 require $root . '/src/WpAdminComponents/CoreUi.php';
 require $root . '/src/WpAdminAjax/AjaxActionRegistry.php';

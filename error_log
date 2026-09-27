@@ -1,0 +1,24 @@
+[27-Sep-2026 08:08:50 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function Hexa\PluginCore\Fields\get_page_template_slug() in /Users/mp/Projects/smp-core-podcast-integration/lib/hexa-wordpress-plugin-core/src/Fields/Storage.php:66
+Stack trace:
+#0 /Users/mp/Projects/smp-core-podcast-integration/lib/hexa-wordpress-plugin-core/src/Fields/FieldGroups.php(171): Hexa\PluginCore\Fields\Storage::screen(Array)
+#1 /Users/mp/Projects/smp-core-podcast-integration/lib/hexa-wordpress-plugin-core/src/Fields/Values.php(43): Hexa\PluginCore\Fields\FieldGroups::get_field('hosts', 213)
+#2 /Users/mp/Projects/smp-core-podcast-integration/lib/hexa-wordpress-plugin-core/src/Fields/Field.php(52): Hexa\PluginCore\Fields\Values::resolve('hosts', Array, false)
+#3 /Users/mp/Projects/smp-core-podcast-integration/src/Content/DefaultHost.php(75): Hexa\PluginCore\Fields\Field::update('hosts', Array, Array)
+#4 /Users/mp/Projects/smp-core-podcast-integration/src/Content/DefaultHost.php(54): SMP\Podcast\Content\DefaultHost::apply(213)
+#5 /Users/mp/Projects/smp-core-podcast-integration/tests/run.php(282): SMP\Podcast\Content\DefaultHost->assign_after_content_kind(213, 'episode', '')
+#6 /Users/mp/Projects/smp-core-podcast-integration/src/Content/ContentKind.php(295): do_action('smp_podcast_con...', 213, 'episode', '')
+#7 /Users/mp/Projects/smp-core-podcast-integration/tests/run.php(660): SMP\Podcast\Content\ContentKind->save_meta_box(213, NULL, NULL)
+#8 {main}
+  thrown in /Users/mp/Projects/smp-core-podcast-integration/lib/hexa-wordpress-plugin-core/src/Fields/Storage.php on line 66
+[27-Sep-2026 08:08:59 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function Hexa\PluginCore\Fields\get_page_template_slug() in /Users/mp/Projects/smp-core-podcast-integration/lib/hexa-wordpress-plugin-core/src/Fields/Storage.php:66
+Stack trace:
+#0 /Users/mp/Projects/smp-core-podcast-integration/lib/hexa-wordpress-plugin-core/src/Fields/FieldGroups.php(171): Hexa\PluginCore\Fields\Storage::screen(Array)
+#1 /Users/mp/Projects/smp-core-podcast-integration/lib/hexa-wordpress-plugin-core/src/Fields/Values.php(43): Hexa\PluginCore\Fields\FieldGroups::get_field('hosts', 213)
+#2 /Users/mp/Projects/smp-core-podcast-integration/lib/hexa-wordpress-plugin-core/src/Fields/Field.php(52): Hexa\PluginCore\Fields\Values::resolve('hosts', Array, false)
+#3 /Users/mp/Projects/smp-core-podcast-integration/src/Content/DefaultHost.php(75): Hexa\PluginCore\Fields\Field::update('hosts', Array, Array)
+#4 /Users/mp/Projects/smp-core-podcast-integration/src/Content/DefaultHost.php(54): SMP\Podcast\Content\DefaultHost::apply(213)
+#5 /Users/mp/Projects/smp-core-podcast-integration/tests/run.php(282): SMP\Podcast\Content\DefaultHost->assign_after_content_kind(213, 'episode', '')
+#6 /Users/mp/Projects/smp-core-podcast-integration/src/Content/ContentKind.php(295): do_action('smp_podcast_con...', 213, 'episode', '')
+#7 /Users/mp/Projects/smp-core-podcast-integration/tests/run.php(660): SMP\Podcast\Content\ContentKind->save_meta_box(213, NULL, NULL)
+#8 {main}
+  thrown in /Users/mp/Projects/smp-core-podcast-integration/lib/hexa-wordpress-plugin-core/src/Fields/Storage.php on line 66

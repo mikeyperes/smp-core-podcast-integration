@@ -7,15 +7,147 @@ use Throwable;
 final class GettingStartedChecklistRunner {
     private GettingStartedChecklistConfig $config;
 
+    private GettingStartedChecklistStateStore $state_store;
+
     public function __construct( GettingStartedChecklistConfig|array $config ) {
         $this->config = is_array( $config ) ? new GettingStartedChecklistConfig( $config ) : $config;
+        $this->state_store = new GettingStartedChecklistStateStore( $this->config );
     }
 
     /**
      * @return array<string,mixed>
      */
     public function run_item( string $step_id, string $subtask_id = '', array $inputs = [], string $template_id = '' ): array {
-        $template_id = $this->config->resolve_template_id( $template_id );
+        $authorization = $this->authorize_item( $step_id, $subtask_id, $template_id );
+        if ( ! $authorization['allowed'] ) {
+            $result = $this->failure_payload(
+                (string) $authorization['step_id'],
+                (string) $authorization['subtask_id'],
+                (string) $authorization['message'],
+                [
+                    $this->log_entry(
+                        'error',
+                        (string) $authorization['message'],
+                        [
+                            'template_id' => (string) $authorization['template_id'],
+                            'step_id'     => (string) $authorization['step_id'],
+                            'subtask_id'  => (string) $authorization['subtask_id'],
+                            'code'        => (string) $authorization['code'],
+                        ]
+                    ),
+                ],
+                [
+                    'code'        => (string) $authorization['code'],
+                    'status_code' => (int) $authorization['status_code'],
+                ]
+            );
+            $result['mutating'] = (bool) $authorization['mutating'];
+            return $result;
+        }
+
+        $template_id       = (string) $authorization['template_id'];
+        $step_id           = (string) $authorization['step_id'];
+        $subtask_id        = (string) $authorization['subtask_id'];
+        $result            = $this->execute_item( $step_id, $subtask_id, $inputs, $template_id );
+        $result['mutating'] = (bool) $authorization['mutating'];
+        if ( $this->config->find_step( $step_id, $template_id ) instanceof GettingStartedChecklistStep ) {
+            $result['state'] = $this->state_store->record( $result, $template_id );
+            $result['summary'] = $result['state']['summary'];
+        }
+        return $result;
+    }
+
+    /**
+     * Resolve and enforce every item-level capability. The host capability is
+     * still enforced independently by the AJAX action registry.
+     *
+     * @return array<string,mixed>
+     */
+    public function authorize_item( string $step_id, string $subtask_id = '', string $template_id = '' ): array {
+        $requested_template_id = $template_id;
+        $template_id = $this->config->match_template_id( $requested_template_id );
+        if ( null === $template_id ) {
+            return $this->authorization_failure( 'Unknown checklist template.', 'unknown_checklist_template', 404, $requested_template_id, $step_id, $subtask_id );
+        }
+
+        $normalized_step_id = $this->clean_key( $step_id );
+        if ( '' === $normalized_step_id || $normalized_step_id !== $step_id ) {
+            return $this->authorization_failure( 'Unknown checklist step.', 'unknown_checklist_step', 404, $template_id, $step_id, $subtask_id );
+        }
+
+        $step = $this->config->find_step( $normalized_step_id, $template_id );
+        if ( ! $step instanceof GettingStartedChecklistStep ) {
+            return $this->authorization_failure( 'Unknown checklist step.', 'unknown_checklist_step', 404, $template_id, $normalized_step_id, $subtask_id );
+        }
+
+        $subtask = null;
+        if ( '' !== $subtask_id ) {
+            $normalized_subtask_id = $this->clean_key( $subtask_id );
+            if ( '' === $normalized_subtask_id || $normalized_subtask_id !== $subtask_id ) {
+                return $this->authorization_failure( 'Unknown checklist subtask.', 'unknown_checklist_subtask', 404, $template_id, $step->id, $subtask_id );
+            }
+            $subtask = $step->find_subtask( $normalized_subtask_id );
+            if ( ! $subtask instanceof GettingStartedChecklistSubtask ) {
+                return $this->authorization_failure( 'Unknown checklist subtask.', 'unknown_checklist_subtask', 404, $template_id, $step->id, $normalized_subtask_id );
+            }
+        }
+
+        $capabilities = array_values(
+            array_unique(
+                array_filter(
+                    [
+                        trim( $step->capability ),
+                        $subtask instanceof GettingStartedChecklistSubtask ? trim( $subtask->capability ) : '',
+                    ],
+                    static fn( string $capability ): bool => '' !== $capability
+                )
+            )
+        );
+
+        foreach ( $capabilities as $capability ) {
+            if ( ! function_exists( 'current_user_can' ) || ! current_user_can( $capability ) ) {
+                return $this->authorization_failure(
+                    'Permission denied for this checklist item.',
+                    'checklist_item_unauthorized',
+                    403,
+                    $template_id,
+                    $step->id,
+                    $subtask instanceof GettingStartedChecklistSubtask ? $subtask->id : '',
+                    $subtask instanceof GettingStartedChecklistSubtask ? $subtask->mutating : $step->mutating
+                );
+            }
+        }
+
+        return [
+            'allowed'      => true,
+            'status_code'  => 200,
+            'code'         => '',
+            'message'      => '',
+            'template_id'  => $template_id,
+            'step_id'      => $step->id,
+            'subtask_id'   => $subtask instanceof GettingStartedChecklistSubtask ? $subtask->id : '',
+            'capabilities' => $capabilities,
+            'mutating'     => $subtask instanceof GettingStartedChecklistSubtask ? $subtask->mutating : $step->mutating,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    private function authorization_failure( string $message, string $code, int $status_code, string $template_id, string $step_id, string $subtask_id, bool $mutating = true ): array {
+        return [
+            'allowed'      => false,
+            'status_code'  => $status_code,
+            'code'         => $code,
+            'message'      => $message,
+            'template_id'  => $template_id,
+            'step_id'      => $step_id,
+            'subtask_id'   => $subtask_id,
+            'capabilities' => [],
+            'mutating'     => $mutating,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    private function execute_item( string $step_id, string $subtask_id, array $inputs, string $template_id ): array {
         $step        = $this->config->find_step( $step_id, $template_id );
         if ( ! $step instanceof GettingStartedChecklistStep ) {
             return $this->failure_payload(
@@ -386,5 +518,9 @@ final class GettingStartedChecklistRunner {
             'message' => $message,
             'context' => $context,
         ];
+    }
+
+    private function clean_key( string $value ): string {
+        return function_exists( 'sanitize_key' ) ? sanitize_key( $value ) : ( preg_replace( '/[^a-z0-9_\-]/', '', strtolower( $value ) ) ?: '' );
     }
 }

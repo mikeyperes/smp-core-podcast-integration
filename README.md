@@ -6,11 +6,10 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 - WordPress 6.2 or newer
 - PHP 8.0 or newer
-- Advanced Custom Fields Pro
 - PowerPress for enclosure synchronization and the public podcast feed
 - SMP Verified Profiles for profile-backed hosts and guests
 
-Only ACF is required for the field layer. Optional integrations never prevent the settings dashboard or unrelated runtime features from loading.
+ACF Pro is not required: the field layer runs on Hexa WP Core custom fields, which use ACF when it is active and store the same data natively when it is not. Optional integrations never prevent the settings dashboard or unrelated runtime features from loading.
 
 ## Architecture
 
@@ -96,6 +95,11 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.3.0
+
+- Removes the ACF Pro requirement: podcast settings, episode fields, row loops, location matching and ACF hooks run on Hexa WP Core 3.4.8 `Fields` (ACF when active, native otherwise). ACF is no longer a required dependency, admin notice or snippet test.
+- Bundles Hexa WP Core 3.4.8 (from 1.1.9); tests use Core's shared Fields test support.
 
 ### 3.2.3
 

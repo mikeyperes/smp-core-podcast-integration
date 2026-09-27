@@ -234,7 +234,7 @@ final class SchemaGraph {
     private static function reference_summary( array $node, array $properties ): array {
         $summary = [];
         foreach ( $properties as $property ) {
-            if ( '@id' === $property || ! array_key_exists( $property, $node ) ) {
+            if ( ! array_key_exists( $property, $node ) ) {
                 continue;
             }
             $summary[ $property ] = $node[ $property ];

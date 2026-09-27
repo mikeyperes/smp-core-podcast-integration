@@ -10,9 +10,9 @@ final class VideoSourceResolver {
         }
 
         $values = [];
-        if ( function_exists( 'get_field' ) ) {
-            $values[] = get_field( 'urls_youtube', $post_id );
-            $urls = get_field( 'urls', $post_id );
+        if ( \Hexa\PluginCore\Fields\Field::available() ) {
+            $values[] = \Hexa\PluginCore\Fields\Field::get( 'urls_youtube', $post_id );
+            $urls = \Hexa\PluginCore\Fields\Field::get( 'urls', $post_id );
             if ( is_array( $urls ) ) {
                 $values[] = $urls['youtube'] ?? '';
             }

@@ -38,7 +38,7 @@ final class IntegrationTests implements ModuleInterface {
                 return [
                     'passed' => [] === $missing,
                     'summary' => [] === $missing ? 'All required podcast dependencies are active.' : 'Required dependencies are missing.',
-                    'expected' => 'Advanced Custom Fields Pro active',
+                    'expected' => 'Every required dependency active',
                     'actual' => [] === $missing ? 'Ready' : implode( ', ', $missing ),
                     'details' => [
                         'powerpress' => ! empty( $dependencies['powerpress']['active'] ) ? 'active' : 'optional and unavailable',
@@ -104,7 +104,7 @@ final class IntegrationTests implements ModuleInterface {
                 $keys = [ EpisodeFieldGroup::GROUP_KEY, PodcastOptionsFieldGroup::GROUP_KEY ];
                 $missing = [];
                 foreach ( $keys as $key ) {
-                    if ( ! function_exists( 'acf_get_field_group' ) || ! acf_get_field_group( $key ) ) {
+                    if ( ! \Hexa\PluginCore\Fields\Field::available() || ! \Hexa\PluginCore\Fields\FieldGroups::get_group( $key ) ) {
                         $missing[] = $key;
                     }
                 }

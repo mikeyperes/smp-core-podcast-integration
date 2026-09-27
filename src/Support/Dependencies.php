@@ -6,12 +6,6 @@ final class Dependencies {
     /** @return array<string,array<string,mixed>> */
     public static function all(): array {
         return [
-            'acf' => [
-                'label' => 'Advanced Custom Fields Pro',
-                'active' => function_exists( 'acf_add_local_field_group' ) || class_exists( 'ACF' ),
-                'required' => true,
-                'purpose' => 'Podcast fields and settings.',
-            ],
             'powerpress' => [
                 'label' => 'PowerPress',
                 'active' => function_exists( 'powerpress_get_enclosure_data' ) || defined( 'POWERPRESS_VERSION' ),
@@ -31,10 +25,6 @@ final class Dependencies {
                 'purpose' => 'Podcast host and guest profiles.',
             ],
         ];
-    }
-
-    public static function acf_ready(): bool {
-        return ! empty( self::all()['acf']['active'] );
     }
 
     public static function powerpress_ready(): bool {

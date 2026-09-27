@@ -146,8 +146,8 @@ final class OperationsController implements ModuleInterface {
             $old = get_post_meta( $post_id, $old_key, true );
             $new = get_post_meta( $post_id, $new_key, true );
             if ( '' === (string) $new && '' !== (string) $old ) {
-                if ( function_exists( 'update_field' ) ) {
-                    update_field( $new_key, $old, $post_id );
+                if ( \Hexa\PluginCore\Fields\Field::available() ) {
+                    \Hexa\PluginCore\Fields\Field::update( $new_key, $old, $post_id );
                 } else {
                     update_post_meta( $post_id, $new_key, $old );
                 }
