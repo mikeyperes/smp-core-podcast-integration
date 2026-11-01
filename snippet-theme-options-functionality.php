@@ -173,64 +173,27 @@ if ( $has_any ) {
 
 
 
-
-
-
-/**
- * Plugin Part: Podcast Host Shortcode (Options-Based)
- *
- * Shortcode: [podcast_host id="..."]
- *
- * Examples (supported ids):
- *   [podcast_host id="title"]         => "Michael Peres"
- *   [podcast_host id="url_facebook"]  => "https://facebook.com/username"
- *   [podcast_host id="biography"]     => (Bio text from the Verified Profile CPT)
- *
- * Purpose:
- *  - Read the Default Host from Theme Options (ACF field NAME: "default_host")
- *  - Validate it is a Verified Profile (via \smp_verified_profiles\get_verified_profile_settings()['slug'])
- *  - Return specific data based on the requested id:
- *      - title        : post title
- *      - url_facebook: value from ACF group "url" (key: 'facebook')
- *      - biography    : value from ACF text/WYSIWYG field 'biography' (fallbacks: 'bio')
- *
- * Assumptions:
- *  - This file already runs inside your namespace (DO NOT redeclare it here).
- *  - ACF Options field "default_host" returns a Post Object (return_format: object).
- *  - ACF group field on the Verified Profile named "url" returns an array of keys: facebook, instagram, etc.
- */
-
 \add_shortcode( 'podcast_host', __NAMESPACE__ . '\\podcast_host_shortcode' );
 
 /**
- * Shortcode callback for [podcast_host id="..."].
+ * [podcast_host id="..."]
  *
- * @param array $atts Shortcode attributes. Supports: title, url_facebook, biography.
- * @return string
+ * Supports:
+ *   id="title"
+ *   id="biography"   (falls back to 'bio')
+ *   id="url_*"       (ANY key inside ACF group 'url', e.g. url_facebook, url_instagram, url_linkedin,
+ *                     url_website, url_x, url_crunchbase, url_imdb, url_youtube, url_tiktok, etc.)
  */
 function podcast_host_shortcode( $atts ): string {
-    // Normalize attributes; keep default "title"
-    $atts = shortcode_atts(
-        [
-            'id' => 'title',
-        ],
-        $atts,
-        'podcast_host'
-    );
+    $atts = shortcode_atts(['id' => 'title'], $atts, 'podcast_host');
     $field_req = strtolower( trim( (string) $atts['id'] ) );
 
-    // Ensure ACF is available
     if ( ! function_exists( 'get_field' ) ) {
         return '';
     }
 
-    /**
-     * STEP 1: Fetch the Default Host from ACF Options.
-     * Field NAME per your schema: "default_host" (Post Object, return_format: object)
-     */
+    // 1) Resolve default host from options
     $val = get_field( 'default_host', 'option' );
-
-    // Normalize to a post ID (defensive)
     if ( is_object( $val ) && isset( $val->ID ) ) {
         $profile_id = (int) $val->ID;
     } elseif ( is_array( $val ) ) {
@@ -239,20 +202,16 @@ function podcast_host_shortcode( $atts ): string {
     } else {
         $profile_id = (int) $val;
     }
-
     if ( $profile_id <= 0 ) {
         return '';
     }
 
-    /**
-     * STEP 2: Validate the post type against the Verified Profiles CPT.
-     */
+    // 2) Validate CPT type if settings available
     $slug = '';
     if ( function_exists( '\smp_verified_profiles\get_verified_profile_settings' ) ) {
         $settings = \smp_verified_profiles\get_verified_profile_settings();
         $slug     = isset( $settings['slug'] ) ? (string) $settings['slug'] : '';
     }
-
     $profile = get_post( $profile_id );
     if ( ! $profile ) {
         return '';
@@ -261,39 +220,38 @@ function podcast_host_shortcode( $atts ): string {
         return '';
     }
 
-    /**
-     * STEP 3: Return per requested field.
-     */
+    // 3) Respond by requested field
     switch ( $field_req ) {
-
-        case 'title': {
+        case 'title':
             $title = get_the_title( $profile_id );
             return $title ? esc_html( $title ) : '';
-        }
 
-        case 'url_facebook': {
-            // Pull ACF group "url" and return the 'facebook' key if present
-            $urls = get_field( 'url', $profile_id );
-            $fb   = is_array( $urls ) && ! empty( $urls['facebook'] ) ? (string) $urls['facebook'] : '';
-            return $fb ? esc_url( $fb ) : '';
-        }
-
-        case 'biography': {
-            // Try 'biography' first; fallback to 'bio'
+        case 'biography':
             $bio = (string) get_field( 'biography', $profile_id );
             if ( $bio === '' ) {
                 $bio = (string) get_field( 'bio', $profile_id );
             }
-            // Return as-is (may contain HTML from WYSIWYG)
             return $bio !== '' ? $bio : '';
-        }
-
-        default: {
-            return '';
-        }
     }
-}
 
+    // 4) Generic URL handler: id="url_*" → ACF group 'url' subkey
+    if (
+        ( function_exists('str_starts_with') && str_starts_with( $field_req, 'url_' ) )
+        || substr( $field_req, 0, 4 ) === 'url_'
+    ) {
+        $subkey = sanitize_key( substr( $field_req, 4 ) ); // e.g. 'facebook', 'x', 'crunchbase', 'youtube', etc.
+        if ( $subkey !== '' ) {
+            $urls = get_field( 'url', $profile_id );       // expects array of keys -> urls
+            if ( is_array( $urls ) && ! empty( $urls[ $subkey ] ) ) {
+                return esc_url( (string) $urls[ $subkey ] );
+            }
+        }
+        return '';
+    }
+
+    // Unknown id
+    return '';
+}
 
 
 

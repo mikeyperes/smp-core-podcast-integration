@@ -1,6 +1,6 @@
 <?php namespace smp_core_podcast_functionality;
 
-
+/*
 function register_user_acf_fields(){
 
         \acf_add_local_field_group( array(
@@ -796,9 +796,7 @@ function hws_ct_snippets_activate_author_social_acfs(){
 	
 	}
 
-
-
-
+*/
 
 
 

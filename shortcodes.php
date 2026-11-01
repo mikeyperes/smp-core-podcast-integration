@@ -463,7 +463,16 @@ function podcast_url_shortcode( $atts ) {
     // -----------------------------------------------------------------------------
     if ( ! $url ) {
         // ACF Options page field that maps social keys -> URLs (e.g., ['spotify' => 'https://...'])
-        $options_urls = get_field( 'podcast_urls', 'option' );
+     
+        
+// Old (global ACF options)
+//$options_urls = get_field( 'podcast_urls', 'option' );
+
+// New (your Podcast Settings options page)
+$options_urls = get_field( 'podcast_urls', 'option_podcast' );
+
+
+
 
         if ( is_array( $options_urls ) && ! empty( $options_urls[ $key ] ) ) {
             $url    = $options_urls[ $key ];

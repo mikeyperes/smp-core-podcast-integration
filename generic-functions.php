@@ -124,3 +124,50 @@ function check_required_plugins( array $groups ): array {
 
     return [ false, $error ];
 }
+
+
+
+
+
+function get_podcast_settings(): array {
+
+    static $cache = null;
+    if ( $cache !== null ) {
+        return $cache;
+    }
+
+    $defaults = [
+        'singular' => 'Podcast Episode',
+        'plural'   => 'Podcast Episodes',
+        'slug'     => 'podcast_episode',
+    ];
+
+    if ( ! function_exists('get_field') ) {
+        return $cache = $defaults;
+    }
+
+    // Group read (often empty for options groups)
+    $settings = get_field('general_settings_podcast', 'option_podcast');
+
+
+    // Correct way: prefixed subfields
+    $raw_plural_prefixed   = get_field('general_settings_podcast_cpt_podcast_plural_name', 'option_podcast');
+    $raw_singular_prefixed = get_field('general_settings_podcast_cpt_podcast_singular_name', 'option_podcast');
+    $raw_slug_prefixed     = get_field('general_settings_podcast_cpt_podcast_slug', 'option_podcast');
+
+
+
+    $raw_plural   = $raw_plural_prefixed   ?: '';
+    $raw_singular = $raw_singular_prefixed ?: '';
+    $raw_slug     = $raw_slug_prefixed     ?: '';
+
+    $cache = [
+        'singular' => sanitize_text_field( $raw_singular ?: $defaults['singular'] ),
+        'plural'   => sanitize_text_field( $raw_plural   ?: $defaults['plural']   ),
+        'slug'     => sanitize_title(      $raw_slug     ?: $defaults['slug']     ),
+    ];
+
+
+
+    return $cache;
+}

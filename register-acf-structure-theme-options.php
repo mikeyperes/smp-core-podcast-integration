@@ -12,6 +12,44 @@ function register_theme_options(){
         'key' => 'group_6848b7b0247cc',
         'title' => 'Podcast Settings',
         'fields' => array(
+
+
+               // General Settings group
+               array(
+                'key'           => 'field_6850950332423',
+                'label'         => 'General Settings',
+                'name'          => 'general_settings_podcast',
+                'type'          => 'group',
+                'instructions'  => 'options_page:verified-profiles-settings > general_settings:group',
+                'layout'        => 'block',
+                'sub_fields'    => array(
+                    array(
+                        'key'           => 'field_68523423423',
+                        'label'         => 'Podcast Name',
+                        'name'          => 'cpt_podcast_plural_name',
+                        'type'          => 'text',
+                        'default_value' => 'Posts',
+                        'instructions'  => 'options_page:verified-profiles-settings > general_settings:group > cpt_plural_name:text',
+                    ),
+                    array(
+                        'key'           => 'field_6234324325554',
+                        'label'         => 'Podcast Singular Name',
+                        'name'          => 'cpt_podcast_singular_name',
+                        'type'          => 'text',
+                        'default_value' => 'Post',
+                        'instructions'  => 'options_page:verified-profiles-settings > general_settings:group > cpt_singular_name:text',
+                    ),
+                    array( 
+                        'key'             => 'field_62234534234113',
+                        'label'         => 'Podcast CPT Slug',
+                        'name'          => 'cpt_podcast_slug',
+                        'default_value' => 'post',
+                        'type'          => 'text',
+                        'instructions'  => 'options_page:verified-profiles-settings > general_settings_podcast:group > cpt_podcast_slug:text',
+                    ),
+                ),
+            ),
+
             array(
                 'key' => 'field_68490d3aaae6c',
                 'label' => 'Message',
@@ -597,7 +635,7 @@ function register_theme_options(){
                 array(
                     'param' => 'options_page',
                     'operator' => '==',
-                    'value' => 'theme-options',
+                    'value' => 'theme-options-podcast',
                 ),
             ),
         ),
@@ -611,10 +649,13 @@ function register_theme_options(){
         'description' => '',
         'show_in_rest' => 0,
     ) );
+    
+    
 
     acf_add_options_page( array(
         'page_title' => 'Podcast Settings',
-        'menu_slug'  => 'theme-options',
+        'menu_slug'  => 'theme-options-podcast',
+        'post_id'       => 'option_podcast',
         'position'   => '',
         'redirect'   => false,
     ) );

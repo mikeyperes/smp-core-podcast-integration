@@ -112,9 +112,8 @@ function display_wp_admin_settings_page() {
         <?php display_migrate_old_episode_acfs(); ?>
         <?php display_audio_batch_processor(); ?>
         <?php display_host_batch_processor(); ?>
-        
-         
-
+        <?php display_plugin_info()  ?>
+       
         <?php /* Uncomment any panels you need:
         display_settings_system_checks();
         display_settings_check_plugins();

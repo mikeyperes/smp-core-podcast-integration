@@ -25,10 +25,10 @@ add_action( 'admin_init', __NAMESPACE__ . '\\enable_powerpress_post_functionalit
  * 1) Read PowerPress enclosure and write all fields into ACF
  */
 function update_episode_data_acf_fields( $post_ID ) {
-    // Bail on autosave or non-post types.
+    // Bail on autosave or non-episode types.
     if (
         ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) ||
-        get_post_type( $post_ID ) !== 'post'
+        get_post_type( $post_ID ) !== 'episode'
     ) {
         return $post_ID;
     }

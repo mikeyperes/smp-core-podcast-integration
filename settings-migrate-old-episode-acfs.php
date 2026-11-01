@@ -66,9 +66,9 @@ function migrate_episode_acfs() {
     $log = [];
     $log[] = "🔍 Starting migration…";
 
-    // 1) Query all posts
+    // 1) Query all episodes
     $args = [
-      'post_type'      => 'post',
+      'post_type'      => 'episode',
       'posts_per_page' => -1,
       'fields'         => 'ids',
     ];

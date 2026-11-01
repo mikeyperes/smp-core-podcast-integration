@@ -38,7 +38,7 @@ function force_default_host_on_new_post( $field ) {
     // Fetch the expected CPT slug from the ACF options
   //  $settings = get_verified_profile_settings();
     $expected = $settings['slug'];
-    $expected = "post";
+    $expected = "episode";
     write_log("[hosts] expected CPT slug={$expected}", true);
 
     // Compare against the actual screen post type

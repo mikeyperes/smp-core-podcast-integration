@@ -4,7 +4,7 @@ Plugin Name: Scale My Podcast - Core Functionality
 Description: none
 Author: Michael Peres
 Plugin URI: https://github.com/mikeyperes/smp-core-podcast-integration
-Version: 1.3
+Version: 2.1
 Text Domain: smp-core-podcast-integration
 Domain Path: /languages
 Author URI: https://scalemypodcast.com
@@ -15,14 +15,14 @@ XXXRequires Plugins: hws-base-tools, advanced-custom-fields-pro
 */          
 namespace smp_core_podcast_functionality;
 
-
-// Ensure this file is being included by a parent file
+ 
+// Ensure this file is being included by a parent fileI
 defined('ABSPATH') or die('No script kiddies please!');
 
-// Generic functions import 
+// Generic functions import
 include_once("generic-functions.php");
+include_once("GitHub_Updater.php");
 hws_import_tool('generic-functions.php');
-
 hws_alias_namespace_functions('hws_base_tools', 'smp_core_podcast_functionality');
     
 
@@ -72,18 +72,21 @@ if (true||is_admin() ) {
         remove_action( 'shutdown', 'wp_ob_end_flush_all', 1 );
     }
 
+    // Temporarily disabled - WP_GitHub_Updater class not found
+    /*
     hws_import_tool('GitHub_Updater.php', 'WP_GitHub_Updater');
     // Automatically imports the class into your current namespace
     hws_alias_namespace_functions('hws_base_tools', 'smp_core_podcast_functionality');
-    
+
 
     /**
  * Initialize GitHub Updater only after plugins have loaded and i18n is ready.
  */
+    /*
 add_action( 'admin_init', function() {
     $updater = new WP_GitHub_Updater( Config::get_github_config() );
 
-    // if you still want your “force‐update‐check” debug hook:
+    // if you still want your "force‐update‐check" debug hook:
     if ( isset( $_GET['force-update-check'] ) ) {
         wp_clean_update_cache();
         set_site_transient( 'update_plugins', null );
@@ -91,18 +94,19 @@ add_action( 'admin_init', function() {
         error_log( 'WP_GitHub_Updater: Forced plugin update check triggered.' );
     }
 } );
+    */
 
 
 
 
  // require ACF Pro OR ACF Pro Temp
  $required_plugins = [
-    ["hws-base-tools/initialization.php"],
-    ["smp-verified-profiles/initialization.php"],
+    ["hws-base-tools/initialization.php"],  // Updated to match actual folder name
+    // ["smp-verified-profiles/initialization.php"], // Optional
     [
         'advanced-custom-fields-pro/acf.php',
  'advanced-custom-fields-pro-temp/acf.php'
-     
+
     ],
     ["powerpress/powerpress.php"]
    /// [  ]
@@ -146,19 +150,28 @@ add_action('acf/init', function() {
 
     // Register ACF Fields
     
-    include_once("register-acf-structure-user.php");
+    //include_once("register-acf-structure-user.php");
+
     include_once("register-acf-structure-post.php");
     include_once("register-acf-structure-theme-options.php");
+            include_once("register-cpt-episode.php");
 
 
-    regsiter_acf_post_podcast();
-    //register_post_acf_field s();
+    // ✅ IMPORTANT: register options + field group BEFORE any get_field() reads
+    if ( function_exists(__NAMESPACE__ . '\register_theme_options') ) {
+        register_theme_options();
+    }
+
+    // ✅ Now reads will work (fields/options exist)
+    register_episode_custom_post_type();
+
+
  
     include_once("shortcodes.php");
 
 
 
-    register_user_acf_fields(); 
+    //register_user_acf_fields(); 
 
 
 
@@ -185,6 +198,7 @@ add_action('init', function() {
     include_once("settings-migrate-old-episode-acfs.php");
     include_once("settings-dashboard-update-audio-files.php");
     include_once("settings-dashboard-update-default-hosts.php");
+        include_once("settings-dashboard-plugin-info.php");
     
      
     include_once("snippet-footer-link-icon.php");
@@ -213,13 +227,9 @@ activate_snippets("non_admin");
 function get_settings_snippets()
 {
     $settings_snippets = [
-        [
-            'id' => 'regsiter_acf_post_podcast',
-            'name' => 'Scale My Podcast: Register Post Podcast ACFs ',
-            'description' => '',
-            'info' => display_acf_structure('group_6844c5d5cf57f'),
-            'function' => 'regsiter_acf_post_podcast'
-        ],
+        
+  
+
         [
             'id' => 'enable_powerpress_post_functionality',
             'name' => 'enable_powerpress_post_functionality',
@@ -248,6 +258,18 @@ function get_settings_snippets()
             'info' => '',
             'function' => 'enable_post_functionality'
         ],
+               [
+            'id' => 'regsiter_acf_post_podcast',
+            'name' => 'regsiter_acf_post_podcast',
+            'description' => '',
+            'info' => '',
+            'function' => 'regsiter_acf_post_podcast'
+        ]
+  
+  
+  
+  
+
 
         
         

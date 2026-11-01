@@ -19,10 +19,10 @@ function register_internal_rss(): void {
  * Outputs the RSS XML, pulling in your custom fields.
  */
 function internal_rss_feed(): void {
-    // load up to 100 posts; adjust as needed
+    // load up to 100 episodes; adjust as needed
     query_posts([
         'posts_per_page' => 100,
-        'post_type'      => 'post',
+        'post_type'      => 'episode',
     ]);
 
     header(

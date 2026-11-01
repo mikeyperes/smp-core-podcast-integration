@@ -68,7 +68,7 @@ function ajax_run_audio_batch() {
     check_ajax_referer( 'run_audio_batch_nonce' );
 
     $posts = get_posts([
-        'post_type'   => 'post',
+        'post_type'   => 'episode',
         'numberposts' => -1,
     ]);
 
@@ -125,8 +125,8 @@ function ajax_run_audio_batch() {
 
 
 function sync_acf_audio_to_powerpress( $post_ID ) {
-    // Bail on autosave or non‑post types
-    if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || get_post_type( $post_ID ) !== 'post' ) {
+    // Bail on autosave or non‑episode types
+    if ( ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) || get_post_type( $post_ID ) !== 'episode' ) {
         return;
     }
 

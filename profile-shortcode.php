@@ -55,8 +55,8 @@ add_shortcode('display_host_profile_info', 'smp_core_podcast_functionality\displ
 
 
 function display_guest_profile_info() {
-    // Ensure we are on a single post/page
-    if (!is_singular('post')) {
+    // Ensure we are on a single episode page
+    if (!is_singular('episode')) {
         return '';
     }
 
@@ -146,8 +146,8 @@ function display_guest_profile_info() {
 }
 
 function display_host_profile_info() {
-    // Ensure we are on a single post/page
-    if (!is_singular('post')) {
+    // Ensure we are on a single episode page
+    if (!is_singular('episode')) {
         return '';
     }
 

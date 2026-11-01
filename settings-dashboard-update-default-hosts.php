@@ -10,7 +10,7 @@ function display_host_batch_processor() {
     if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) return;
     acf_form_head();
 
-    $posts    = get_posts( [ 'post_type'=>'post', 'numberposts'=>-1 ] );
+    $posts    = get_posts( [ 'post_type'=>'episode', 'numberposts'=>-1 ] );
     $ids_json = wp_json_encode( wp_list_pluck( $posts, 'ID' ) );
     $nonce    = wp_create_nonce( 'run_host_batch_nonce' );
     ?>
