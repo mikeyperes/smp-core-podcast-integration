@@ -46,6 +46,7 @@
         var status = player.querySelector('[data-smp-status]');
         var state = {
             track: null,
+            resumeAfterPageChange: false,
             trigger: null,
             playbackActivated: false,
             mode: 'audio',
@@ -78,10 +79,15 @@
             neutralizeLegacyAudio(document);
             document.body.classList.toggle('smp-podcast-player-visible', !player.hidden);
             document.body.classList.toggle('smp-podcast-player-video-visible', !player.hidden && state.mode === 'video');
+            if (state.resumeAfterPageChange && state.mode === 'audio' && audio.paused) playAudio();
+            state.resumeAfterPageChange = false;
             updatePlayerState();
         };
         function beforePageChange() {
-            if (player.hasAttribute('data-turbo-permanent')) return;
+            if (player.hasAttribute('data-turbo-permanent')) {
+                state.resumeAfterPageChange = mediaPlaying();
+                return;
+            }
             closePlayer();
             document.removeEventListener('click', handleDocumentClick, true);
             window.removeEventListener('message', handleVideoMessage);
@@ -306,8 +312,6 @@
             state.videoPendingPlay = false;
             postVideoCommand('pauseVideo');
             state.videoPlaying = false;
-            if (state.mode === 'video') {
-            }
             updatePlayerState();
         }
 
@@ -421,8 +425,6 @@
                 state.videoPlaybackActivated = false;
             } else if (code === 2 || code === 5) {
                 state.videoPlaying = false;
-                if (state.mode === 'video') {
-                }
             }
             updatePlayerState();
         }
