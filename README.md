@@ -95,7 +95,7 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Does:** Podcast metadata on posts or an intentionally selected episode content type; explicit episode/article classification.
 - **Switch:** Content settings; editor Content Kind control.
 - **Use:** Automatic; `_mpp_content_kind` values `episode` and `article`.
-- **Code:** `src/Content/ContentKind.php; src/Content/ContentTypes.php; src/Settings/PodcastSettings.php`.
+- **Code:** `src/Content/ContentKind.php; src/Bootstrap/Registries.php; src/Settings/PodcastSettings.php`.
 
 ### Episode fields
 - **Does:** Platform URLs, hosts, audio, numbering, duration and references.
@@ -138,11 +138,6 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Switch:** Snippets; `enable_rss`, disabled by default.
 - **Use:** `/feed/internal-rss/`.
 - **Code:** `src/Frontend/InternalFeed.php`.
-
-### Canonical source and release archives
-- **Does:** Preserves historical installed source on three archive branches; uses the installed podcast.michaelperes.com folder as the sole Git tree on main.
-- **Use:** Archive branches `archive/abrahamicvoices-2025`, `archive/meditechtoday-2025`, `archive/richreporter-2025`; their complete files and local ancestry remain on GitHub.
-- **Code:** Release management only; no runtime behavior change.
 
 ### Update Center
 - **Does:** Displays plugin and bundled Core update reports on one tab.
@@ -258,6 +253,13 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.3.7
+
+- Keeps source-archive housekeeping in the changelog instead of the Features list.
+- Expands docs/frontend.html into separate real-markup and selector references for media controls, profile cards, the guest directory, and the player bar.
+- Confirms unused About page runtime is already excluded; purges stale LiteSpeed HTML from 3.3.1 during rollout. No playback or template behavior changes.
+- Bundles Hexa WP Core 3.47.0.
 
 ### 3.3.6
 

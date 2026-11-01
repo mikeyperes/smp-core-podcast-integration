@@ -1,11 +1,194 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Podcast front-end markup reference</title><style>body{font:16px system-ui;max-width:900px;margin:40px auto;padding:20px}section{margin:32px 0}pre{white-space:pre-wrap}</style><h1>Podcast front-end markup</h1><p>Illustrative values; structures and selectors are owned by src/Frontend/ShortcodeCallbacks.php. Existing site styling remains authoritative.</p>
-<section id="media"><h2>Media controls</h2><pre>&lt;button type="button" class="smp-listen-button" data-smp-player-trigger data-smp-post-id="123" data-smp-audio-src="https://example.test/episode.mp3" data-smp-download-src="https://example.test/episode.mp3" data-smp-title="Example episode" data-smp-url="https://example.test/episode/" aria-controls="smp-podcast-player" aria-pressed="false"&gt;&lt;span data-smp-listen-label&gt;Listen&lt;/span&gt;&lt;/button&gt;
-&lt;a href="https://www.youtube.com/watch?v=yzMcrZCYh5Y" class="smp-watch-button" data-smp-watch-trigger data-smp-video-id="yzMcrZCYh5Y" aria-controls="smp-podcast-player"&gt;&lt;span data-smp-watch-label&gt;Watch&lt;/span&gt;&lt;/a&gt;</pre><p>Use .smp-listen-button and .smp-watch-button for button styling; [aria-pressed] reflects playback on button controls. See the full emitted source for optional audio/video/artwork/duration attributes and SVG icons.</p></section>
-<section id="relationships"><h2>Relationship links</h2><pre>&lt;span class="shortcode_podcast_hosts"&gt;&lt;a href="/profile/example/"&gt;Example Host&lt;/a&gt;&lt;/span&gt;
-&lt;span class="shortcode_article_guests"&gt;&lt;a href="/profile/example/"&gt;Example Guest&lt;/a&gt;&lt;/span&gt;</pre></section>
-<section id="profiles"><h2>Profiles and directory</h2><pre>&lt;div class="host-profile-wrapper smp-podcast-profile-grid"&gt;…profile-post cards…&lt;/div&gt;
-&lt;div class="guest-profile-wrapper smp-podcast-profile-grid"&gt;…guest user cards…&lt;/div&gt;
-&lt;div class="display_single_episode_hosts"&gt;&lt;div class="shortcode"&gt;…Elementor template or card…&lt;/div&gt;&lt;/div&gt;
-&lt;div class="user-grid smp-podcast-user-grid"&gt;&lt;article class="user-card smp-podcast-person-card"&gt;…avatar, name, author link…&lt;/article&gt;&lt;/div&gt;</pre><p>The profile grids, .smp-podcast-person-card, .guest-profile and .view-member-button are the styling selectors. Empty profiles return the existing explanatory paragraph.</p></section>
-<section id="player"><h2>Persistent player</h2><p>src/Frontend/PersistentPlayer.php owns #smp-podcast-player, .smp-podcast-player and [data-smp-stage]. assets/frontend-player.css styles its controls, active audio/video states and reduced-motion behavior. The initial player has no artwork until a track is selected.</p></section>
-<section id="values"><h2>Scalar fields and URLs</h2><p>podcast_url, episode_fields and podcast_host return escaped scalar values or their existing permitted biography HTML without an extra wrapper.</p></section></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Podcast front-end HTML and selector reference</title>
+<style>body{font:16px/1.5 system-ui;max-width:980px;margin:32px auto;padding:20px;color:#202630}section{margin:36px 0}pre{background:#f4f6f8;padding:16px;overflow:auto}code{font-family:ui-monospace,monospace}</style>
+</head>
+<body>
+<h1>Podcast front-end HTML and selector reference</h1>
+<p>Each block documents one visitor-facing output. Example names, addresses, media URLs and durations are synthetic. Renderer-owned classes and data attributes retain their runtime names. WordPress image markup and Elementor template interiors vary with the site.</p>
+<nav><a href="#listen">Listen</a> · <a href="#watch">Watch</a> · <a href="#host-cards">Host cards</a> · <a href="#guest-cards">Guest cards</a> · <a href="#guest-directory">Guest directory</a> · <a href="#player">Player bar</a></nav>
+<section id="listen">
+<h2>Listen button</h2>
+<p><code>[smp_listen_button post_id="123" label="Listen" class=""]</code>. One usable episode produces one accessible button.</p>
+<pre><code>&lt;button type=&quot;button&quot; class=&quot;smp-listen-button&quot; data-smp-player-trigger
+  data-smp-post-id=&quot;123&quot; data-smp-audio-src=&quot;https://example.test/audio.mp3&quot;
+  data-smp-download-src=&quot;https://example.test/download.mp3&quot; data-smp-title=&quot;Example episode&quot;
+  data-smp-url=&quot;https://example.test/episode/&quot; data-smp-image=&quot;https://example.test/cover.jpg&quot;
+  data-smp-duration=&quot;12:30&quot; data-smp-duration-seconds=&quot;750&quot;
+  data-smp-video-id=&quot;yzMcrZCYh5Y&quot; data-smp-video-url=&quot;https://www.youtube.com/watch?v=yzMcrZCYh5Y&quot;
+  aria-controls=&quot;smp-podcast-player&quot; aria-pressed=&quot;false&quot; aria-label=&quot;Listen: Example episode&quot;&gt;
+  &lt;span data-smp-listen-icon aria-hidden=&quot;true&quot;&gt;&lt;svg viewBox=&quot;0 0 24 24&quot; focusable=&quot;false&quot;&gt;&lt;path d=&quot;M8 5v14l11-7z&quot;/&gt;&lt;/svg&gt;&lt;/span&gt;
+  &lt;span data-smp-listen-label&gt;Listen&lt;/span&gt;
+&lt;/button&gt;</code></pre>
+<p>Style <code>.smp-listen-button</code>; custom class tokens append to it. The runtime updates <code>aria-pressed</code>, the label and icon. Video attributes appear only when the episode has valid video. Missing audio produces no button. A successful render requests player assets.</p>
+<p>Renderer: <code>src/Frontend/ShortcodeCallbacks.php</code>.</p>
+</section>
+
+<section id="watch">
+<h2>Watch button</h2>
+<p><code>[smp_watch_button post_id="123" label="Watch" element="a"]</code>. The default is a crawlable YouTube anchor.</p>
+<pre><code>&lt;a href=&quot;https://www.youtube.com/watch?v=yzMcrZCYh5Y&quot; class=&quot;smp-watch-button&quot;
+  data-smp-watch-trigger data-smp-post-id=&quot;123&quot; data-smp-video-id=&quot;yzMcrZCYh5Y&quot;
+  data-smp-video-url=&quot;https://www.youtube.com/watch?v=yzMcrZCYh5Y&quot;
+  data-smp-audio-src=&quot;https://example.test/audio.mp3&quot; data-smp-download-src=&quot;https://example.test/download.mp3&quot;
+  data-smp-title=&quot;Example episode&quot; data-smp-url=&quot;https://example.test/episode/&quot;
+  data-smp-image=&quot;https://example.test/cover.jpg&quot; data-smp-duration=&quot;12:30&quot; data-smp-duration-seconds=&quot;750&quot;
+  aria-controls=&quot;smp-podcast-player&quot; aria-label=&quot;Watch: Example episode&quot;&gt;
+  &lt;span data-smp-watch-label&gt;Watch&lt;/span&gt;
+&lt;/a&gt;</code></pre>
+<p>Style <code>.smp-watch-button</code> and <code>[data-smp-watch-label]</code>. This short excerpt omits the decorative <code>span[data-smp-watch-icon] &gt; svg &gt; path</code> that precedes the label. <code>element="button"</code> substitutes a button with <code>type="button" aria-pressed="false"</code> and no href. Audio attributes are conditional; absent valid video returns empty output.</p>
+<p>Renderer: <code>src/Frontend/ShortcodeCallbacks.php</code>.</p>
+</section>
+
+<section id="host-cards">
+<h2>Host profile cards</h2>
+<p><code>[display_host_profile_info post_id="123"]</code> renders profile-post cards from the episode hosts relationship.</p>
+<pre><code>&lt;div class=&quot;host-profile-wrapper smp-podcast-profile-grid&quot;&gt;
+  &lt;article class=&quot;host-profile smp-podcast-person-card&quot;&gt;
+    &lt;a href=&quot;https://example.test/profile/example-host/&quot;&gt;
+      &lt;img src=&quot;https://example.test/host.jpg&quot; alt=&quot;Example Host&quot; loading=&quot;lazy&quot;&gt;
+      &lt;h3&gt;Example Host&lt;/h3&gt;
+    &lt;/a&gt;
+  &lt;/article&gt;
+&lt;/div&gt;</code></pre>
+<p>The grid wrapper controls layout; <code>.host-profile</code>, <code>.smp-podcast-person-card</code>, its image, heading and link control the card. WordPress supplies the actual thumbnail image attributes, or the profile author avatar as fallback. Missing hosts return <code>&lt;p&gt;No host information available.&lt;/p&gt;</code>. The first card output emits <code>style#smp-podcast-shortcodes-css</code> once.</p>
+<p>Renderer: <code>src/Frontend/ShortcodeCallbacks.php</code>.</p>
+</section>
+
+<section id="episode-hosts">
+<h2>Episode host template wrapper</h2>
+<p><code>[display_single_episode_hosts post_id="123" must_have_thumbnail="false"]</code> renders Elementor template 20001 for each host; the existing filter can choose another template.</p>
+<pre><code>&lt;div class=&quot;display_single_episode_hosts&quot;&gt;
+  &lt;div class=&quot;shortcode&quot;&gt;
+    &lt;article class=&quot;host-profile smp-podcast-person-card&quot;&gt;
+      &lt;a href=&quot;https://example.test/profile/example-host/&quot;&gt;
+        &lt;img src=&quot;https://example.test/host.jpg&quot; alt=&quot;Example Host&quot; loading=&quot;lazy&quot;&gt;
+        &lt;h3&gt;Example Host&lt;/h3&gt;
+      &lt;/a&gt;
+    &lt;/article&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+<p>This block shows the real profile-card fallback when Elementor has no rendered template. A successful Elementor template replaces the article inside <code>.shortcode</code>; its own classes depend on that saved template. <code>smp_podcast_host_template_id</code> changes the template ID. No hosts return an empty string.</p>
+<p>Renderer: <code>src/Frontend/ShortcodeCallbacks.php</code>.</p>
+</section>
+
+<section id="guest-cards">
+<h2>Guest user cards</h2>
+<p><code>[display_guest_profile_info post_id="123"]</code> renders legacy WordPress-user guests from repeater rows, including the historical raw-meta fallback.</p>
+<pre><code>&lt;div class=&quot;guest-profile-wrapper smp-podcast-profile-grid&quot;&gt;
+  &lt;article class=&quot;guest-profile smp-podcast-person-card&quot;&gt;
+    &lt;div class=&quot;guest-photo&quot;&gt;&lt;img src=&quot;https://example.test/avatar.jpg&quot; alt=&quot;Example Guest&quot; width=&quot;160&quot; height=&quot;160&quot;&gt;&lt;/div&gt;
+    &lt;h3&gt;Example Guest&lt;/h3&gt;
+    &lt;div class=&quot;guest-socials&quot;&gt;
+      &lt;p&gt;Email: &lt;a href=&quot;mailto:guest@example.test&quot;&gt;guest@example.test&lt;/a&gt;&lt;/p&gt;
+      &lt;p&gt;Website: &lt;a href=&quot;https://example.test/guest/&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;https://example.test/guest/&lt;/a&gt;&lt;/p&gt;
+      &lt;p&gt;Linkedin: &lt;a href=&quot;https://example.test/linkedin/&quot; target=&quot;_blank&quot; rel=&quot;noopener noreferrer&quot;&gt;https://example.test/linkedin/&lt;/a&gt;&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/article&gt;
+&lt;/div&gt;</code></pre>
+<p>Style <code>.guest-profile-wrapper</code>, <code>.guest-profile</code>, <code>.guest-photo</code> and <code>.guest-socials</code>. Email, website and each social paragraph appear only when populated. Socials cover facebook, linkedin, x, youtube, instagram, soundcloud and tiktok. WordPress supplies avatar attributes. Missing guests return <code>&lt;p&gt;No guest information available.&lt;/p&gt;</code>. These guests are users, not Verified Profile posts.</p>
+<p>Renderer: <code>src/Frontend/ShortcodeCallbacks.php</code>.</p>
+</section>
+
+<section id="guest-directory">
+<h2>Guest directory</h2>
+<p><code>[guest_grid]</code> lists WordPress users in the supported roles, ordered by display name.</p>
+<pre><code>&lt;div class=&quot;user-grid smp-podcast-user-grid&quot;&gt;
+  &lt;article class=&quot;user-card smp-podcast-person-card&quot;&gt;
+    &lt;img src=&quot;https://example.test/avatar.jpg&quot; alt=&quot;Example Guest&quot; width=&quot;160&quot; height=&quot;160&quot;&gt;
+    &lt;h3&gt;Example Guest&lt;/h3&gt;
+    &lt;a class=&quot;view-member-button&quot; href=&quot;https://example.test/author/example-guest/&quot;&gt;View Member&lt;/a&gt;
+  &lt;/article&gt;
+&lt;/div&gt;</code></pre>
+<p>Style <code>.smp-podcast-user-grid</code> for the grid and <code>.user-card</code>, <code>.smp-podcast-person-card</code> and <code>.view-member-button</code> for each entry. WordPress supplies avatar markup. With no users the shortcode returns empty. The shared shortcode stylesheet uses six columns, three at 1024px and two at 640px.</p>
+<p>Renderer: <code>src/Frontend/ShortcodeCallbacks.php</code>.</p>
+</section>
+
+<section id="player">
+<h2>Persistent player bar</h2>
+<p>An enabled player appears once on the homepage, an episode, or a request that outputs a usable Listen/Watch control. This structural excerpt uses the actual container and control classes; decorative SVG paths and repeated select options are omitted.</p>
+<pre><code>&lt;aside id=&quot;smp-podcast-player&quot; class=&quot;smp-podcast-player&quot; data-smp-player data-smp-mode=&quot;audio&quot; hidden aria-label=&quot;Persistent podcast media player&quot;&gt;
+  &lt;audio data-smp-audio preload=&quot;metadata&quot;&gt;&lt;/audio&gt;
+  &lt;div class=&quot;smp-podcast-player__inner&quot;&gt;
+    &lt;div class=&quot;smp-podcast-player__identity&quot;&gt;
+      &lt;div class=&quot;smp-podcast-player__stage&quot; data-smp-stage&gt;
+        &lt;div data-smp-video-shell class=&quot;smp-podcast-player__video&quot; hidden&gt;
+          &lt;iframe data-smp-video title=&quot;Episode video&quot; allow=&quot;autoplay; encrypted-media; picture-in-picture&quot; referrerpolicy=&quot;strict-origin-when-cross-origin&quot; allowfullscreen&gt;&lt;/iframe&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;smp-podcast-player__copy&quot;&gt;
+        &lt;span class=&quot;smp-podcast-player__eyebrow&quot;&gt;Now playing / &lt;span data-smp-kind&gt;Audio&lt;/span&gt;&lt;/span&gt;
+        &lt;a data-smp-title class=&quot;smp-podcast-player__title&quot;&gt;Select an episode&lt;/a&gt;
+        &lt;div class=&quot;smp-podcast-player__modes&quot; data-smp-modes role=&quot;group&quot; aria-label=&quot;Playback format&quot;&gt;
+          &lt;button type=&quot;button&quot; data-smp-mode-button=&quot;audio&quot; class=&quot;smp-podcast-player__mode is-active&quot; aria-pressed=&quot;true&quot;&gt;Audio&lt;/button&gt;
+          &lt;button type=&quot;button&quot; data-smp-mode-button=&quot;video&quot; class=&quot;smp-podcast-player__mode&quot; aria-pressed=&quot;false&quot;&gt;Video&lt;/button&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;smp-podcast-player__transport&quot;&gt;
+      &lt;div class=&quot;smp-podcast-player__buttons&quot;&gt;
+        &lt;button type=&quot;button&quot; data-smp-back class=&quot;smp-podcast-player__button smp-podcast-player__skip&quot; aria-label=&quot;Skip backward 15 seconds&quot;&gt;&lt;small&gt;15&lt;/small&gt;&lt;/button&gt;
+        &lt;button type=&quot;button&quot; data-smp-toggle class=&quot;smp-podcast-player__button smp-podcast-player__toggle&quot; aria-label=&quot;Play episode&quot; aria-pressed=&quot;false&quot;&gt;&lt;/button&gt;
+        &lt;button type=&quot;button&quot; data-smp-forward class=&quot;smp-podcast-player__button smp-podcast-player__skip&quot; aria-label=&quot;Skip forward 30 seconds&quot;&gt;&lt;small&gt;30&lt;/small&gt;&lt;/button&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;smp-podcast-player__timeline&quot;&gt;
+        &lt;span data-smp-elapsed&gt;0:00&lt;/span&gt;
+        &lt;label class=&quot;screen-reader-text&quot; for=&quot;smp-podcast-seek&quot;&gt;Episode position&lt;/label&gt;
+        &lt;input id=&quot;smp-podcast-seek&quot; data-smp-seek type=&quot;range&quot; min=&quot;0&quot; max=&quot;1&quot; step=&quot;0.1&quot; value=&quot;0&quot; aria-valuetext=&quot;0 minutes 0 seconds&quot;&gt;
+        &lt;span data-smp-duration&gt;0:00&lt;/span&gt;
+      &lt;/div&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;smp-podcast-player__utilities&quot;&gt;
+      &lt;label class=&quot;smp-podcast-player__rate&quot;&gt;&lt;span class=&quot;screen-reader-text&quot;&gt;Playback speed&lt;/span&gt;&lt;select data-smp-rate aria-label=&quot;Playback speed&quot;&gt;&lt;option value=&quot;1&quot; selected&gt;1×&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+      &lt;div class=&quot;smp-podcast-player__volume&quot;&gt;
+        &lt;button type=&quot;button&quot; data-smp-mute class=&quot;smp-podcast-player__utility&quot; aria-label=&quot;Mute audio&quot; aria-pressed=&quot;false&quot;&gt;&lt;/button&gt;
+        &lt;label class=&quot;screen-reader-text&quot; for=&quot;smp-podcast-volume&quot;&gt;Volume&lt;/label&gt;
+        &lt;input id=&quot;smp-podcast-volume&quot; data-smp-volume type=&quot;range&quot; min=&quot;0&quot; max=&quot;1&quot; step=&quot;0.05&quot; value=&quot;1&quot;&gt;
+      &lt;/div&gt;
+      &lt;a data-smp-download class=&quot;smp-podcast-player__utility smp-podcast-player__download&quot; href=&quot;#&quot; download aria-label=&quot;Download episode&quot;&gt;&lt;/a&gt;
+      &lt;button type=&quot;button&quot; data-smp-close class=&quot;smp-podcast-player__utility smp-podcast-player__close&quot; aria-label=&quot;Close player&quot;&gt;&lt;/button&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+  &lt;span data-smp-status class=&quot;screen-reader-text&quot; aria-live=&quot;polite&quot;&gt;&lt;/span&gt;
+&lt;/aside&gt;</code></pre>
+<p><code>assets/frontend-player.css</code> owns bar layout and reduced-motion rules. <code>data-smp-mode</code> changes between audio/video, mode buttons toggle <code>.is-active</code>, and <code>body.smp-podcast-player-visible</code> reserves space. The bar starts hidden with no empty artwork image; a selected track creates the cover image. Disabled optional controls receive <code>hidden</code>. Timing, labels, artwork and media URLs come from the episode/settings, not this example. The footer can print late shortcode styles once.</p>
+<p>Renderer: <code>src/Frontend/PersistentPlayer.php; assets/frontend-player.css; assets/frontend-player.js</code>.</p>
+</section>
+
+<section id="relationships">
+<h2>Host and guest relationship links</h2>
+<p><code>[podcast_hosts]</code> and <code>[article_guests]</code> render comma-separated profile-post links.</p>
+<pre><code>&lt;span class=&quot;shortcode_podcast_hosts&quot;&gt;&lt;a href=&quot;https://example.test/profile/host/&quot;&gt;Example Host&lt;/a&gt;&lt;/span&gt;
+&lt;span class=&quot;shortcode_article_guests&quot;&gt;&lt;a href=&quot;https://example.test/profile/guest/&quot;&gt;Example Guest&lt;/a&gt;&lt;/span&gt;</code></pre>
+<p>The two span classes are the intended styling hooks. Empty relationships return empty strings, without global CSS.</p>
+<p>Renderer: <code>src/Frontend/ShortcodeCallbacks.php</code>.</p>
+</section>
+
+<section id="values">
+<h2>Field and URL values</h2>
+<p><code>[podcast_url social="spotify"]</code>, <code>[episode_fields name="audio_url"]</code> and <code>[podcast_host id="title"]</code> return values without a wrapper.</p>
+<pre><code>https://example.test/show/
+https://example.test/audio.mp3
+Example Host</code></pre>
+<p>No classes are added. Biography output retains its existing permitted HTML. Apply styles to the containing Elementor or WordPress element.</p>
+<p>Renderer: <code>src/Frontend/ShortcodeCallbacks.php</code>.</p>
+</section>
+
+<section id="home">
+<h2>Homepage interactions</h2>
+<p>Homepage behavior attaches to the existing Elementor homepage, rather than creating a new page wrapper.</p>
+<pre><code>&lt;div class=&quot;mpp-topic-chip&quot;&gt;
+  &lt;a class=&quot;elementor-button&quot; href=&quot;#&quot; data-topic=&quot;technology&quot; aria-pressed=&quot;false&quot;&gt;
+    &lt;span class=&quot;elementor-button-text&quot;&gt;Technology&lt;/span&gt;
+  &lt;/a&gt;
+&lt;/div&gt;</code></pre>
+<p>This is a selector example; the existing saved homepage supplies its actual attributes and layout. See <code>assets/home-interactions.js</code> for the exact topic, filter and scroll-cue bindings. Both home-interactions assets load only on <code>is_front_page()</code>.</p>
+<p>Renderer: <code>src/Frontend/HomeInteractions.php</code>.</p>
+</section>
+<p>PowerPress and the optional internal RSS feature output feeds, not a visitor HTML component. See README for their switches and addresses.</p>
+<p><a href="asset-loading.md">Asset-loading rules and cache checks</a></p>
+</body>
+</html>

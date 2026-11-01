@@ -22,3 +22,7 @@ After: home retains all four; the episode, profile and category lose home-intera
 ## Styling and markup
 
 [Front-end HTML and selector map](frontend.html). Runtime output remains in `src/Frontend`; samples never replace runtime values or site styling.
+
+## Release 3.3.7: About page cache correction
+
+`/about/` has no media shortcode output, is not the homepage and is not podcast content. An uncached request correctly loads neither player nor homepage assets and emits no player markup. The normal anonymous address was a LiteSpeed cache hit still serving HTML with `ver=3.3.1` references. Purge affected page caches after installing this release, then check the normal anonymous address as well as an uncached URL. A cache-bypass check alone does not prove that existing cached pages were refreshed. No extra path exclusion or playback-code change is needed.
