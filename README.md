@@ -110,6 +110,7 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Code:** `src/Acf/PodcastOptionsFieldGroup.php`.
 
 ### Persistent player and navigation
+- **Acceptance:** [Browser evidence and known automated-browser YouTube condition](docs/persistent-player-acceptance.md).
 - **Does:** Singleton audio/video player; optional continuity uses HWS Base Tools AJAX Navigation 13.47.0 or newer.
 - **Switch:** Persistent Player; `smp_podcast_playback_settings`, disabled by default.
 - **Use:** Listen/Watch triggers; see Player and Elementor Contract below.
@@ -247,6 +248,9 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.4.2
+- Record accepted desktop/phone playback evidence and the automated-browser YouTube sign-in condition. No playback behavior change.
 
 ### 3.4.1
 - Refresh media button state when asynchronously loaded search results add new Listen/Watch controls.
