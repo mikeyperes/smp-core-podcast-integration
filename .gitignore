@@ -27,3 +27,6 @@ vendor/
 *.swo
 *~
 .git-backup/
+
+# PHP runtime logs are not source.
+error_log

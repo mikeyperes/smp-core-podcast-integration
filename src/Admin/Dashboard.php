@@ -41,6 +41,11 @@ final class Dashboard implements ModuleInterface {
 
     public function redirect_legacy_page(): void {
         $page = isset( $_GET['page'] ) && is_scalar( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : '';
+        $tab = isset( $_GET['tab'] ) && is_scalar( $_GET['tab'] ) ? sanitize_key( wp_unslash( (string) $_GET['tab'] ) ) : '';
+        if ( in_array( $page, [ Config::SETTINGS_PAGE, Config::LEGACY_SETTINGS_PAGE ], true ) && 'updates' === $tab ) {
+            wp_safe_redirect( admin_url( 'options-general.php?page=' . Config::SETTINGS_PAGE . '&tab=update-center' ) );
+            exit;
+        }
         if ( Config::LEGACY_SETTINGS_PAGE !== $page ) {
             return;
         }
@@ -165,7 +170,7 @@ final class Dashboard implements ModuleInterface {
                 'shortcodes' => 'Shortcodes',
                 'operations' => 'Operations',
                 'integrations' => 'Integrations',
-                'updates' => 'Updates',
+                'update-center' => 'Update Center',
             ]
         );
     }
@@ -176,7 +181,7 @@ final class Dashboard implements ModuleInterface {
             'overview' => [ 'label' => 'Overview', 'tabs' => [ 'overview' ] ],
             'podcast' => [ 'label' => 'Podcast', 'tabs' => [ 'settings', 'playback', 'custom-fields', 'snippets', 'shortcodes' ] ],
             'operations' => [ 'label' => 'Operations', 'tabs' => [ 'operations', 'integrations' ] ],
-            'system' => [ 'label' => 'System', 'tabs' => [ 'updates', 'hexa-core' ] ],
+            'system' => [ 'label' => 'System', 'tabs' => [ 'update-center', 'hexa-core' ] ],
         ];
     }
 
@@ -193,7 +198,7 @@ final class Dashboard implements ModuleInterface {
             'shortcodes' => $this->render_shortcodes(),
             'operations' => $this->render_operations(),
             'integrations' => $this->render_integrations(),
-            'updates' => $this->render_updates(),
+            'update-center' => $this->render_updates(),
             default => $this->render_overview(),
         };
     }

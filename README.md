@@ -8,6 +8,12 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 **Purpose:** Podcast publishing, relationships, playback and delivery. **Admin:** WP Admin → Settings → Scale My Podcast. **Depends on:** PowerPress for feed synchronization; SMP Verified Profiles for profile-backed relationships.
 
+## Design examples and styling
+
+- [Front-end HTML and selector map](docs/frontend.html)
+- [Asset loading and screen boundaries](docs/asset-loading.md)
+- [Bundled Core library](HEXA_PLUGIN_CORE_LIBRARY.md)
+
 ## Features
 
 ### Listen button
@@ -144,6 +150,11 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Use:** Archive branches `archive/abrahamicvoices-2025`, `archive/meditechtoday-2025`, `archive/richreporter-2025`; their complete files and local ancestry remain on GitHub.
 - **Code:** Release management only; no runtime behavior change.
 
+### Update Center
+- **Does:** Displays plugin and bundled Core update reports on one tab.
+- **Use:** Settings → Scale My Podcast → Update Center (`tab=update-center`); old `tab=updates` redirects.
+- **Code:** `src/Admin/Dashboard.php`; `src/Bootstrap/runtime.php`.
+
 ## Internals
 
 - Standalone regression harness models WordPress metadata and initialized ACF for the bundled Core version; `php tests/run.php` and `php tests/content-kind-migration.php`.
@@ -242,6 +253,12 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.3.3
+
+- Adds front-end HTML, asset documentation and the bundled Core library reference; completes the feature documentation.
+- Renames Updates to Update Center with a legacy-address redirect, moves lifecycle/updater functions out of the main file, and stops tracking PHP runtime logs.
+- Bundles Hexa WP Core 3.47.0.
 
 ### 3.3.2
 
