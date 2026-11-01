@@ -61,8 +61,7 @@ ACF stores groups created in its admin screen as `acf-field-group` and `acf-fiel
 | --- | --- |
 | `acf_add_local_field_group( $g )` | `FieldGroups::add( $g )` |
 | `add_action( 'acf/init', $cb, $p )` | `FieldGroups::ready( $cb, $p )` or `Hooks::on( 'init', $cb, $p )` |
-| `add_filter( 'acf/<hook>', ... )` | `Hooks::on( '<hook>', ... )` |
-| the same, at file level while plugins load | `hexa_fields_on( '<hook>', ... )` (defined in `bootstrap.php`; registers on `plugins_loaded`) |
+| `add_filter( 'acf/<hook>', ... )` | `hexa_fields_on( '<hook>', ... )` (defined in `bootstrap.php`; safe while plugins load, equal to `Hooks::on()` afterwards) |
 | `get_field()` / `update_field()` / `have_rows()` ... | `Field::get()` / `Field::update()` / `Field::have_rows()` ... |
 | `acf_add_options_page()` / `acf_add_options_sub_page()` | `OptionsPages::add()` / `OptionsPages::add_sub()` |
 | `acf_form_head()` / `acf_form()` | `Form::head()` / `Form::render()` |
@@ -75,3 +74,31 @@ Run `php bin/migrate-to-fields.php <plugin-root> --dry-run` to preview, then wit
 ## Testing a host plugin
 
 Require `lib/hexa-wordpress-plugin-core/tests/support/fields.php` after the test's own WordPress and ACF stubs. It autoloads the Fields classes and runs them in ACF mode, so `Field::get()` and `FieldGroups::add()` call the test's `get_field()` and `acf_add_local_field_group()` stubs exactly as they call ACF on a live site.
+
+## Client-friendly view (3.27.0)
+
+Keep technical help (shortcodes, meta keys, compatibility notes) out of what clients read:
+
+```php
+FieldGroups::add( [
+    'key'         => 'group_profile_links',
+    'title'       => 'Profile links',
+    'client_view' => [ 'enabled' => true, 'roles' => 'below_admin' ], // default; or [ 'roles' => [ 'author', 'customer' ] ]
+    'fields'      => [
+        [
+            'key'                    => 'field_url_facebook',
+            'name'                   => 'url_facebook',
+            'label'                  => 'Facebook',
+            'type'                   => 'url',
+            'instructions'           => 'Your Facebook page.',                       // everyone
+            'developer_instructions' => 'Shortcode: <code>[company id="url_facebook"]</code>', // developer view only
+        ],
+    ],
+] );
+```
+
+Users in the client view see `instructions` only. Everyone else sees `instructions` followed by `developer_instructions`. Sub-fields and flexible-content layouts follow the same rule. `'enabled' => false` shows developer notes to everyone. Groups registered through `AcfFieldGroupRegistry` get a per-group Client-friendly view switch (everyone below administrator, or chosen roles) on the host plugin's ACF structures screen; a saved choice overrides the code default. Filter: `hexa_core_fields_client_view( $client, $setting, $user )`.
+
+### Staff-only groups (3.28.0)
+
+`'client_view' => [ 'roles' => 'below_admin', 'hide' => true ]` keeps a whole group away from client-view users: it is not registered for them at all, so it neither renders nor saves. Registry cards offer this as "Hide the whole group from them".

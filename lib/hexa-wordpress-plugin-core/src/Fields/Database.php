@@ -7,7 +7,9 @@ namespace Hexa\PluginCore\Fields;
  * and `acf-field` posts. Without ACF they are read from there as ACF reads
  * them, so their fields keep resolving, formatting and (when the group is
  * active) rendering. Groups registered in code with the same key win, as in
- * ACF. Loaded once per request, only when a native lookup needs it.
+ * ACF. A trashed group is never listed, but its published fields still
+ * resolve by key or name, as acf_get_field() finds them. Loaded once per
+ * request, only when a native lookup needs it.
  */
 final class Database {
     /** @var array<string,array<string,mixed>>|null */
@@ -21,12 +23,12 @@ final class Database {
     }
 
     public static function admin_screens(): void {
-        if ( ! Acf::active() && [] !== array_filter( self::groups(), static fn( array $group ): bool => ! empty( $group['active'] ) ) ) {
+        if ( ! Acf::active() && [] !== array_filter( self::groups(), static fn( array $group ): bool => ! empty( $group['active'] ) && empty( $group['trashed'] ) ) ) {
             AdminScreens::boot();
         }
     }
 
-    /** @return array<string,array<string,mixed>> Active and disabled groups, keyed by group key, with their fields. */
+    /** @return array<string,array<string,mixed>> Active, disabled and trashed groups, keyed by group key, with their fields. */
     public static function groups(): array {
         if ( null !== self::$groups ) {
             return self::$groups;
@@ -38,7 +40,7 @@ final class Database {
         }
         $rows = $wpdb->get_results(
             "SELECT ID, post_type, post_status, post_title, post_name, post_excerpt, post_content, post_parent, menu_order FROM {$wpdb->posts}"
-            . " WHERE post_type IN ( 'acf-field-group', 'acf-field' ) AND post_status IN ( 'publish', 'acf-disabled' ) ORDER BY menu_order ASC, ID ASC"
+            . " WHERE ( post_type = 'acf-field-group' AND post_status IN ( 'publish', 'acf-disabled', 'trash' ) ) OR ( post_type = 'acf-field' AND post_status = 'publish' ) ORDER BY menu_order ASC, ID ASC"
         );
         $children = [];
         $groups = [];
@@ -58,6 +60,7 @@ final class Database {
                     'title'      => (string) $row->post_title,
                     'menu_order' => (int) $row->menu_order,
                     'active'     => 'publish' === $row->post_status,
+                    'trashed'    => 'trash' === $row->post_status,
                 ]
             );
             $group['fields'] = self::fields( $children, (int) $row->ID, $group['key'] );

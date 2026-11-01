@@ -10,7 +10,7 @@ Hexa\PluginCore\QueryFilter
 ## Purpose
 
 `QueryFilter` is the one declarative way to let visitors narrow a public
-posts or users query. A component profile (`DirectorySearch`, `Calendar`, or a
+posts or users query. A component profile (`Search`, `Calendar`, or a
 future component) declares `filters`; Core normalizes the definitions, parses
 untrusted visitor values, builds bounded SQL, renders the controls, and builds
 URL arguments. Components own only their parameter name and CSS class prefix.
@@ -38,6 +38,27 @@ URL arguments. Components own only their parameter name and CSS class prefix.
 
 Common keys: `type`, `control`, `label`, `all_label` (selects), `from_label`
 and `to_label` (date ranges), `min` and `max` (Y-m-d date limits), `options`.
+
+Several choices and counts (Core 3.29):
+
+- `control` `checkboxes` (taxonomy, meta, author, post type, callback) takes
+  several options, matched with `match` `any` (default) or `all`; values
+  travel as `param[key][]`.
+- `control` `number_range` (meta) matches numbers between `[min]` and `[max]`.
+- `QueryFilterSet::counts()` returns option => number of results for every
+  select and checkbox filter whose type can count (taxonomy, meta, author,
+  post type). A single-choice or `any` filter is counted without its own
+  selection; an `all` filter within it. Pass the result to `controls()`.
+- `hide_empty` drops options with no results, `limit` keeps the busiest,
+  `show_counts` false turns counting off.
+- Hierarchical taxonomies list options as a tree (`depths()`); `child_of`
+  limits them to one term's descendants; a parent's count includes its
+  children's results once.
+- Types `author` (keyword options `authors`, values are author slugs; hosts
+  add co-authors with `hexa_plugin_core_query_filter_author_condition`) and
+  `post_type` (keyword options `types`).
+- `QuerySql` attaches conditions to one exact `WP_Query`/`WP_User_Query` and
+  returns the ID SQL WordPress would run for a set of arguments, for counts.
 At most 12 filters per profile; incomplete or unknown definitions are dropped.
 
 ## Built-In Types
@@ -65,6 +86,22 @@ request.
 
 A date range covers whole days in the filter's timezone: from the start of
 `from` to the start of the day after `to`.
+
+## Natural Search Time Windows
+
+`NaturalTimeWindow` is the shared non-UI date-filter parser used by
+`SearchQuery`. A host opts in with its start timestamp meta key, optional end
+timestamp and precision keys, date-only value, timezone, and eligible dated
+post types. Core recognizes bounded duration-only searches (`24 hours`,
+`48h`, `one week`) and edge-cued mixed searches (`Chabad next 48 hours`,
+`within one week`). It returns the residual keyword plus an inclusive window
+from the current instant through the duration.
+
+The generated constraints include events starting exactly at either boundary,
+ongoing events whose stored end has not passed, and date-only events still
+active on the site's local day. Quoted time text, uncued time-like prose inside
+a larger query, middle-of-sentence phrases, ambiguous multiple windows, and
+durations over 366 days are left untouched as ordinary search text.
 
 ## Adding A Type
 

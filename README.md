@@ -2,6 +2,148 @@
 
 Hexa WordPress integration for podcast content, ACF field structures, profile relationships, PowerPress metadata, feeds, shortcodes, a persistent audio/video player, playback-preserving navigation, and release diagnostics.
 
+
+> Feature base for HWS Skills. Read before building on this plugin; use or
+> extend these features instead of rebuilding them.
+
+**Purpose:** Podcast publishing, relationships, playback and delivery. **Admin:** WP Admin → Settings → Scale My Podcast. **Depends on:** PowerPress for feed synchronization; SMP Verified Profiles for profile-backed relationships.
+
+## Features
+
+### Listen button
+- **Does:** Accessible audio trigger with matching video identity.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[smp_listen_button post_id="0" label="Listen" class=""]`; post_id 0 uses the current post.
+- **Style:** `smp-listen-button`.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::listen_button`.
+
+### Watch button
+- **Does:** Crawlable YouTube link with optional inline playback.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[smp_watch_button post_id="0" label="Watch" class="" element="a"]`; post_id 0 uses the current post.
+- **Style:** `smp-watch-button`.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::watch_button`.
+
+### Podcast platform URL
+- **Does:** Owner platform URL with podcast-options fallback.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[podcast_url social=""]`; post_id 0 uses the current post.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::podcast_url`.
+
+### Episode field value
+- **Does:** Reads a field or grouped field for an episode.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[episode_fields name="" post_id="0"]`; post_id 0 uses the current post.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::episode_fields`.
+
+### Article guest links
+- **Does:** Linked profile names from article relationships.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[article_guests post_id="0"]`; post_id 0 uses the current post.
+- **Style:** `shortcode_article_guests`.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::article_guests`.
+
+### Episode host links
+- **Does:** Linked host names for an episode.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[podcast_hosts post_id="0"]`; post_id 0 uses the current post.
+- **Style:** `shortcode_podcast_hosts`.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::podcast_hosts`.
+
+### Episode host cards
+- **Does:** Host template 20001 with profile-card fallback.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[display_single_episode_hosts post_id="0" must_have_thumbnail="false"]`; post_id 0 uses the current post.
+- **Style:** `display_single_episode_hosts`.
+- **Extend:** `smp_podcast_host_template_id` selects the host template.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::episode_hosts`.
+
+### Guest directory
+- **Does:** WordPress user cards linked to author pages.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[guest_grid]`; post_id 0 uses the current post.
+- **Style:** `user-grid, user-card, view-member-button`.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::guest_grid`.
+
+### Episode guest profiles
+- **Does:** Guest user profiles with legacy repeater fallback.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[display_guest_profile_info post_id="0"]`; post_id 0 uses the current post.
+- **Style:** `guest-profile-wrapper, guest-profile`.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::guest_profiles`.
+
+### Episode host profiles
+- **Does:** Host profile-post cards for an episode.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[display_host_profile_info post_id="0"]`; post_id 0 uses the current post.
+- **Style:** `host-profile-wrapper`.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::host_profiles`.
+
+### Default host value
+- **Does:** Default host title, biography or platform URL.
+- **Switch:** Always registered; empty when required episode/profile data is unavailable.
+- **Use:** `[podcast_host id="title"] (also biography and url_<key>)`; post_id 0 uses the current post.
+- **Code:** `src/Frontend/ShortcodeCallbacks.php::podcast_host`.
+
+### Podcast content and classification
+- **Does:** Podcast metadata on posts or an intentionally selected episode content type; explicit episode/article classification.
+- **Switch:** Content settings; editor Content Kind control.
+- **Use:** Automatic; `_mpp_content_kind` values `episode` and `article`.
+- **Code:** `src/Content/ContentKind.php; src/Content/ContentTypes.php; src/Settings/PodcastSettings.php`.
+
+### Episode fields
+- **Does:** Platform URLs, hosts, audio, numbering, duration and references.
+- **Switch:** Custom Fields; `regsiter_acf_post_podcast`.
+- **Use:** Automatic; stable group `group_6844c5d5cf57f`.
+- **Code:** `src/Acf/EpisodeFieldGroup.php`.
+
+### Podcast option fields
+- **Does:** Podcast labels, importer settings, default host and platform URLs.
+- **Switch:** Custom Fields; `register_theme_options`.
+- **Use:** Podcast Settings; stable group `group_6848b7b0247cc`.
+- **Code:** `src/Acf/PodcastOptionsFieldGroup.php`.
+
+### Persistent player and navigation
+- **Does:** Singleton audio/video player and playback-preserving same-origin navigation.
+- **Switch:** Persistent Player; `smp_podcast_playback_settings`, disabled by default.
+- **Use:** Listen/Watch triggers; see Player and Elementor Contract below.
+- **Code:** `src/Frontend/PersistentPlayer.php; src/Settings/PlaybackSettings.php`.
+
+### Homepage interactions
+- **Does:** Homepage filters, presentation rails and scroll cue.
+- **Switch:** Automatic on the existing homepage presentation.
+- **Use:** Automatic; Elementor homepage markup.
+- **Code:** `src/Frontend/HomeInteractions.php`.
+
+### Default host assignment
+- **Does:** Assigns the selected default host without overwriting existing hosts.
+- **Switch:** Snippets; `enable_post_functionality`, disabled by default.
+- **Use:** Automatic on eligible content saves.
+- **Code:** `src/Content/DefaultHost.php`.
+
+### PowerPress synchronization
+- **Does:** Synchronizes episode audio, duration, summary, numbering and enclosure.
+- **Switch:** Snippets; `enable_powerpress_post_functionality`, disabled by default.
+- **Use:** Automatic on eligible content saves.
+- **Code:** `src/Integrations/PowerPressSync.php`.
+
+### Internal RSS
+- **Does:** Scoped internal podcast feed alongside the public PowerPress feed.
+- **Switch:** Snippets; `enable_rss`, disabled by default.
+- **Use:** `/feed/internal-rss/`.
+- **Code:** `src/Frontend/InternalFeed.php`.
+
+### External-link indicators
+- **Does:** Adds an indicator to links opening a new tab.
+- **Switch:** Snippets; `enable_podcast_external_link_icons`, disabled by default.
+- **Use:** Automatic.
+- **Code:** `src/Frontend/ExternalLinks.php`.
+
+## Internals
+
+- Standalone regression harness models WordPress metadata and initialized ACF for the bundled Core version; `php tests/run.php` and `php tests/content-kind-migration.php`.
+- Core registries, updater panels, authenticated operations and integration diagnostics live under `src/Bootstrap`, `src/Admin` and `src/Diagnostics`.
+
 ## Requirements
 
 - WordPress 6.2 or newer
@@ -95,6 +237,12 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.3.1
+
+- Updates standalone WordPress stand-ins for Core 3.47.0, including initialized ACF and generic metadata APIs.
+- Reads the bundled Core version dynamically; preserves the existing media markup expectations and fixtures.
+- Bundles Hexa WP Core 3.47.0 and documents the feature base. Runtime behavior is unchanged.
 
 ### 3.3.0
 

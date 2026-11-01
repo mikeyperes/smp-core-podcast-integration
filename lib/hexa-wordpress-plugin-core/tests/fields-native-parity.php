@@ -44,6 +44,8 @@ $GLOBALS['wpdb'] = new class() {
 			$row( 12, 'acf-field', 'publish', 'Email', 'field_db_email', 'db_email', [ 'type' => 'email' ], 11 ),
 			$row( 20, 'acf-field-group', 'acf-disabled', 'Old', 'group_db_old', '', [], 0 ),
 			$row( 21, 'acf-field', 'publish', 'Note', 'field_db_note', 'db_note', [ 'type' => 'text' ], 20 ),
+			$row( 30, 'acf-field-group', 'trash', 'Binned', 'group_db_binned__trashed', '', [], 0 ),
+			$row( 31, 'acf-field', 'publish', 'Greeting', 'field_db_greeting', 'db_greeting', [ 'type' => 'text' ], 30 ),
 		];
 	}
 };
@@ -132,5 +134,9 @@ in_array( 'group_hidden', $shown(), true ) || $fail( 'The built-in options_page 
 \Hexa\PluginCore\Fields\Hooks::on( 'location/rule_match/is_desk', static fn( bool $match, array $rule ): bool => 'yes' === $rule['value'], 10, 4 );
 FieldGroups::add( [ 'key' => 'group_desk', 'title' => 'Desk', 'fields' => [], 'location' => [ [ [ 'param' => 'is_desk', 'operator' => '==', 'value' => 'yes' ] ] ] ] );
 1 === count( array_filter( FieldGroups::for_screen( [] ), static fn( array $g ): bool => 'group_desk' === $g['key'] ) ) || $fail( 'A host-defined rule decides through location/rule_match/<param>.' );
+
+// A trashed group is not listed, but its published fields still resolve, as acf_get_field() finds them.
+! in_array( 'group_db_binned__trashed', array_map( static fn( array $g ): string => (string) $g['key'], FieldGroups::all() ), true ) || $fail( 'A trashed database group is not listed.' );
+'db_greeting' === ( FieldGroups::get_field( 'field_db_greeting' )['name'] ?? '' ) || $fail( 'A field of a trashed database group still resolves by key.' );
 
 echo "PASS: native Fields resolve, derive keys and return values as ACF does.\n";

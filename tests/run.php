@@ -193,6 +193,29 @@ function get_post_meta( int $post_id, string $key = '', bool $single = false ): 
     }
     return $single ? '' : [];
 }
+/** WordPress generic metadata API used by Core's Fields storage. */
+function get_metadata( string $type, int $id, string $key = '', bool $single = false ): mixed {
+    if ( 'post' === $type ) {
+        return get_post_meta( $id, $key, $single );
+    }
+    $values = $GLOBALS['test_metadata'][ $type ][ $id ] ?? [];
+    if ( '' === $key ) {
+        return array_map( static fn( mixed $value ): array => [ $value ], $values );
+    }
+    return $single ? ( $values[ $key ] ?? '' ) : ( array_key_exists( $key, $values ) ? [ $values[ $key ] ] : [] );
+}
+function update_metadata( string $type, int $id, string $key, mixed $value ): int|bool {
+    if ( 'post' === $type ) { return update_post_meta( $id, $key, $value ); }
+    $GLOBALS['test_metadata'][ $type ][ $id ][ $key ] = $value;
+    return true;
+}
+function delete_metadata( string $type, int $id, string $key, mixed $value = '' ): bool {
+    if ( 'post' === $type ) { return delete_post_meta( $id, $key ); }
+    unset( $GLOBALS['test_metadata'][ $type ][ $id ][ $key ] );
+    return true;
+}
+function get_page_template_slug( mixed $post = null ): string { return ''; }
+
 function add_post_meta( int $post_id, string $key, mixed $value, bool $unique = false ): int|false {
     $fixture_key = $post_id . ':' . $key;
     if ( ! empty( $GLOBALS['test_add_post_meta_failures'][ $fixture_key ] ) ) {
@@ -282,7 +305,7 @@ function do_action( string $hook, mixed ...$args ): void {
         call_user_func_array( $registration['callback'], array_slice( $args, 0, (int) $registration['accepted_args'] ) );
     }
 }
-function did_action( string $hook ): int { unset( $hook ); return 0; }
+function did_action( string $hook ): int { return 'acf/init' === $hook ? 1 : count( array_filter( $GLOBALS['test_actions_fired'], static fn( array $event ): bool => $hook === $event[0] ) ); }
 function flush_rewrite_rules( bool $hard = true ): void { unset( $hard ); }
 function update_field( string $field, mixed $value, int $post_id ): bool { $GLOBALS['test_fields'][ $post_id . ':' . $field ] = $value; return true; }
 
@@ -297,13 +320,14 @@ $main = file_get_contents( $root . '/smp-core-podcast-integration.php' );
 preg_match( '/^[ \t\/*#@]*Version:\s*([^\r\n*]+)/mi', (string) $main, $header_match );
 $header_version = trim( (string) ( $header_match[1] ?? '' ) );
 $file_version = trim( (string) file_get_contents( $root . '/VERSION' ) );
-check( '3.3.0' === $header_version, 'plugin header reports 3.3.0', $header_version );
+check( 1 === preg_match( '/^\d+\.\d+\.\d+$/', $header_version ), 'plugin header reports a release version', $header_version );
 check( $header_version === SMP\Podcast\Config::VERSION, 'header and Config versions agree' );
 check( $header_version === $file_version, 'header and VERSION file agree' );
 
 $declared_hash = trim( (string) file_get_contents( $root . '/lib/hexa-wordpress-plugin-core/PACKAGE_HASH' ) );
 $actual_hash = HexaPluginCorePackageRegistry::source_hash( $root . '/lib/hexa-wordpress-plugin-core' );
-check( '3.4.8' === trim( (string) file_get_contents( $root . '/lib/hexa-wordpress-plugin-core/VERSION' ) ), 'bundled Core version is 3.4.8' );
+$core_version = trim( (string) file_get_contents( $root . '/lib/hexa-wordpress-plugin-core/VERSION' ) );
+check( 1 === preg_match( '/^\d+\.\d+\.\d+$/', $core_version ) && $core_version === Hexa\PluginCore\CoreRuntime\CoreVersion::current(), 'loaded Core matches bundled VERSION', $core_version );
 check( hash_equals( $declared_hash, $actual_hash ), 'bundled Core source matches PACKAGE_HASH' );
 
 $episode = SMP\Podcast\Acf\EpisodeFieldGroup::definition();
