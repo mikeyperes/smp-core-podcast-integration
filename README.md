@@ -155,6 +155,11 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Use:** Settings → Scale My Podcast → Update Center (`tab=update-center`); old `tab=updates` redirects.
 - **Code:** `src/Admin/Dashboard.php`; `src/Bootstrap/runtime.php`.
 
+### Core shortcode catalog
+- **Does:** Lists all 11 distinct existing tags with parameterized examples, test descriptions and live output. The pre-refactor source contains 11 tags, not 22.
+- **Use:** Settings → Scale My Podcast → Shortcodes.
+- **Code:** `src/Frontend/Shortcodes.php` uses Core `ShortcodeRegistry` and `ShortcodeDefinition`; `src/Admin/Dashboard.php` uses Core `ShortcodeDisplayRenderer`.
+
 ## Internals
 
 - Standalone regression harness models WordPress metadata and initialized ACF for the bundled Core version; `php tests/run.php` and `php tests/content-kind-migration.php`.
@@ -253,6 +258,12 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.3.4
+
+- Registers all 11 existing shortcode tags through Core ShortcodeRegistry, preserving callback bindings and output.
+- Drives the Shortcodes tab from the same definitions, with examples, test descriptions and real output.
+- Bundles Hexa WP Core 3.47.0.
 
 ### 3.3.3
 

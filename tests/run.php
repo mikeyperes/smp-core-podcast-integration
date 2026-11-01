@@ -801,6 +801,13 @@ $expected_tags = [ 'smp_listen_button', 'smp_watch_button', 'podcast_url', 'epis
 check( $expected_tags === SMP\Podcast\Frontend\Shortcodes::tags(), 'canonical media triggers and all nine legacy shortcode tags register' );
 check( [] === array_diff( $expected_tags, array_keys( $GLOBALS['test_shortcodes'] ) ), 'all shortcode callbacks register' );
 
+$registry = SMP\Podcast\Frontend\Shortcodes::registry();
+check( $expected_tags === array_keys( $registry->all() ), 'Core registry preserves all eleven distinct existing tags' );
+foreach ( $registry->all() as $tag => $definition ) {
+    check( str_starts_with( $definition->shortcode(), '[' . $tag ) && '' !== $definition->test_method, 'Core example and test are registered: ' . $tag );
+    check( is_callable( $GLOBALS['test_shortcodes'][ $tag ] ?? null ), 'Core registry binds the existing callable: ' . $tag );
+}
+
 foreach ( [ 301, 302, 303, 304, 101, 21811 ] as $episode_post_id ) {
     $GLOBALS['test_post_types'][ $episode_post_id ] = 'post';
 }

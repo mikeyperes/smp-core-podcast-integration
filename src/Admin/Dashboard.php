@@ -6,7 +6,6 @@ use Hexa\PluginCore\ContentTypes\ContentTypeRenderer;
 use Hexa\PluginCore\CoreContracts\ModuleInterface;
 use Hexa\PluginCore\CoreRuntime\CoreVersion;
 use Hexa\PluginCore\FieldStructures\AcfFieldGroupRenderer;
-use Hexa\PluginCore\ShortcodeRegistry\ShortcodeCatalogRenderer;
 use Hexa\PluginCore\SnippetRegistry\SnippetsTableRenderer;
 use Hexa\PluginCore\WpAdminComponents\CoreUi;
 use Hexa\PluginCore\WpAdminComponents\DynamicButton;
@@ -355,16 +354,22 @@ final class Dashboard implements ModuleInterface {
     }
 
     private function render_shortcodes(): void {
-        echo ( new ShortcodeCatalogRenderer() )->render_page(
-            [
-                'title' => 'Podcast Shortcodes',
-                'intro' => 'Every legacy shortcode remains available, with one canonical player trigger for Elementor, the block editor, and templates.',
-                'catalog' => $this->shortcode_catalog(),
-                'show_author_search' => false,
-                'show_post_search' => false,
-                'post_type' => PodcastSettings::content_type(),
-                'context' => [ 'post_id' => $this->latest_content_id(), 'user_id' => get_current_user_id() ],
-            ]
+        $items = [];
+        $post_id = $this->latest_content_id();
+        foreach ( \SMP\Podcast\Frontend\Shortcodes::registry()->all() as $definition ) {
+            $items[] = [
+                'id' => $definition->id,
+                'label' => $definition->label,
+                'shortcode' => $definition->shortcode( (string) $post_id ),
+                'description' => $definition->description,
+                'test_method' => $definition->test_method,
+                'source' => 'src/Frontend/ShortcodeCallbacks.php',
+                'evaluate' => true,
+            ];
+        }
+        echo ( new \Hexa\PluginCore\ShortcodeRegistry\ShortcodeDisplayRenderer() )->render(
+            $items,
+            [ 'title' => 'Podcast Shortcodes', 'description' => 'All 11 existing tags, registered through Core, with examples and live output tests.' ]
         );
     }
 
@@ -407,38 +412,6 @@ final class Dashboard implements ModuleInterface {
         }
         $body .= $posts ? '</div>' : '<p>No podcast content found.</p></div>';
         echo CoreUi::collapsible( [ 'title' => 'Recently Modified', 'body_html' => $body, 'open' => true, 'persist_key' => 'smp-podcast-recent' ] );
-    }
-
-    /** @return array<int,array<string,mixed>> */
-    private function shortcode_catalog(): array {
-        return [
-            [
-                'key' => 'episode', 'title' => 'Episode Data', 'layer' => 'Post layer', 'live' => 'shortcode', 'register_file' => 'src/Frontend/ShortcodeCallbacks.php', 'access' => 'Podcast content',
-                'items' => [
-                    [ 'tag' => 'smp_listen_button', 'code' => '[smp_listen_button label="Listen"]', 'desc' => 'Render the canonical persistent-player trigger with resolved PowerPress or ACF audio metadata.', 'type' => 'Accessible button', 'params' => 'post_id, label, class' ],
-                    [ 'tag' => 'smp_watch_button', 'code' => '[smp_watch_button label="Watch"]', 'desc' => 'Render a crawlable YouTube link that opens the validated episode video inline and carries the matching audio source.', 'type' => 'Crawlable media link', 'params' => 'post_id, label, class, element' ],
-                    [ 'tag' => 'episode_fields', 'code' => '[episode_fields name="audio_url"]', 'desc' => 'Output any podcast episode field or grouped URL subfield.', 'type' => 'Text or URL', 'params' => 'name' ],
-                    [ 'tag' => 'article_guests', 'code' => '[article_guests]', 'desc' => 'Display linked guest profiles for the current podcast item.', 'type' => 'HTML' ],
-                    [ 'tag' => 'podcast_hosts', 'code' => '[podcast_hosts]', 'desc' => 'Display linked host profiles.', 'type' => 'HTML' ],
-                    [ 'tag' => 'display_single_episode_hosts', 'code' => '[display_single_episode_hosts]', 'desc' => 'Render the current episode hosts in the legacy card layout.', 'type' => 'HTML' ],
-                ],
-            ],
-            [
-                'key' => 'podcast', 'title' => 'Podcast Settings', 'layer' => 'Publication layer', 'live' => 'shortcode', 'register_file' => 'src/Frontend/ShortcodeCallbacks.php', 'access' => 'Site-wide',
-                'items' => [
-                    [ 'tag' => 'podcast_url', 'code' => '[podcast_url social="spotify"]', 'desc' => 'Output a saved podcast platform URL.', 'type' => 'URL', 'params' => 'social' ],
-                    [ 'tag' => 'podcast_host', 'code' => '[podcast_host id="title"]', 'desc' => 'Output the selected default host title, biography, or profile URL.', 'type' => 'Text or URL', 'params' => 'id' ],
-                    [ 'tag' => 'guest_grid', 'code' => '[guest_grid]', 'desc' => 'Render the searchable podcast guest grid.', 'type' => 'HTML' ],
-                ],
-            ],
-            [
-                'key' => 'profiles', 'title' => 'Profile Displays', 'layer' => 'Author layer', 'live' => 'shortcode', 'register_file' => 'src/Frontend/ShortcodeCallbacks.php', 'access' => 'Single podcast content',
-                'items' => [
-                    [ 'tag' => 'display_guest_profile_info', 'code' => '[display_guest_profile_info]', 'desc' => 'Display the legacy guest profile details.', 'type' => 'HTML' ],
-                    [ 'tag' => 'display_host_profile_info', 'code' => '[display_host_profile_info]', 'desc' => 'Display the legacy host profile details.', 'type' => 'HTML' ],
-                ],
-            ],
-        ];
     }
 
     private function latest_content_id(): int {
