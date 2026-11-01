@@ -139,6 +139,11 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Use:** Automatic.
 - **Code:** `src/Frontend/ExternalLinks.php`.
 
+### Canonical source and release archives
+- **Does:** Preserves historical installed source on three archive branches; uses the installed podcast.michaelperes.com folder as the sole Git tree on main.
+- **Use:** Archive branches `archive/abrahamicvoices-2025`, `archive/meditechtoday-2025`, `archive/richreporter-2025`; their complete files and local ancestry remain on GitHub.
+- **Code:** Release management only; no runtime behavior change.
+
 ## Internals
 
 - Standalone regression harness models WordPress metadata and initialized ACF for the bundled Core version; `php tests/run.php` and `php tests/content-kind-migration.php`.
@@ -237,6 +242,11 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.3.2
+
+- Preserves all three stale source copies on verified archive branches and establishes the live installed folder as the sole Git source on main.
+- Bundles Hexa WP Core 3.47.0; runtime unchanged.
 
 ### 3.3.1
 
