@@ -18,7 +18,6 @@ use SMP\Podcast\Content\ContentKind;
 use SMP\Podcast\Content\DefaultHost;
 use SMP\Podcast\Content\DefaultHostFieldPreview;
 use SMP\Podcast\Diagnostics\IntegrationTests;
-use SMP\Podcast\Frontend\ExternalLinks;
 use SMP\Podcast\Frontend\HomeInteractions;
 use SMP\Podcast\Frontend\InternalFeed;
 use SMP\Podcast\Frontend\PersistentPlayer;
@@ -61,7 +60,6 @@ final class Plugin {
             ->add_module( new DefaultHost() )
             ->add_module( new PowerPressSync() )
             ->add_module( new InternalFeed() )
-            ->add_module( new ExternalLinks() )
             ->add_module( new RewriteLifecycle() )
             ->add_module( new LegacyCompatibility() )
             ->add_module( new LegacyOptionSynchronizer() )

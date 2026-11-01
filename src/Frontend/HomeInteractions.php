@@ -18,7 +18,7 @@ final class HomeInteractions implements ModuleInterface {
     }
 
     public function enqueue_assets(): void {
-        if ( ! $this->enabled() ) {
+        if ( ! $this->enabled() || ! FeatureUsage::home() ) {
             return;
         }
 

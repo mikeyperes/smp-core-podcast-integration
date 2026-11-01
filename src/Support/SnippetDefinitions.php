@@ -60,17 +60,6 @@ final class SnippetDefinitions {
                     [ 'id' => 'option', 'label' => 'Field structure is enabled', 'type' => 'option_enabled', 'required' => true ],
                 ],
             ],
-            [
-                'id' => 'enable_podcast_external_link_icons',
-                'name' => 'External-link indicators',
-                'description' => 'Adds a small external-link indicator to front-end links that open a new tab.',
-                'category' => 'display',
-                'default_enabled' => false,
-                'test_rules' => [
-                    [ 'id' => 'option', 'label' => 'Feature option is enabled', 'type' => 'option_enabled', 'required' => true ],
-                    [ 'id' => 'module', 'label' => 'Display module is callable', 'type' => 'callback', 'callback' => static fn( ...$unused ): bool => method_exists( \SMP\Podcast\Frontend\ExternalLinks::class, 'register' ), 'required' => true ],
-                ],
-            ],
         ];
     }
 }

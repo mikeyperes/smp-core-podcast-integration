@@ -8,18 +8,22 @@ use SMP\Podcast\Settings\PlaybackSettings;
 
 final class PersistentPlayer implements ModuleInterface {
     private bool $rendered = false;
+    private bool $enqueued = false;
 
     public function register(): void {
         add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+        add_action( 'smp_podcast_player_required', [ $this, 'enqueue_assets' ] );
+        add_action( 'wp_footer', [ $this, 'print_late_styles' ], 5 );
         add_action( 'wp_footer', [ $this, 'render' ], 90 );
         add_filter( 'script_loader_tag', [ $this, 'protect_runtime_script' ], 10, 3 );
     }
 
     public function enqueue_assets(): void {
-        if ( ! $this->enabled() ) {
+        if ( $this->enqueued || ! $this->enabled() ) {
             return;
         }
 
+        $this->enqueued = true;
         $url = plugin_dir_url( SMP_PODCAST_PLUGIN_FILE );
         wp_enqueue_style( 'smp-podcast-player', $url . 'assets/frontend-player.css', [], Config::VERSION );
         wp_enqueue_script( 'smp-podcast-player', $url . 'assets/frontend-player.js', [], Config::VERSION, true );
@@ -59,6 +63,12 @@ final class PersistentPlayer implements ModuleInterface {
                 ]
             )
         );
+    }
+
+    public function print_late_styles(): void {
+        if ( $this->enabled() && wp_style_is( 'smp-podcast-player', 'enqueued' ) && ! wp_style_is( 'smp-podcast-player', 'done' ) ) {
+            wp_print_styles( [ 'smp-podcast-player' ] );
+        }
     }
 
     public function render(): void {
@@ -151,6 +161,6 @@ final class PersistentPlayer implements ModuleInterface {
             return false;
         }
         $settings = PlaybackSettings::get();
-        return (bool) apply_filters( 'smp_podcast_persistent_player_enabled', (bool) $settings['enabled'] );
+        return FeatureUsage::player() && (bool) apply_filters( 'smp_podcast_persistent_player_enabled', (bool) $settings['enabled'] );
     }
 }

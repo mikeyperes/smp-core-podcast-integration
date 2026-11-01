@@ -2,10 +2,17 @@
 
 ## Front end
 
-- `assets/frontend-player.css` and `assets/frontend-player.js`: PersistentPlayer::enqueue_assets currently runs on eligible public HTML whenever the player is enabled. Player markup is printed in wp_footer. No admin, feed, or embed loading.
-- `assets/home-interactions.css` and `assets/home-interactions.js`: HomeInteractions currently loads for every eligible public HTML document, to preserve the existing homepage/AJAX lifecycle. The script is protected from script reordering by its own handle.
-- Profile and directory CSS: ShortcodeCallbacks::assets prints once alongside the first shortcode output, rather than globally in wp_head.
-- ExternalLinks prints footer indicator CSS only when its snippet option is enabled. This is scheduled for removal in the next asset-focused release.
+- `assets/frontend-player.css` and `assets/frontend-player.js`: only with the enabled player on the homepage, singular podcast episodes, or requests that actually render a usable Listen/Watch shortcode. MPP's Listen wrapper delegates to that same shortcode and therefore marks usage too. Profile/category pages retain these assets only when their episode widgets render media controls.
+- Media shortcode callbacks mark request-local FeatureUsage and enqueue the runtime during rendering, covering WordPress content, Elementor templates and loops without guessing which template is selected. Footer priority 5 prints a late stylesheet once when it missed wp_head. Footer scripts retain their existing defer/protection contract. Player markup prints only for the same usage boundary.
+- `assets/home-interactions.css` and `assets/home-interactions.js`: homepage only, checked by is_front_page(). Exact legacy malformed Custom Code retirement remains global so the retired snippet cannot reappear on other pages.
+- Profile and directory CSS prints once with the first shortcode output.
+- External-link indicator footer CSS and its optional snippet/module have been removed. The old option is left untouched and unused.
+
+## Release 3.3.5 asset inventory
+
+Before (3.3.4): home, episode, profile and category each load home-interactions.css/js and frontend-player.css/js. Admin Playback loads admin.css/js only.
+
+After: home retains all four; the episode, profile and category lose home-interactions.css/js and retain player.css/js because their actual media controls use it. A page without media shortcodes or episode classification loads neither front-end runtime. Admin Playback retains admin.css/js only.
 
 ## Admin
 

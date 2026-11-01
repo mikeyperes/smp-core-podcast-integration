@@ -110,13 +110,13 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Code:** `src/Acf/PodcastOptionsFieldGroup.php`.
 
 ### Persistent player and navigation
-- **Does:** Singleton audio/video player and playback-preserving same-origin navigation.
+- **Does:** Singleton audio/video player and playback-preserving same-origin navigation; assets load only on the homepage, episodes or actual media-shortcode output.
 - **Switch:** Persistent Player; `smp_podcast_playback_settings`, disabled by default.
 - **Use:** Listen/Watch triggers; see Player and Elementor Contract below.
 - **Code:** `src/Frontend/PersistentPlayer.php; src/Settings/PlaybackSettings.php`.
 
 ### Homepage interactions
-- **Does:** Homepage filters, presentation rails and scroll cue.
+- **Does:** Homepage-only filters, presentation rails and scroll cue.
 - **Switch:** Automatic on the existing homepage presentation.
 - **Use:** Automatic; Elementor homepage markup.
 - **Code:** `src/Frontend/HomeInteractions.php`.
@@ -138,12 +138,6 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Switch:** Snippets; `enable_rss`, disabled by default.
 - **Use:** `/feed/internal-rss/`.
 - **Code:** `src/Frontend/InternalFeed.php`.
-
-### External-link indicators
-- **Does:** Adds an indicator to links opening a new tab.
-- **Switch:** Snippets; `enable_podcast_external_link_icons`, disabled by default.
-- **Use:** Automatic.
-- **Code:** `src/Frontend/ExternalLinks.php`.
 
 ### Canonical source and release archives
 - **Does:** Preserves historical installed source on three archive branches; uses the installed podcast.michaelperes.com folder as the sole Git tree on main.
@@ -258,6 +252,12 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.3.5
+
+- Scopes player loading to homepage, episodes and actual media shortcode output, including Elementor loops and MPP wrappers. Prints late shortcode stylesheet once.
+- Loads homepage interactions only on the homepage and removes the footer external-link indicator module/CSS.
+- Documents before/after asset inventories. Bundles Hexa WP Core 3.47.0.
 
 ### 3.3.4
 

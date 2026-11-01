@@ -290,6 +290,9 @@ function apply_filters( string $hook, mixed $value, mixed ...$args ): mixed { un
 function is_admin(): bool { return (bool) $GLOBALS['test_is_admin']; }
 function get_current_screen(): ?object { return $GLOBALS['test_current_screen']; }
 function wp_doing_ajax(): bool { return false; }
+function is_front_page(): bool { return (bool) ( $GLOBALS['test_front_page'] ?? false ); }
+function is_singular(): bool { return (bool) ( $GLOBALS['test_singular'] ?? false ); }
+function get_queried_object_id(): int { return (int) ( $GLOBALS['test_queried_id'] ?? 0 ); }
 function is_feed(): bool { return false; }
 function is_embed(): bool { return false; }
 function powerpress_get_enclosure_data( int $post_id, string $feed_slug = 'podcast' ): array|false { unset( $feed_slug ); $GLOBALS['test_powerpress_calls'][] = $post_id; return $GLOBALS['test_powerpress'][ $post_id ] ?? false; }
@@ -814,6 +817,18 @@ foreach ( [ 301, 302, 303, 304, 101, 21811 ] as $episode_post_id ) {
 $GLOBALS['test_post_meta_values'][301]['_mpp_content_kind'] = 'episode';
 $GLOBALS['test_post_meta_values'][302]['_mpp_content_kind'] = 'episode';
 $GLOBALS['test_post_meta_values'][101]['_mpp_content_kind'] = 'episode';
+$GLOBALS['test_front_page'] = true;
+check( SMP\Podcast\Frontend\FeatureUsage::home() && SMP\Podcast\Frontend\FeatureUsage::player(), 'homepage retains its interaction and player runtime' );
+$GLOBALS['test_front_page'] = false;
+check( ! SMP\Podcast\Frontend\FeatureUsage::home() && ! SMP\Podcast\Frontend\FeatureUsage::player(), 'unused ordinary request loads neither runtime' );
+$GLOBALS['test_singular'] = true;
+$GLOBALS['test_queried_id'] = 301;
+check( SMP\Podcast\Frontend\FeatureUsage::player(), 'explicit episode receives player runtime without a shortcode' );
+$GLOBALS['test_queried_id'] = 304;
+check( ! SMP\Podcast\Frontend\FeatureUsage::player(), 'ordinary singular without a media shortcode does not require the player' );
+$GLOBALS['test_singular'] = false;
+$GLOBALS['test_queried_id'] = 0;
+
 $GLOBALS['test_fields']['301:audio'] = [ 'url' => 'https://example.test/direct-301.mp3' ];
 $GLOBALS['test_powerpress'][301] = [ 'url' => 'https://media.example.test/powerpress-301.mp3', 'duration' => '1:02:03' ];
 $resolved_audio = SMP\Podcast\Frontend\AudioSourceResolver::resolve( 301 );
@@ -903,7 +918,7 @@ check( function_exists( 'smp_core_podcast_functionality\\episode_fields_shortcod
 check( 'https://cdn.example.test/audio.mp3' === smp_core_podcast_functionality\episode_fields_shortcode( [ 'name' => 'audio_url', 'post_id' => 101 ] ), 'legacy wrapper delegates to canonical callback' );
 
 $snippets = SMP\Podcast\Support\SnippetDefinitions::all();
-check( 6 === count( $snippets ), 'six managed snippet definitions are present' );
+check( 5 === count( $snippets ), 'five managed snippet definitions remain after external-link CSS removal' );
 foreach ( $snippets as $snippet ) {
     foreach ( (array) ( $snippet['test_rules'] ?? [] ) as $rule ) {
         if ( in_array( $rule['type'] ?? '', [ 'callback', 'callable' ], true ) ) {

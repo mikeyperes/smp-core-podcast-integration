@@ -21,6 +21,7 @@ final class ShortcodeCallbacks {
         if ( [] === $source ) {
             return '';
         }
+        FeatureUsage::require_player();
         $video = VideoSourceResolver::resolve( $post_id );
 
         $classes = [ 'smp-listen-button' ];
@@ -68,6 +69,7 @@ final class ShortcodeCallbacks {
         if ( [] === $video ) {
             return '';
         }
+        FeatureUsage::require_player();
         $audio = AudioSourceResolver::resolve( $post_id );
         $classes = [ 'smp-watch-button' ];
         foreach ( preg_split( '/\s+/', (string) $atts['class'] ) ?: [] as $class_name ) {
