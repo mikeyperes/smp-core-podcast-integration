@@ -363,7 +363,7 @@ $GLOBALS['test_options']['smp_podcast_content_model'] = 'post';
 
 $playback_defaults = SMP\Podcast\Settings\PlaybackSettings::defaults();
 check( false === $playback_defaults['enabled'], 'persistent player is opt-in by default' );
-check( true === $playback_defaults['ajax_navigation'], 'playback navigation is ready when the player is enabled' );
+check( false === $playback_defaults['ajax_player'], 'AJAX player is off by default' );
 check( true === $playback_defaults['video_enabled'], 'inline episode video is enabled by default once the player is enabled' );
 check( true === $playback_defaults['show_mode_switch'] && true === $playback_defaults['sync_media_position'], 'audio/video switching defaults to visible position-preserving controls' );
 check( ! array_key_exists( 'ajax_while_paused', $playback_defaults ), 'paused navigation cannot be enabled in settings' );
@@ -380,22 +380,16 @@ $sanitized_playback = SMP\Podcast\Settings\PlaybackSettings::sanitize(
         'skip_forward' => 999,
     ]
 );
-check( true === $sanitized_playback['enabled'] && true === $sanitized_playback['ajax_navigation'], 'playback boolean settings normalize' );
+check( true === $sanitized_playback['enabled'] && true === $sanitized_playback['ajax_player'], 'playback boolean settings normalize' );
 check( ! array_key_exists( 'ajax_while_paused', $sanitized_playback ), 'legacy paused-navigation input is discarded' );
-check( '[data-smp-ajax-root]' === $sanitized_playback['content_selector'], 'unsafe whole-body selector falls back to the content island' );
-foreach ( [ 'header', 'footer', 'nav', 'main', '#page', '.site', '#wrapper', '.wrapper', 'body > main' ] as $unsafe_selector ) {
-    $unsafe_result = SMP\Podcast\Settings\PlaybackSettings::sanitize( [ 'content_selector' => $unsafe_selector ] );
-    check( '[data-smp-ajax-root]' === $unsafe_result['content_selector'], 'unsafe content selector is rejected: ' . $unsafe_selector );
-}
-$bounded_result = SMP\Podcast\Settings\PlaybackSettings::sanitize( [ 'content_selector' => 'main.site-main' ] );
-check( 'main.site-main' === $bounded_result['content_selector'], 'bounded main selector remains available' );
-check( "/members/*\n/downloads/" === $sanitized_playback['excluded_paths'], 'excluded paths keep only site-relative entries' );
-check( 30000 === $sanitized_playback['timeout_ms'] && 0 === $sanitized_playback['transition_ms'], 'navigation timing settings stay within safety bounds' );
+check( ! array_key_exists( 'ajax_navigation', $sanitized_playback ), 'legacy navigation switch is removed after migration' );
+check( false === SMP\Podcast\Settings\PlaybackSettings::sanitize( [ 'ajax_navigation' => true, 'ajax_player' => false ] )['ajax_player'], 'new setting takes precedence over legacy switch' );
+check( false === SMP\Podcast\Settings\PlaybackSettings::navigation_ready(), 'missing Base Tools cannot enable permanence' );
 check( 5 === $sanitized_playback['skip_back'] && 120 === $sanitized_playback['skip_forward'], 'skip controls stay within accessible bounds' );
 $saved_playback = SMP\Podcast\Settings\PlaybackSettings::save( $sanitized_playback );
 check( $saved_playback === SMP\Podcast\Settings\PlaybackSettings::get(), 'playback settings save through one canonical option' );
 $public_playback = SMP\Podcast\Settings\PlaybackSettings::public_config();
-check( [ '/members/*', '/downloads/' ] === $public_playback['excludedPaths'], 'public playback config exposes normalized path rules' );
+check( ! array_key_exists( 'contentSelector', $public_playback ), 'player config does not own navigation roots' );
 check( ! array_key_exists( 'ajaxWhilePaused', $public_playback ), 'public playback config exposes no paused-navigation override' );
 unset( $GLOBALS['test_options'][ SMP\Podcast\Settings\PlaybackSettings::OPTION_NAME ] );
 
@@ -983,107 +977,10 @@ $player_js = (string) file_get_contents( $root . '/assets/frontend-player.js' );
 $player_css = (string) file_get_contents( $root . '/assets/frontend-player.css' );
 $home_interactions_js = (string) file_get_contents( $root . '/assets/home-interactions.js' );
 $home_interactions_css = (string) file_get_contents( $root . '/assets/home-interactions.css' );
-check( str_contains( $player_js, "response.status !== 200" ) && str_contains( $player_js, "text/html" ), 'AJAX navigation accepts only HTTP 200 HTML documents' );
-check(
-    str_contains( $player_js, 'state.playbackActivated' )
-    && str_contains( $player_js, 'state.videoPlaybackActivated && state.videoPlaying' )
-    && str_contains( $player_js, 'return !audio.paused;' )
-    && ! str_contains( $player_js, 'ajaxWhilePaused' ),
-    'navigation interception requires the selected audio or video medium to be actively playing'
-);
-check(
-    str_contains( $player_js, 'youtubeVideoId(videoValue)' )
-    && str_contains( $player_js, "switchMode('video', true)" )
-    && str_contains( $player_js, "switchMode('audio', true)" )
-    && str_contains( $player_js, 'https://www.youtube-nocookie.com/embed/' ),
-    'runtime supports validated inline video and bidirectional media switching'
-);
-check( str_contains( $player_js, "new DOMParser().parseFromString" ) && str_contains( $player_js, "roots.current.replaceWith" ), 'navigation parses full public documents and replaces only the content island' );
-check(
-    str_contains( $player_js, "nodesIncludingScope(root, '.elementor-element[data-element_type]')" )
-    && str_contains( $player_js, 'runReadyTrigger(element)' ),
-    'Elementor handlers reinitialize each imported element instead of no-oping on the document root'
-);
-check( str_contains( $player_js, "link[rel=\"canonical\"]" ) && str_contains( $player_js, 'application/ld+json' ), 'client navigation synchronizes canonical metadata and JSON-LD' );
-check( str_contains( $player_js, "window.addEventListener('popstate'" ) && str_contains( $player_js, 'history.pushState' ), 'browser history and back-forward navigation are owned by the player runtime' );
-check( str_contains( $player_js, "window.location.assign" ) && str_contains( $player_js, "window.location.reload" ), 'failed or ineligible navigation has a hard-browser fallback' );
-check( ! str_contains( $player_js, 'bindNavigation();' ) && ! preg_match( '/configureMediaSession\(\);\s*recordHistoryState\(\);/', $player_js ), 'page initialization does not bind or mutate navigation history' );
-check( strpos( $player_js, 'beginNavigationSession();' ) > strpos( $player_js, 'loadRequiredStyles(plan.styles.missing,' ), 'history ownership begins only after navigation preflight succeeds' );
-check( str_contains( $player_js, 'unsupported-inline-script' ) && str_contains( $player_js, 'missing-script-asset' ) && str_contains( $player_js, 'sanitizeImportedContent(importedRoot)' ), 'fetched executable code is rejected or stripped rather than evaluated' );
-check(
-    str_contains( $player_js, 'ignorableSelfRemovingScript(source)' )
-    && str_contains( $player_js, 'url.origin === window.location.origin' )
-    && str_contains( $player_js, 'cloudflare-static\\/email-decode'),
-    'only the exact same-origin self-removing Cloudflare email decoder may be omitted from fetched script requirements'
-);
-check(
-    str_contains( $player_js, "id === 'elementor-recaptcha_v3-api-js'" )
-    && str_contains( $player_js, "url.protocol === 'https:'" )
-    && str_contains( $player_js, "url.host === 'www.google.com'" )
-    && str_contains( $player_js, "url.host === 'www.recaptcha.net'" )
-    && str_contains( $player_js, "url.pathname === '/recaptcha/api.js'" )
-    && str_contains( $player_js, "url.searchParams.getAll('render').length === 1" )
-    && str_contains( $player_js, "url.searchParams.get('render') === 'explicit'" ),
-    'dynamic script policy accepts only Elementor reCAPTCHA from its exact HTTPS hosts, path, and render mode'
-);
-check(
-    str_contains( $player_js, 'parseWordfenceHumanLogger.template' )
-    && str_contains( $player_js, "url.origin !== window.location.origin" )
-    && str_contains( $player_js, "url.searchParams.getAll('wordfence_lh').length !== 1" )
-    && str_contains( $player_js, "url.searchParams.getAll('hid').length !== 1" )
-    && str_contains( $player_js, '/^[a-f0-9]{32}$/i' )
-    && str_contains( $player_js, "canonical === parseWordfenceHumanLogger.template" )
-    && str_contains( $player_js, 'var wordfenceInitialized = state.wordfenceLoggerActive || window.wfLogHumanRan;' )
-    && str_contains( $player_js, 'if (parseWordfenceHumanLogger(node, text)) wordfenceInitialized = true;' ),
-    'fresh Wordfence human logger is accepted only from its byte-exact wrapper and exact same-origin endpoint'
-);
-check(
-    str_contains( $player_js, 'initializeWordfenceHumanLogger(plan.wordfenceUrl)' )
-    && str_contains( $player_js, "script.id = 'smp-wordfence-human-logger'" )
-    && str_contains( $player_js, "url.searchParams.set('r', String(Math.random()))" )
-    && str_contains( $player_js, 'document.removeEventListener(eventName, logHuman, false)' ),
-    'validated Wordfence logger is reconstructed as a one-shot owned script without executing fetched inline code'
-);
-check(
-    str_contains( $player_js, "new RegExp('(?:^|\\\\n)//# sourceURL=' + escapedId" )
-    && str_contains( $player_js, "var candidate = cleaned.replace" ),
-    'localized Elementor JSON accepts only its own exact trailing WordPress sourceURL annotation'
-);
-check(
-    str_contains( $player_js, 'JetEngineSettings' )
-    && str_contains( $player_js, '/^jet-engine-frontend-js-extra$/' ),
-    'JetEngine page context is accepted only from its exact JSON localization handle'
-);
-check(
-    str_contains( $player_js, "'jet-engine-data-stores-js-before'" )
-    && str_contains( $player_js, "'jet-engine-frontend-js-before'" )
-    && str_contains( $player_js, 'canonical === safeDynamicInlineScript.sources[id]' )
-    && str_contains( $player_js, "new RegExp('(?:^|\\\\n)//# sourceURL='" ),
-    'only byte-exact captured JetEngine before-initializers may cross an active AJAX navigation'
-);
-check(
-    substr_count( $player_js, 'safeDynamicInlineScript(source,' ) >= 2
-    && str_contains( $player_js, 'copyExecutableInlineScript(source)' )
-    && str_contains( $player_js, "reject(unsupportedNavigation('unsupported-inline-script'))" )
-    && substr_count( $player_js, 'if (signal && signal.aborted)' ) >= 4,
-    'trusted inline initializers are revalidated and abort-checked immediately before ordered execution'
-);
-check( str_contains( $player_js, 'cancelPendingNavigation' ) && str_contains( $player_js, 'parkNavigationSession' ) && str_contains( $player_js, 'pendingNavigationActive' ), 'pause and terminal playback states cancel pending work and park history ownership' );
-check( str_contains( $player_js, 'inline-event-handler' ) && str_contains( $player_js, 'copyAllowedAttributes' ) && str_contains( $player_js, 'managedInlineStyleId' ), 'fetched event attributes are rejected and managed assets use explicit policies' );
-check( str_contains( $player_js, 'safeContentRootSelector' ) && str_contains( $player_js, 'content-root-mismatch' ) && str_contains( $player_js, 'header,footer,nav' ), 'content roots are matched and reject persistent or broad regions' );
-check(
-    str_contains( $player_js, 'var incomingDescriptor = findContentRoot(parsed)' )
-    && str_contains( $player_js, 'trustedElementorSurfaceSelector' )
-    && str_contains( $player_js, 'currentMarker === null || incomingMarker === null || currentMarker !== incomingMarker' ),
-    'current and incoming roots resolve independently only across trusted Elementor surfaces or compatible explicit markers'
-);
-check(
-    str_contains( $player_js, "key !== 'smpi-breadcrumbs'" )
-    && str_contains( $player_js, "source.tagName !== 'TEMPLATE'" )
-    && str_contains( $player_js, "throw unsupportedNavigation('unsafe-companion-fragment')" )
-    && str_contains( $player_js, 'syncCompanionFragments(plan.companions)' ),
-    'AJAX companion synchronization accepts only allowlisted inert breadcrumb templates'
-);
+check( ! str_contains( $player_js, 'fetch(' ) && ! str_contains( $player_js, 'DOMParser' ) && ! str_contains( $player_js, 'history.pushState' ), 'player owns no navigation, swap or history engine' );
+check( str_contains( $player_js, 'hws:page-changed' ) && str_contains( $player_js, 'updatePlayerState();' ), 'Base Tools completed pages refresh delegated media controls' );
+check( str_contains( $player_js, 'hws:page-will-change' ) && str_contains( $player_js, "player.hasAttribute('data-turbo-permanent')" ), 'nonpermanent player is stopped and released before swaps' );
+check( str_contains( $player_js, 'https://www.youtube-nocookie.com/embed/' ), 'validated inline video playback remains available' );
 check( str_contains( $player_js, "nodesIncludingScope(scope, '#ap-audio')" ) && str_contains( $player_js, 'enforcePlayerSingleton' ), 'legacy audio is migrated into the singleton player contract' );
 check( ! str_contains( $player_js, 'admin-ajax.php' ) && ! str_contains( $player_js, 'wp-json' . '/smp' ), 'frontend navigation uses exact public URLs without a public AJAX API' );
 check( str_contains( $player_css, 'position: fixed' ) && str_contains( $player_css, 'prefers-reduced-motion' ), 'fixed player CSS includes reduced-motion support' );

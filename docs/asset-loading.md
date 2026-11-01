@@ -26,3 +26,9 @@ After: home retains all four; the episode, profile and category lose home-intera
 ## Release 3.3.7: About page cache correction
 
 `/about/` has no media shortcode output, is not the homepage and is not podcast content. An uncached request correctly loads neither player nor homepage assets and emits no player markup. The normal anonymous address was a LiteSpeed cache hit still serving HTML with `ver=3.3.1` references. Purge affected page caches after installing this release, then check the normal anonymous address as well as an uncached URL. A cache-bypass check alone does not prove that existing cached pages were refreshed. No extra path exclusion or playback-code change is needed.
+
+## Release 3.4.0 AJAX player inventory
+Before: home loads player and homepage CSS/JS; an article with media controls loads player CSS/JS; About loads neither; Persistent Player admin loads admin CSS/JS.
+After, both continuity switches on: home retains all four; articles and About load player CSS/JS and permanent markup. Every public destination needs the same permanent container. Admin remains admin CSS/JS only.
+After, either continuity switch off: the existing feature-usage boundary remains; About loads neither, home and media output retain the player.
+The player script contains no fetch, swap, head or asset synchronization. Base Tools alone loads its Turbo/navigation assets. The player runtime guards repeated execution and refreshes delegated controls after each completed navigation.

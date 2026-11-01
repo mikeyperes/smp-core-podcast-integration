@@ -37,17 +37,6 @@ final class PersistentPlayer implements ModuleInterface {
                     'homeUrl' => home_url( '/' ),
                     'siteName' => get_bloginfo( 'name' ),
                     'assetUrl' => $url,
-                    'rootFallbacks' => [
-                        '[data-elementor-type="wp-page"]',
-                        '[data-elementor-type="wp-post"]',
-                        '[data-elementor-type="single-post"]',
-                        '[data-elementor-type="single"]',
-                        '[data-elementor-type="archive"]',
-                        '.elementor-location-single',
-                        '.elementor-location-archive',
-                        'main.site-main',
-                        'main#content',
-                    ],
                     'strings' => [
                         'play' => 'Play episode',
                         'pause' => 'Pause episode',
@@ -56,8 +45,6 @@ final class PersistentPlayer implements ModuleInterface {
                         'switchAudio' => 'Switch to audio',
                         'switchVideo' => 'Switch to video',
                         'videoUnavailable' => 'This episode does not have a video.',
-                        'navigationLoading' => 'Loading page',
-                        'navigationFailed' => 'Opening page normally',
                         'playerClosed' => 'Player closed',
                     ],
                 ]
@@ -78,7 +65,7 @@ final class PersistentPlayer implements ModuleInterface {
         $this->rendered = true;
         $settings = PlaybackSettings::get();
         ?>
-        <aside id="smp-podcast-player" class="smp-podcast-player" data-smp-player data-smp-mode="audio" hidden aria-label="Persistent podcast media player">
+        <aside id="smp-podcast-player" class="smp-podcast-player" data-smp-player<?php echo PlaybackSettings::permanent() ? ' data-turbo-permanent' : ''; ?> data-smp-mode="audio" hidden aria-label="Persistent podcast media player">
             <audio data-smp-audio preload="metadata"></audio>
             <div class="smp-podcast-player__inner">
                 <div class="smp-podcast-player__identity">
@@ -161,6 +148,6 @@ final class PersistentPlayer implements ModuleInterface {
             return false;
         }
         $settings = PlaybackSettings::get();
-        return FeatureUsage::player() && (bool) apply_filters( 'smp_podcast_persistent_player_enabled', (bool) $settings['enabled'] );
+        return ( PlaybackSettings::permanent() || FeatureUsage::player() ) && (bool) apply_filters( 'smp_podcast_persistent_player_enabled', (bool) $settings['enabled'] );
     }
 }

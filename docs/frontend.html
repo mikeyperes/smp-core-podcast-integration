@@ -190,5 +190,7 @@ Example Host</code></pre>
 </section>
 <p>PowerPress and the optional internal RSS feature output feeds, not a visitor HTML component. See README for their switches and addresses.</p>
 <p><a href="asset-loading.md">Asset-loading rules and cache checks</a></p>
+<section><h2>AJAX player (3.4.0)</h2>
+<p>With AJAX player and HWS Base Tools AJAX Navigation 13.47.0+ enabled, the complete player bar uses <code>id="smp-podcast-player" data-turbo-permanent</code>, including its audio and YouTube frame. Both attributes must be present on every destination. The player handles only playback; Base Tools owns page navigation. Delegated Listen/Watch buttons refresh on <code>hws:page-changed</code>. Nonpermanent playback stops on <code>hws:page-will-change</code> and normal reloads.</p></section>
 </body>
 </html>

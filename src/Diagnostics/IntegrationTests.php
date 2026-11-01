@@ -173,7 +173,7 @@ final class IntegrationTests implements ModuleInterface {
                     'actual' => $selector ?: 'missing',
                     'details' => [
                         'player' => $settings['enabled'] ? 'enabled' : 'disabled',
-                        'ajax_navigation' => $settings['ajax_navigation'] ? 'enabled' : 'disabled',
+                        'ajax_player' => $settings['ajax_player'] ? 'enabled' : 'disabled',
                         'paused_navigation' => 'native full-page navigation',
                     ],
                 ];

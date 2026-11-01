@@ -10,43 +10,7 @@ const root = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const runtime = readFileSync(join(root, 'assets/frontend-player.js'));
 const homeInteractionsRuntime = readFileSync(join(root, 'assets/home-interactions.js'));
 const homeInteractionsStyles = readFileSync(join(root, 'assets/home-interactions.css'));
-const scenarios = [
-    'no-playback',
-    'disabled',
-    'video-switch',
-    'active',
-    'continuity',
-    'divergent-assets',
-    'slow-pause',
-    'slow-close',
-    'slow-ended',
-    'slow-error',
-    'inactive-history',
-    'foreign-history',
-    'elementor-ready',
-    'elementor-recaptcha',
-    'wordfence-fresh',
-    'tampered-wordfence',
-    'trusted-jet-inline',
-    'tampered-jet-inline',
-    'tampered-jet-whitespace',
-    'aborted-jet-inline',
-    'elementor-unready',
-    'unsupported-inline',
-    'missing-script',
-    'spoofed-recaptcha',
-    'self-removing-cloudflare',
-    'unmatched-root',
-    'malicious-style-onload',
-    'malicious-script-onerror',
-    'malicious-content-onclick',
-    'unsafe-inline-style',
-    'unknown-inline-style',
-    'surface-matrix',
-    'explicit-marker-mismatch',
-    'custom-root-mismatch',
-    'unsafe-companion',
-];
+const scenarios = ['base-tools-permanent', 'base-tools-disabled'];
 
 const server = createServer((request, response) => {
     const url = new URL(request.url || '/', 'http://127.0.0.1');
@@ -886,394 +850,46 @@ window.elementorProFrontend={config:window.ElementorProFrontendConfig};
 }
 
 function clientTestScript(mode) {
-    return `(function(){
-var mode=${JSON.stringify(mode)};
-function fail(message){document.body.setAttribute('data-test-status','fail');document.getElementById('test-result').textContent=message;}
-function pass(message){document.body.setAttribute('data-test-status','pass');document.getElementById('test-result').textContent=message;}
-function assert(value,message){if(!value)throw new Error(message);}
-function waitFor(name){return new Promise(function(resolve,reject){
-    var timer=setTimeout(function(){reject(new Error('Timed out waiting for '+name));},3200);
-    document.addEventListener(name,function(event){clearTimeout(timer);resolve(event);},{once:true});
-});}
-function delay(milliseconds){return new Promise(function(resolve){setTimeout(resolve,milliseconds);});}
-function observedClick(node){
-    var observed=null;
-    var watcher=function(event){observed=event.defaultPrevented;event.preventDefault();};
-    document.addEventListener('click',watcher,{capture:true,once:true});
-    node.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,button:0}));
-    return observed;
-}
-function click(node){node.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true,button:0}));}
-document.addEventListener('DOMContentLoaded',function(){setTimeout(async function(){try{
-    var counters=window.__smpTest;
-    assert(counters.popstateBindings===0,'popstate bound before playback');
-    assert(counters.scrollBindings===0,'scroll bound before playback');
-    assert(counters.replaces===0 && counters.pushes===0,'history changed before playback');
-    assert(history.scrollRestoration!=='manual','manual scroll restoration enabled before playback');
-    assert(document.querySelectorAll('[data-smp-player] audio').length===1,'persistent player audio missing');
-    assert(document.querySelectorAll('#ap-audio').length===0,'legacy audio still coexists');
-
-    if(mode==='no-playback'){
-        assert(observedClick(document.getElementById('navigate'))===false,'inactive navigation was intercepted');
-        assert(counters.fetches===0 && counters.replaces===0 && counters.popstateBindings===0,'inactive navigation changed AJAX/history state');
-        pass('PASS inactive playback leaves native navigation untouched');
-        return;
-    }
-
-    if(mode==='surface-matrix'){
-        var initialCue=document.querySelector('.mpp-scroll-cue');
-        var initialCueLink=initialCue&&initialCue.querySelector('a[href="#listen"]');
-        assert(initialCue&&!initialCue.classList.contains('is-hidden')&&initialCue.getAttribute('aria-hidden')==='false','scroll cue was not initially visible');
-        assert(initialCueLink&&!initialCueLink.hasAttribute('tabindex'),'visible scroll cue was removed from the tab order');
-        window.scrollTo(0,320);
-        window.dispatchEvent(new Event('scroll'));
-        await delay(40);
-        assert(initialCue.classList.contains('is-hidden')&&initialCue.getAttribute('aria-hidden')==='true'&&initialCueLink.getAttribute('tabindex')==='-1','scroll cue did not hide accessibly after the threshold');
-        window.scrollTo(0,0);
-        window.dispatchEvent(new Event('scroll'));
-        await delay(40);
-        assert(!initialCue.classList.contains('is-hidden')&&initialCue.getAttribute('aria-hidden')==='false'&&!initialCueLink.hasAttribute('tabindex'),'scroll cue did not restore at the top of the page');
-    }
-
-    click(document.getElementById('listen'));
-    await Promise.resolve();
-    assert(counters.replaces===0 && counters.popstateBindings===0,'track selection changed history');
-    var playerAudio=document.querySelector('[data-smp-audio]');
-
-    if(mode==='video-switch'){
-        assert(!playerAudio.paused,'audio did not begin before the format switch');
-        var watch=document.getElementById('watch');
-        assert(observedClick(watch)===true,'native Watch link was not intercepted');
-        var player=document.querySelector('[data-smp-player]');
-        var frame=player.querySelector('[data-smp-video]');
-        assert(player.getAttribute('data-smp-mode')==='video','Watch did not select video mode');
-        assert(playerAudio.paused,'audio continued while video mode was selected');
-        assert(frame.src.indexOf('/embed/yzMcrZCYh5Y')!==-1,'real episode video was not loaded into the persistent iframe');
-        window.dispatchEvent(new MessageEvent('message',{origin:'https://www.youtube-nocookie.com',source:frame.contentWindow,data:JSON.stringify({event:'onReady'})}));
-        window.dispatchEvent(new MessageEvent('message',{origin:'https://www.youtube-nocookie.com',source:frame.contentWindow,data:JSON.stringify({event:'onStateChange',info:1})}));
-        window.dispatchEvent(new MessageEvent('message',{origin:'https://www.youtube-nocookie.com',source:frame.contentWindow,data:JSON.stringify({event:'infoDelivery',info:{playerState:1,currentTime:14,duration:120,muted:false}})}));
-        await delay(40);
-        assert(document.body.classList.contains('smp-podcast-player-video-visible'),'video mode did not expose its responsive surface');
-        var videoReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('navigate'))===true,'active video did not enable safe AJAX navigation');
-        await videoReady;
-        assert(document.querySelector('[data-smp-video]')===frame&&player.getAttribute('data-smp-mode')==='video','video surface was replaced during AJAX navigation');
-        click(player.querySelector('[data-smp-mode-button="audio"]'));
-        await Promise.resolve();
-        assert(player.getAttribute('data-smp-mode')==='audio'&&!document.body.classList.contains('smp-podcast-player-video-visible'),'Audio switch did not restore the compact player');
-        assert(!playerAudio.paused&&playerAudio.currentTime>=13.5,'video timestamp did not transfer back to audio');
-        assert(player.querySelector('[data-smp-video-shell]').hidden,'video remained visible after switching to audio');
-        pass('PASS persistent video, AJAX navigation, and audio/video switching share one dynamic episode');
-        return;
-    }
-
-    if(mode==='surface-matrix'){
-        var homeApi=window.__mppHomeInteractions23128;
-        assert(homeApi&&homeApi.version==='3.2.0'&&homeApi.isActive(),'owned homepage initializer did not activate');
-        assert(document.querySelector('[data-smp-ajax-companion-rendered="smpi-breadcrumbs"] [aria-current="page"]').textContent==='Podcast home breadcrumb','initial inert breadcrumb companion did not render');
-        assert(document.getElementById('ep-158')&&document.getElementById('ep-154'),'initial homepage cards were not hydrated');
-        assert(document.querySelector('#ep-158 .mpp-episode-guest a').getAttribute('aria-label').indexOf('Ada Guest')!==-1,'initial card accessibility metadata was not hydrated');
-        assert(initialCue.classList.contains('is-hidden')&&initialCue.getAttribute('aria-hidden')==='true'&&initialCueLink.getAttribute('tabindex')==='-1','active player did not yield the bottom viewport by hiding the scroll cue');
-
-        click(document.querySelector('[data-topic="technology"]'));
-        assert(!document.getElementById('ep-158').hidden&&document.getElementById('ep-154').hidden,'topic filtering did not apply the owned topic map');
-        click(document.querySelector('[data-topic="all"]'));
-        var search=document.querySelector('.mpp-episode-search input');
-        search.value='Mara';
-        search.dispatchEvent(new Event('input',{bubbles:true}));
-        assert(document.getElementById('ep-158').hidden&&!document.getElementById('ep-154').hidden,'homepage search did not filter cards');
-        search.value='';
-        search.dispatchEvent(new Event('input',{bubbles:true}));
-
-        var inserted=document.createElement('div');
-        inserted.className='e-loop-item';
-        inserted.innerHTML='<span class="mpp-episode-number">Episode 153</span><span class="mpp-episode-guest"><a href="/profile/new"><span class="mpp-guest-n">New Guest</span></a></span>';
-        document.querySelector('[data-id="c04f006"]').appendChild(inserted);
-        await delay(100);
-        assert(inserted.id==='ep-153'&&inserted.dataset.topics.indexOf('science')!==-1,'MutationObserver did not hydrate an inserted episode card');
-
-        var detachedHome=document.querySelector('[data-elementor-id="23095"]');
-        var detachedList=detachedHome.querySelector('[data-id="c04f006"]');
-        await delay(70);
-        var playbackBefore=playerAudio.currentTime;
-        var expectedSurfaces=['Episode surface','Profile surface','Category surface','Tag surface','Page surface','Generic single surface','Podcast home restored'];
-        for(var surfaceIndex=0;surfaceIndex<expectedSurfaces.length;surfaceIndex+=1){
-            var surfaceReady=waitFor('smp:after-navigate');
-            var surfaceLink=surfaceIndex===0?document.getElementById('navigate'):document.getElementById('surface-next');
-            assert(surfaceLink&&observedClick(surfaceLink)===true,'trusted surface '+expectedSurfaces[surfaceIndex]+' was not intercepted');
-            await surfaceReady;
-            assert(document.querySelector('main h1').textContent===expectedSurfaces[surfaceIndex],'trusted surface '+expectedSurfaces[surfaceIndex]+' did not swap');
-            assert(document.querySelectorAll('template[data-smp-ajax-companion="smpi-breadcrumbs"]').length===1&&document.querySelectorAll('[data-smp-ajax-companion-rendered="smpi-breadcrumbs"]').length===1,'breadcrumb companion was duplicated or dropped on '+expectedSurfaces[surfaceIndex]);
-            assert(document.querySelector('[data-smp-ajax-companion-rendered="smpi-breadcrumbs"] [aria-current="page"]').textContent===expectedSurfaces[surfaceIndex]+' breadcrumb','breadcrumb companion remained stale on '+expectedSurfaces[surfaceIndex]);
-            if(surfaceIndex===0){
-                assert(!homeApi.isActive(),'homepage observer remained active after its root was replaced');
-                var detachedCard=document.createElement('div');
-                detachedCard.className='e-loop-item';
-                detachedCard.innerHTML='<span class="mpp-episode-number">Episode 156</span>';
-                detachedList.appendChild(detachedCard);
+    return '(' + (async function(mode) {
+        document.addEventListener('DOMContentLoaded', async function() {
+            const assert = (v,m) => { if(!v) throw Error(m); };
+            const delay = ms => new Promise(r=>setTimeout(r,ms));
+            try {
+                const bar = document.querySelector('[data-smp-player]');
+                const audio = bar.querySelector('audio');
+                if(mode==='base-tools-permanent') bar.setAttribute('data-turbo-permanent','');
+                document.querySelector('#listen').click();
                 await delay(100);
-                assert(!detachedCard.id,'detached homepage root was still observed after navigation');
+                assert(!audio.paused,'audio failed to start');
+                const time=audio.currentTime;
+                document.dispatchEvent(new CustomEvent('hws:page-will-change'));
+                if(mode==='base-tools-permanent') {
+                    const old=document.querySelector('#listen');
+                    const next=old.cloneNode(true);
+                    old.replaceWith(next);
+                    document.body.classList.remove('smp-podcast-player-visible');
+                    document.dispatchEvent(new CustomEvent('hws:page-changed'));
+                    await delay(150);
+                    assert(document.querySelector('[data-smp-player]')===bar,'player replaced');
+                    assert(!audio.paused && audio.currentTime>time,'playback reset');
+                    assert(next.classList.contains('is-smp-playing'),'new button lost playing state');
+                    assert(document.body.classList.contains('smp-podcast-player-visible'),'spacing lost');
+                    next.click();
+                    assert(audio.paused,'new Listen button failed to pause current track');
+                    next.click();
+                    assert(!audio.paused,'new Listen button failed to resume');
+                } else {
+                    assert(audio.paused,'nonpermanent audio kept playing');
+                    assert(bar.hidden,'nonpermanent player was not closed');
+                }
+                assert(window.__smpTest.fetches===0 && window.__smpTest.pushes===0 && window.__smpTest.replaces===0,'player owned navigation');
+                document.body.dataset.testStatus='pass';
+            } catch(error) {
+                document.body.dataset.testStatus='fail';
+                document.querySelector('#test-result').textContent=error.message;
             }
-        }
-
-        assert(homeApi.isActive(),'homepage initializer did not reactivate after returning from another surface');
-        assert(document.getElementById('ep-158')&&document.getElementById('ep-154'),'restored homepage cards were not rehydrated');
-        var restoredCue=document.querySelector('.mpp-scroll-cue');
-        assert(restoredCue&&restoredCue.getAttribute('aria-hidden')==='true'&&restoredCue.classList.contains('is-hidden'),'AJAX-restored scroll cue did not remain clear of the persistent player');
-        assert(counters.homeBindings.click===1&&counters.homeBindings.keydown===1&&counters.homeBindings.input===1&&counters.homeBindings.submit===1&&counters.homeBindings.contentReady===1&&counters.homeBindings.domReady===1&&counters.homeBindings.scroll===1&&counters.homeBindings.resize===1,'homepage delegated listeners were registered more than once');
-        assert(window.__fetchedInlineExecuted!==true,'fetched inline executable code ran during surface navigation');
-        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>playbackBefore+0.1,'audio continuity was lost across the trusted surface matrix');
-        assert(counters.pushes===expectedSurfaces.length&&counters.popstateBindings===1&&counters.scrollBindings===1,'surface navigation duplicated or skipped history ownership');
-
-        click(document.querySelector('[data-smp-close]'));
-        await Promise.resolve();
-        assert(!restoredCue.classList.contains('is-hidden')&&restoredCue.getAttribute('aria-hidden')==='false'&&!restoredCue.querySelector('a').hasAttribute('tabindex'),'closing the player did not restore the unobstructed scroll cue');
-        window.scrollTo(0,320);
-        window.dispatchEvent(new Event('scroll'));
-        homeApi.destroy();
-        await delay(40);
-        assert(!window.__mppHomeInteractions23128,'homepage initializer did not clear its public lifecycle handle');
-        assert(counters.homeBindings.scrollRemoved===1&&counters.homeBindings.resizeRemoved===1,'homepage initializer did not remove its viewport listeners');
-        assert(!restoredCue.classList.contains('is-hidden')&&restoredCue.getAttribute('aria-hidden')==='false','destroy did not cancel a queued scroll-cue animation frame');
-        pass('PASS homepage lifecycle and trusted Elementor surface matrix preserve active audio');
-        return;
-    }
-
-    if(mode==='disabled'){
-        assert(observedClick(document.getElementById('navigate'))===false,'disabled AJAX navigation was intercepted');
-        assert(counters.fetches===0 && counters.replaces===0 && counters.popstateBindings===0,'disabled AJAX changed navigation state');
-        pass('PASS disabled AJAX leaves native navigation untouched');
-        return;
-    }
-
-    if(mode==='self-removing-cloudflare'){
-        assert(window.__cloudflareEmailDecoderRuns===1,'initial Cloudflare decoder did not run exactly once');
-        assert(!document.querySelector('script[src*="/cloudflare-static/email-decode"]'),'initial Cloudflare decoder did not remove itself');
-        var cloudflareBefore=playerAudio.currentTime;
-        var cloudflareReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('navigate'))===true,'Cloudflare target navigation was not intercepted');
-        await cloudflareReady;
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Cloudflare target','Cloudflare target content was not swapped');
-        assert(window.__cloudflareEmailDecoderRuns===1,'fetched Cloudflare decoder was executed again');
-        assert(!document.querySelector('script[src*="/cloudflare-static/email-decode"]'),'fetched Cloudflare decoder was imported into the live document');
-        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>cloudflareBefore,'audio continuity was lost on the Cloudflare-script surface');
-        assert(counters.pushes===1&&counters.popstateBindings===1,'Cloudflare-script surface did not use one AJAX history transition');
-        pass('PASS known same-origin Cloudflare email decoder is ignored without execution');
-        return;
-    }
-
-    if(mode==='trusted-jet-inline'){
-        var jetBefore=playerAudio.currentTime;
-        var jetReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('navigate'))===true,'trusted JetEngine target navigation was not intercepted');
-        await jetReady;
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Trusted JetEngine target','trusted JetEngine target did not swap');
-        assert(window.JetEngineStores&&typeof window.JetEngineStores['local-storage'].getStore==='function','validated JetEngine data-store initializer did not execute');
-        assert(window.__jetBeforeEvents.join(',')==='jet-engine/frontend/loaded','validated JetEngine frontend initializer did not register in source order');
-        assert(window.__dynamicLoads.join(',')==='jet-engine-data-stores-js,jet-engine-frontend-js','JetEngine external assets did not load in source order');
-        assert(document.querySelectorAll('#jet-engine-data-stores-js-before').length===1&&document.querySelectorAll('#jet-engine-frontend-js-before').length===1,'validated JetEngine initializers were duplicated or omitted');
-        assert(window.__tamperedJetInline!==true,'tampered JetEngine code executed');
-        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>jetBefore,'audio continuity was lost while loading validated JetEngine initializers');
-        assert(counters.pushes===1&&counters.popstateBindings===1,'trusted JetEngine navigation did not own one AJAX transition');
-        pass('PASS exact JetEngine before-initializers load in order without interrupting audio');
-        return;
-    }
-
-    if(mode==='aborted-jet-inline'){
-        assert(observedClick(document.getElementById('navigate'))===true,'aborted JetEngine target navigation was not intercepted');
-        await delay(520);
-        assert(window.__jetAbortRevalidationReached===true&&window.__jetDataStoreTrimCalls===4,'JetEngine abort fixture did not reach execution-time revalidation');
-        assert(playerAudio.paused,'JetEngine abort fixture did not pause active playback');
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Initial content','aborted JetEngine navigation swapped content');
-        assert(!window.JetEngineStores,'aborted JetEngine inline initializer executed');
-        assert(window.__jetBeforeEvents.length===0,'aborted JetEngine frontend initializer registered');
-        assert(window.__dynamicLoads.length===0,'aborted JetEngine navigation loaded external scripts');
-        assert(counters.pushes===0&&counters.replaces===0,'aborted JetEngine navigation changed history');
-        assert(counters.cancellations>=1,'aborted JetEngine navigation was not explicitly cancelled');
-        assert(!document.body.classList.contains('smp-podcast-ajax-loading'),'aborted JetEngine navigation left loading state behind');
-        pass('PASS aborted navigation cannot execute validated JetEngine inline initializers');
-        return;
-    }
-
-    if(mode.indexOf('slow-')===0){
-        assert(observedClick(document.getElementById('navigate'))===true,'slow navigation was not intercepted');
-        await delay(75);
-        if(mode==='slow-pause')playerAudio.pause();
-        if(mode==='slow-close')click(document.querySelector('[data-smp-close]'));
-        if(mode==='slow-ended')window.__smpMedia.end(playerAudio);
-        if(mode==='slow-error')window.__smpMedia.error(playerAudio);
-        await delay(520);
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Initial content','cancelled slow request still swapped content');
-        assert(counters.pushes===0 && counters.replaces===0,'cancelled slow request changed history');
-        assert(counters.popstateBindings===0 && counters.scrollBindings===0,'cancelled slow request started a history session');
-        assert(counters.cancellations>=1,'slow request was not explicitly cancelled');
-        assert(!document.body.classList.contains('smp-podcast-ajax-loading'),'cancelled slow request left loading state behind');
-        assert(!document.querySelector('[data-smp-ajax-root]').hasAttribute('aria-busy'),'cancelled slow request left aria-busy behind');
-        assert(history.scrollRestoration!=='manual','cancelled slow request retained manual scroll restoration');
-        if(mode==='slow-close')assert(document.querySelector('[data-smp-player]').hidden,'close did not hide the player');
-        if(mode==='slow-ended')assert(playerAudio.ended,'ended test did not enter ended state');
-        pass('PASS '+mode+' aborts without session, swap, or hard fallback');
-        return;
-    }
-
-    if(mode==='continuity'){
-        await delay(70);
-        var continuityBefore=playerAudio.currentTime;
-        var continuityReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('navigate'))===true,'continuity navigation was not intercepted');
-        await continuityReady;
-        assert(document.querySelector('[data-smp-audio]')===playerAudio,'successful navigation replaced the audio element');
-        assert(!playerAudio.paused && playerAudio.currentTime>continuityBefore+0.1,'audio did not advance uninterrupted during navigation');
-        assert(document.title==='Continuity target','continuity title was not synchronized');
-        assert(document.querySelector('meta[name="description"]').content==='Continuity description','continuity description was not synchronized');
-        assert(new URL(document.querySelector('link[rel="canonical"]').href).pathname==='/continuity','continuity canonical was not synchronized');
-        var continuitySchema=JSON.parse(document.head.querySelector('script[type="application/ld+json"]').textContent);
-        assert(continuitySchema['@type']==='PodcastEpisode' && continuitySchema.name==='Continuity target','continuity schema was not synchronized');
-        assert(counters.popstateBindings===1 && history.scrollRestoration==='manual','continuity navigation did not activate bounded history ownership');
-        pass('PASS audio advances uninterrupted while head and schema update');
-        return;
-    }
-
-    if(mode==='elementor-recaptcha'){
-        await delay(40);
-        var recaptchaBefore=playerAudio.currentTime;
-        var recaptchaReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('navigate'))===true,'Elementor reCAPTCHA navigation was not intercepted');
-        await recaptchaReady;
-        var loadedRecaptcha=new URL(window.__dynamicScriptUrls[0]);
-        assert(window.__dynamicLoads.join(',')==='elementor-recaptcha_v3-api-js','Elementor reCAPTCHA dependency was not loaded exactly once');
-        assert(loadedRecaptcha.protocol==='https:'&&loadedRecaptcha.host==='www.google.com'&&loadedRecaptcha.pathname==='/recaptcha/api.js'&&loadedRecaptcha.searchParams.get('render')==='explicit','loaded reCAPTCHA dependency did not retain the exact trusted endpoint');
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Elementor reCAPTCHA target','Elementor reCAPTCHA content was not swapped');
-        assert(window.__elementorReadyCalls===1,'Elementor lifecycle did not initialize the reCAPTCHA form surface');
-        var initializedForm=document.querySelector('form.elementor-form');
-        assert(initializedForm.getAttribute('data-elementor-handler-ready')==='1'&&window.__elementorReadyTypes.join(',')==='form.default','Elementor form widget handler was not attached');
-        initializedForm.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
-        assert(window.__elementorFormSubmits===1,'initialized Elementor form did not handle submit');
-        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>recaptchaBefore,'audio continuity was lost on the Elementor reCAPTCHA surface');
-        pass('PASS exact Elementor reCAPTCHA dependency loads without interrupting audio');
-        return;
-    }
-
-    if(mode==='wordfence-fresh'){
-        var wordfenceBefore=playerAudio.currentTime;
-        var wordfenceReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('navigate'))===true,'fresh Wordfence navigation was not intercepted');
-        await wordfenceReady;
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Fresh Wordfence target','fresh Wordfence content was not swapped');
-        assert(window.wfLogHumanRan!==true&&window.__dynamicLoads.length===0,'fetched Wordfence inline script executed instead of the safe logger');
-        assert(window.__tamperedWordfence!==true,'tampered Wordfence code executed');
-        document.dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));
-        await delay(30);
-        var wordfenceUrl=new URL(window.__dynamicScriptUrls[0]);
-        assert(window.__dynamicLoads.join(',')==='smp-wordfence-human-logger','safe Wordfence logger did not load exactly once');
-        assert(wordfenceUrl.origin===location.origin&&wordfenceUrl.pathname==='/'&&wordfenceUrl.searchParams.get('wordfence_lh')==='1'&&/^[a-f0-9]{32}$/i.test(wordfenceUrl.searchParams.get('hid')||'')&&wordfenceUrl.searchParams.has('r'),'safe Wordfence logger did not preserve the validated same-origin endpoint');
-        document.dispatchEvent(new MouseEvent('mouseup',{bubbles:true}));
-        await delay(20);
-        assert(window.__dynamicLoads.length===1,'safe Wordfence logger did not remove its listeners after the first human event');
-        assert(document.querySelector('[data-smp-audio]')===playerAudio&&!playerAudio.paused&&playerAudio.currentTime>wordfenceBefore,'audio continuity was lost on the fresh Wordfence surface');
-        pass('PASS exact fresh Wordfence logger is safely reconstructed without interrupting audio');
-        return;
-    }
-
-    if(mode==='divergent-assets'){
-        await delay(40);
-        var divergentBefore=playerAudio.currentTime;
-        var episodeReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('navigate'))===true,'episode-like navigation was not intercepted');
-        await episodeReady;
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Episode surface','episode-like content was not swapped');
-        assert(document.getElementById('elementor-frontend-inline-css').textContent.indexOf('episode')!==-1,'divergent Elementor inline CSS was not replaced');
-        assert(!!document.getElementById('wp-block-library-inline-css'),'target-only managed WordPress CSS was not added');
-        assert(!!document.getElementById('elementor-post-2') && !document.getElementById('elementor-post-1'),'page-specific Elementor CSS was not reconciled');
-        assert(!!document.querySelector('link[href$="/episode.css"]') && !document.querySelector('link[href$="/home.css"]'),'episode stylesheet set was not reconciled');
-        assert(window.__dynamicLoads.join(',')==='e-sticky-js','allowlisted sticky dependency was not loaded exactly once');
-        assert(window.__elementorReadyCalls===1 && window.elementorFrontendConfig.post.id===2,'episode Elementor lifecycle/config was not updated');
-
-        var homeReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('surface-next'))===true,'home-like return navigation was not intercepted');
-        await homeReady;
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Home surface','home-like content was not swapped');
-        assert(document.getElementById('elementor-frontend-inline-css').textContent.indexOf('home')!==-1,'home Elementor inline CSS was not restored');
-        assert(!document.getElementById('wp-block-library-inline-css'),'stale episode-only WordPress CSS was not removed');
-        assert(!!document.getElementById('elementor-post-1') && !document.getElementById('elementor-post-2'),'home page-specific Elementor CSS was not reconciled');
-        assert(!!document.querySelector('link[href$="/home.css"]') && !document.querySelector('link[href$="/episode.css"]'),'home stylesheet set was not reconciled');
-        assert(window.__dynamicLoads.join(',')==='e-sticky-js,jet-plugins-js,jet-engine-data-stores-js,jet-engine-frontend-js','allowlisted dynamic scripts did not load sequentially');
-        assert(document.querySelectorAll('style:not([id])').length===1,'identical anonymous style was duplicated or removed');
-        assert(document.querySelector('[data-smp-audio]')===playerAudio && !playerAudio.paused && playerAudio.currentTime>divergentBefore,'audio was interrupted across divergent surfaces');
-        assert(counters.popstateBindings===1 && counters.scrollBindings===1 && counters.pushes===2,'divergent navigation duplicated or skipped history ownership');
-        assert(window.__elementorReadyCalls===2 && window.elementorFrontendConfig.post.id===1,'home Elementor lifecycle/config was not updated');
-        pass('PASS home and episode-like Elementor CSS/assets reconcile in both directions');
-        return;
-    }
-
-    if(mode==='inactive-history' || mode==='foreign-history'){
-        var historyReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('navigate'))===true,'history test navigation was not intercepted');
-        await historyReady;
-        assert(counters.popstateBindings===1 && counters.scrollBindings===1 && history.scrollRestoration==='manual','history session was not activated');
-        if(mode==='inactive-history'){
-            var replacementsBeforePark=counters.replaces;
-            playerAudio.pause();
-            assert(counters.scrollRemovals===1,'parking did not remove the scroll listener');
-            assert(history.scrollRestoration!=='manual','parking did not restore native scroll restoration');
-            window.dispatchEvent(new Event('scroll'));
-            await delay(180);
-            assert(counters.replaces===replacementsBeforePark,'parked scroll still replaced history state');
-            assert(history.state && history.state.smpPodcastAjax,'successful session state lost its ownership marker');
-            sessionStorage.setItem('smp-history-proof','pass');
-            window.dispatchEvent(new PopStateEvent('popstate',{state:history.state}));
-            return;
-        }
-        assert(!playerAudio.paused,'foreign history test unexpectedly paused playback');
-        history.replaceState({foreign:true},'',window.location.href);
-        sessionStorage.setItem('smp-history-proof','pass');
-        window.dispatchEvent(new PopStateEvent('popstate',{state:{foreign:true}}));
-        return;
-    }
-
-    if(mode==='active' || mode==='elementor-ready'){
-        var firstReady=waitFor('smp:after-navigate');
-        assert(observedClick(document.getElementById('navigate'))===true,'active navigation was not intercepted');
-        await firstReady;
-        var expectedHeading=mode==='elementor-ready' ? 'Elementor target' : 'Next page';
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent===expectedHeading,'content root was not swapped');
-        assert(document.title===expectedHeading,'document title was not synchronized');
-        assert(document.documentElement.lang===(mode==='elementor-ready' ? 'en' : 'en-GB'),'document language was not synchronized');
-        assert(document.querySelector('meta[name="description"]').content===expectedHeading+' description','description was not synchronized');
-        assert(!document.querySelector('meta[name="robots"]'),'missing target robots tag left stale metadata');
-        assert(new URL(document.querySelector('link[rel="canonical"]').href).pathname===(mode==='elementor-ready' ? '/elementor-ready' : '/next'),'canonical was not synchronized');
-        if(mode==='active')assert(!!document.querySelector('link[rel~="stylesheet"][href$="/target.css"]'),'missing same-origin target stylesheet was not loaded');
-        assert(counters.pushes===1 && counters.replaces>=1,'successful navigation did not own history once');
-        assert(counters.popstateBindings===1 && counters.scrollBindings===1,'history listeners were not lazily installed');
-        assert(history.scrollRestoration==='manual','scroll restoration was not enabled for the active session');
-        assert(document.querySelectorAll('audio').length===1 && document.querySelectorAll('#ap-audio').length===0,'audio singleton was not preserved');
-
-        if(mode==='elementor-ready'){
-            assert(window.__elementorReadyCalls===1,'Elementor ready lifecycle did not run exactly once');
-            assert(window.elementorFrontendConfig.post.id===2 && window.elementorFrontend.config.post.id===2,'validated Elementor config was not synchronized');
-            assert(window.ElementorProFrontendConfig.version==='test-target' && window.elementorProFrontend.config.version==='test-target','validated Elementor Pro config was not synchronized');
-            assert(window.JetEngineSettings.post_id==='2' && window.JetEngineSettings.queried_object_class==='WP_Post','validated JetEngine JSON config was not synchronized');
-            pass('PASS validated Elementor config and lifecycle behavior');
-            return;
-        }
-
-        var popState={smpPodcastAjax:true,smpScrollX:0,smpScrollY:0};
-        history.replaceState(popState,'','/back');
-        var popReady=waitFor('smp:after-navigate');
-        window.dispatchEvent(new PopStateEvent('popstate',{state:popState}));
-        await popReady;
-        assert(document.querySelector('[data-smp-ajax-root] h1').textContent==='Back page','popstate content was not restored');
-        assert(counters.fetches===2 && counters.pushes===1,'popstate used the wrong navigation mode');
-        assert(!document.querySelector('link[rel="canonical"]') && !document.querySelector('meta[name="description"]') && !document.querySelector('meta[property^="og:"]'),'missing target SEO tags left stale metadata');
-        assert(!document.head.querySelector('script[type="application/ld+json"]'),'missing target schema left stale JSON-LD');
-        assert(!document.querySelector('link[rel~="stylesheet"][href$="/target.css"]'),'stale target-only stylesheet was not removed');
-        pass('PASS active playback, history, head sync, and singleton behavior');
-        return;
-    }
-
-    click(document.getElementById('navigate'));
-}catch(error){fail(error && error.message ? error.message : String(error));}},40);},{once:true});
-})();`;
+        },{once:true});
+    }).toString() + ')(' + JSON.stringify(mode) + ');';
 }
 
 function playerMarkup() {
@@ -1306,6 +922,7 @@ async function runChrome(url) {
     const profile = mkdtempSync(join(root, '.tmp-smp-player-browser-'));
     const args = [
         '--headless=new',
+        '--no-proxy-server',
         '--no-sandbox',
         '--disable-gpu',
         '--disable-dev-shm-usage',

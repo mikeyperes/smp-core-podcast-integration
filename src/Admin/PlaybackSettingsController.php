@@ -29,14 +29,10 @@ final class PlaybackSettingsController implements ModuleInterface {
         $settings = PlaybackSettings::save(
             [
                 'enabled' => $request->bool( 'enabled', false, 'post' ),
-                'ajax_navigation' => $request->bool( 'ajax_navigation', false, 'post' ),
+                'ajax_player' => $request->bool( 'ajax_player', false, 'post' ),
                 'video_enabled' => $request->bool( 'video_enabled', false, 'post' ),
                 'show_mode_switch' => $request->bool( 'show_mode_switch', false, 'post' ),
                 'sync_media_position' => $request->bool( 'sync_media_position', false, 'post' ),
-                'content_selector' => $request->text( 'content_selector', '', 'post' ),
-                'excluded_paths' => $request->raw( 'excluded_paths', '', 'post' ),
-                'timeout_ms' => $request->int( 'timeout_ms', 10000, 'post' ),
-                'transition_ms' => $request->int( 'transition_ms', 180, 'post' ),
                 'skip_back' => $request->int( 'skip_back', 15, 'post' ),
                 'skip_forward' => $request->int( 'skip_forward', 30, 'post' ),
                 'show_cover' => $request->bool( 'show_cover', false, 'post' ),

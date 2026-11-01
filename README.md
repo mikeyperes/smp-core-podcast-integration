@@ -1,6 +1,6 @@
 # Scale My Podcast - Core Functionality
 
-Hexa WordPress integration for podcast content, ACF field structures, profile relationships, PowerPress metadata, feeds, shortcodes, a persistent audio/video player, playback-preserving navigation, and release diagnostics.
+Hexa WordPress integration for podcast content, ACF field structures, profile relationships, PowerPress metadata, feeds, shortcodes, a persistent audio/video player, Base Tools playback continuity, and release diagnostics.
 
 
 > Feature base for HWS Skills. Read before building on this plugin; use or
@@ -110,7 +110,7 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Code:** `src/Acf/PodcastOptionsFieldGroup.php`.
 
 ### Persistent player and navigation
-- **Does:** Singleton audio/video player and playback-preserving same-origin navigation; assets load only on the homepage, episodes or actual media-shortcode output.
+- **Does:** Singleton audio/video player; optional continuity uses HWS Base Tools AJAX Navigation 13.47.0 or newer.
 - **Switch:** Persistent Player; `smp_podcast_playback_settings`, disabled by default.
 - **Use:** Listen/Watch triggers; see Player and Elementor Contract below.
 - **Code:** `src/Frontend/PersistentPlayer.php; src/Settings/PlaybackSettings.php`.
@@ -177,7 +177,7 @@ ACF Pro is not required: the field layer runs on Hexa WP Core custom fields, whi
 - `src/Admin`: Hexa WP Core dashboard and authenticated operations
 - `src/Acf`: canonical podcast field groups with stable ACF keys
 - `src/Content`: content and default-host behavior
-- `src/Frontend`: shortcodes, audio-source resolution, the persistent player, playback navigation, displays, and feeds
+- `src/Frontend`: shortcodes, audio-source resolution, the persistent player, playback continuity, displays, and feeds
 - `src/Integrations`: PowerPress synchronization
 - `src/Diagnostics`: shared Hexa integration tests
 - `lib/hexa-wordpress-plugin-core`: bundled shared UI, updater, registry, AJAX, and test runtime
@@ -226,19 +226,13 @@ exact 165 IDs. It must not be run without its documented production gates.
 
 Open **Settings > Scale My Podcast**. The dashboard uses Hexa WP Core for sidebar tabs, collapsible structures, content-type and ACF controls, snippets, shortcodes, update panels, dynamic buttons, and integration tests.
 
-The **Persistent Player** tab saves through an authenticated, nonce-protected AJAX action. The player is opt-in by default and exposes independent switches for playback-preserving navigation, inline video, the Audio / Video switch, timestamp transfer, Media Session, remembered preferences, artwork, skip, rate, volume, download, and close controls. Playback-preserving navigation is eligible only while the selected audio or video medium is actively playing; pause, close, end, and error immediately return links and history to ordinary browser behavior. The tab also controls the bounded content selector, excluded paths, timeout, transition, and skip intervals.
+The **Persistent Player** tab includes an **AJAX player** section. **Keep playing across page clicks** is off by default; an explicitly stored legacy navigation choice migrates to it. The section links to Base Tools AJAX Navigation and warns when its dependency is missing, too old or disabled. With both switches on it shows a green ready note.
 
 ## Player and Elementor Contract
 
 Use `[smp_listen_button]` or `[smp_watch_button]` in an Elementor Shortcode widget, WordPress content, or a PHP template. Optional attributes are `post_id`, `label`, and `class`; Watch also accepts `element="button"` for legacy button-only placement while its default output is a real YouTube anchor. The server-rendered controls carry both available media sources so visitors can switch formats without leaving the current episode. A native Elementor Watch button may retain its real dynamic YouTube URL and add the `smp-watch-button` class; the runtime intercepts only an unmodified primary click while inline video is enabled.
 
-For rebuilt Elementor templates, put `data-smp-ajax-root` on the one content island that should change between pages. Compatible explicit marker values may navigate to each other. Without explicit markers, selector changes are limited to the hardcoded Elementor page, post, single, and archive surface matrix; custom and bounded `main.site-main` or `main#content` selectors must match exactly. Keep the fixed player, persistent header, and persistent footer outside that island. Header, footer, navigation, whole-document, broad `main`, ambiguous selectors, and one-sided or mismatched explicit markers are rejected.
-
-Plugin-owned markup that must live outside the replaceable island uses the inert companion contract. The only currently supported companion is one outside-root `<template data-smp-ajax-companion="smpi-breadcrumbs">`. Its breadcrumb markup is restricted to an explicit tag/attribute allowlist and same-origin HTTP(S) links. The runtime replaces the prior template and rendered breadcrumb before `smp:content-ready`; duplicate, unknown, executable, or unsafe companion content rejects AJAX navigation and falls back to the full server-rendered page.
-
-No history listener, scroll-state mutation, or manual scroll restoration is installed on page load. A navigation session begins only after playback is eligible and the first fetched page passes root, script, style, and Elementor preflight. It fetches the exact same-origin public URL and accepts only an HTTP 200 HTML document. Any timeout, HTTP error, non-HTML response, mismatched root, unsupported executable inline script or localized configuration, missing script asset, unsupported style, unavailable Elementor lifecycle, external URL, account/checkout path, feed, media/download URL, modified click, target link, or excluded path uses ordinary browser navigation.
-
-After safe preflight, the runtime reconciles validated WordPress/Elementor inline styles, loads trusted stylesheets and a narrow handle-and-path allowlist of Elementor/JetEngine dependencies, accepts Elementor's exact reCAPTCHA handle only from the HTTPS Google or reCAPTCHA endpoint with `render=explicit`, executes only byte-exact captured JetEngine initializers after execution-time revalidation and abort checks, and, when no equivalent logger is already active, safely reconstructs Wordfence's byte-exact human logger only for its validated same-origin endpoint. It then replaces only the matched content island, synchronizes the document title/language, common canonical/alternate links, common SEO and social metadata, head JSON-LD, body classes, history, and scroll position, and invokes the supported Elementor ready trigger. It never evaluates unknown fetched inline JavaScript, copies inline event handlers, or loads an unknown script. Direct requests remain complete server-rendered WordPress pages with their original status, metadata, schema, and crawlable links.
+When AJAX player and HWS Base Tools AJAX Navigation (13.47.0+) are both on, the player renders on every eligible public page as a permanent aside with id smp-podcast-player. Its audio and YouTube frame remain inside that stable container. Base Tools owns all fetching, assets, document replacement, metadata and history. On hws:page-changed, delegated Listen/Watch controls reflect the current track and body spacing is restored. On hws:page-will-change, a nonpermanent player stops and releases its page handlers. Full reloads stop playback.
 
 ## Testing
 
@@ -253,6 +247,12 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.4.0
+- Remove the player-owned navigation, swap, asset and head synchronization engine.
+- Add the opt-in AJAX player settings section, dependency warning and ready state.
+- Migrate the stored legacy navigation choice; preserve audio/video with Base Tools permanent markup and refresh new page controls.
+
 
 ### 3.3.7
 

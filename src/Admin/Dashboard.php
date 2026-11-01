@@ -266,15 +266,14 @@ final class Dashboard implements ModuleInterface {
         $settings = PlaybackSettings::get();
         ?>
         <section class="smp-podcast-intro">
-            <h2>Persistent Media Player and Playback Navigation</h2>
-            <p>One fixed audio or video player can remain active while listeners browse. Navigation is enhanced only while the selected media is actively playing; every public URL remains a complete server-rendered WordPress document for search engines, sharing, and direct visits.</p>
+            <h2>Persistent Media Player</h2>
+            <p>One fixed audio or video player handles playback. Enable AJAX player with HWS Base Tools AJAX Navigation to keep it playing across page clicks.</p>
         </section>
         <form class="smp-podcast-playback-form" data-smp-playback-form>
             <section class="hpc-card">
-                <div class="smp-podcast-setting-heading"><div><h3>Runtime</h3><p>Enable the singleton player first, then choose when same-origin links use the playback-preserving navigation layer.</p></div><?php echo CoreUi::pill( $settings['enabled'] ? 'Enabled' : 'Disabled', $settings['enabled'] ? 'success' : 'warning' ); ?></div>
+                <div class="smp-podcast-setting-heading"><div><h3>Runtime</h3><p>Enable the player and choose its playback controls.</p></div><?php echo CoreUi::pill( $settings['enabled'] ? 'Enabled' : 'Disabled', $settings['enabled'] ? 'success' : 'warning' ); ?></div>
                 <div class="smp-podcast-toggle-grid">
                     <?php $this->playback_toggle( 'enabled', 'Enable persistent podcast player', 'Renders one accessible media surface and fixed bottom control bar.', (bool) $settings['enabled'] ); ?>
-                    <?php $this->playback_toggle( 'ajax_navigation', 'Enable playback-preserving navigation', 'Fetches the clicked public HTML page only while audio or video is actively playing.', (bool) $settings['ajax_navigation'] ); ?>
                     <?php $this->playback_toggle( 'video_enabled', 'Enable inline episode video', 'Loads a real episode YouTube video inside the persistent media surface after a Watch click.', (bool) $settings['video_enabled'] ); ?>
                     <?php $this->playback_toggle( 'show_mode_switch', 'Show Audio / Video switch', 'Lets visitors switch formats for the same episode without leaving the current page.', (bool) $settings['show_mode_switch'] ); ?>
                     <?php $this->playback_toggle( 'sync_media_position', 'Keep position when switching formats', 'Carries the current timestamp between audio and video when both versions are available.', (bool) $settings['sync_media_position'] ); ?>
@@ -284,14 +283,15 @@ final class Dashboard implements ModuleInterface {
             </section>
 
             <section class="hpc-card">
-                <h3>Navigation Safety</h3>
-                <p>The browser fetches the exact canonical link with cookies and an HTML accept header. It swaps only a matching bounded root after scripts, styles, and Elementor readiness pass preflight. Unsupported pages, HTTP errors, non-HTML responses, missing roots, timeouts, downloads, external links, feeds, account paths, and modified clicks use normal navigation.</p>
-                <div class="smp-podcast-field-grid">
-                    <label class="hpc-field"><span>Preferred content root selector</span><input type="text" name="content_selector" value="<?php echo esc_attr( (string) $settings['content_selector'] ); ?>" spellcheck="false"><small>Add <code>data-smp-ajax-root</code> to the rebuilt content island. Header, footer, navigation, whole-document, and ambiguous roots are rejected.</small></label>
-                    <label class="hpc-field"><span>Request timeout (milliseconds)</span><input type="number" name="timeout_ms" min="2000" max="30000" step="500" value="<?php echo (int) $settings['timeout_ms']; ?>"><small>A timeout performs an ordinary browser navigation.</small></label>
-                    <label class="hpc-field"><span>Transition duration (milliseconds)</span><input type="number" name="transition_ms" min="0" max="1000" step="10" value="<?php echo (int) $settings['transition_ms']; ?>"><small>Reduced-motion preferences always disable this effect.</small></label>
-                    <label class="hpc-field smp-podcast-field-wide"><span>Additional excluded paths</span><textarea name="excluded_paths" rows="8" spellcheck="false"><?php echo esc_textarea( (string) $settings['excluded_paths'] ); ?></textarea><small>One site-relative path or wildcard per line. Built-in admin, login, REST, feed, checkout, account, media, and download exclusions cannot be removed.</small></label>
-                </div>
+                <h3>AJAX player</h3>
+                <?php $this->playback_toggle( 'ajax_player', 'Keep playing across page clicks', 'Keeps this player alive while HWS Base Tools loads the next page.', (bool) $settings['ajax_player'] ); ?>
+                <p><a href="<?php echo esc_url( PlaybackSettings::navigation_settings_url() ); ?>">HWS Base Tools AJAX Navigation</a></p>
+                <?php if ( ! PlaybackSettings::navigation_ready() ) : ?>
+                    <p role="status">Requires AJAX Navigation in HWS Base Tools. Until it's on, the player stops when a page reloads.</p>
+                    <p><a class="hpc-button" href="<?php echo esc_url( PlaybackSettings::navigation_settings_url() ); ?>">Open AJAX Navigation</a></p>
+                <?php elseif ( $settings['ajax_player'] ) : ?>
+                    <p role="status" style="color:#16733c">Ready: the player keeps playing across page clicks.</p>
+                <?php endif; ?>
             </section>
 
             <section class="hpc-card">
@@ -308,11 +308,6 @@ final class Dashboard implements ModuleInterface {
                     <?php $this->playback_toggle( 'show_download', 'Download control', 'Use the direct media URL when one is available.', (bool) $settings['show_download'] ); ?>
                     <?php $this->playback_toggle( 'show_close', 'Close control', 'Allow listeners to stop and clear the active track.', (bool) $settings['show_close'] ); ?>
                 </div>
-            </section>
-
-            <section class="hpc-card smp-podcast-seo-note">
-                <h3>SEO contract</h3>
-                <ul><li>No public AJAX endpoint or app shell is introduced.</li><li>Direct pages retain their normal HTTP status, canonical URL, metadata, JSON-LD, crawlable anchors, and complete Elementor HTML.</li><li>After safe preflight, client navigation synchronizes the document title/language, common canonical and alternate links, common SEO/social metadata, head JSON-LD, body classes, history, scroll state, and supported Elementor handlers. Other page-specific scripts or assets force a full navigation.</li></ul>
             </section>
 
             <div class="hpc-actions smp-podcast-playback-actions">

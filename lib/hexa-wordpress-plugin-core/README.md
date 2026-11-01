@@ -299,7 +299,7 @@
 
 ### Map
 - **Does:** a brandable map of posts or users by address, geocoded in the background without an API key, with clustered pins, group and date filters, item cards and a details sidebar.
-- **Use:** `MapRegistry::register( 'id', [...] )`, add `MapModule`, then `[hexa_map id="id"]`; details at REST `hexa-plugin-core/v1/map/{profile}/details/{item}`.
+- **Use:** `MapRegistry::register( 'id', [...] )`, add `MapModule`, then `[hexa_map id="id"]` (add `pulse="ring"` for a pulse that never redraws the map); details at REST `hexa-plugin-core/v1/map/{profile}/details/{item}`.
 - **Style:** `--hmap-*` CSS variables, including the base map.
 - **Extend:** `hexa_plugin_core_map_register`.
 - **Code:** `src/Map/` (docs: `docs/map.md`)
