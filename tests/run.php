@@ -927,6 +927,36 @@ foreach ( $snippets as $snippet ) {
     }
 }
 
+$rules = new SMP\Podcast\Integrations\Elementor\ContentKindRules();
+check( ! $rules->register_conditions( null ), 'Elementor rules are safe when Elementor Pro is absent' );
+require $root . '/tests/support/elementor.php';
+$manager = new class {
+    public array $conditions = [];
+    public int $child_registrations = 0;
+    public function get_condition( string $key ): mixed {
+        if ( 'singular' === $key ) {
+            return new class( $this ) {
+                public function __construct( private object $manager ) {}
+                public function register_sub_condition( object $condition ): void {
+                    $this->manager->child_registrations++;
+                    $this->manager->register_condition_instance( $condition );
+                }
+            };
+        }
+        return $this->conditions[ $key ] ?? false;
+    }
+    public function register_condition_instance( object $condition ): void { $this->conditions[ $condition->get_name() ] = $condition; }
+};
+check( $rules->register_conditions( $manager ) && 2 === $manager->child_registrations, 'both Elementor condition keys register without the helper' );
+check( $rules->register_conditions( $manager ) && 2 === $manager->child_registrations, 'existing helper keys are replaced without duplicate singular entries' );
+check( 'Episodes' === $manager->conditions['mpp_episode']->get_label() && 'Articles' === $manager->conditions['mpp_article']->get_label(), 'Elementor labels preserve the requested Episodes and Articles choices' );
+check( 36 === $manager->conditions['mpp_episode']::get_priority(), 'content-kind condition priority preserves template precedence' );
+$GLOBALS['test_queried_id'] = 301;
+check( $manager->conditions['mpp_episode']->check( [] ) && ! $manager->conditions['mpp_article']->check( [] ), 'episode rule uses the canonical episode contract' );
+$GLOBALS['test_queried_id'] = 304;
+check( ! $manager->conditions['mpp_episode']->check( [] ) && $manager->conditions['mpp_article']->check( [] ), 'explicit article veto separates the two Elementor rules' );
+$GLOBALS['test_queried_id'] = 0;
+
 $banned_files = [ 'GitHub_Updater.php', 'generic-functions.php', 'function-schema.php', 'function-post-save.php', 'snippet-rss.php', 'settings-dashboard.php', 'register-acf-structure-user.php' ];
 foreach ( $banned_files as $file ) {
     check( ! file_exists( $root . '/' . $file ), 'superseded flat file removed: ' . $file );

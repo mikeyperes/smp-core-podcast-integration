@@ -154,6 +154,12 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Use:** Settings → Scale My Podcast → Shortcodes.
 - **Code:** `src/Frontend/Shortcodes.php` uses Core `ShortcodeRegistry` and `ShortcodeDefinition`; `src/Admin/Dashboard.php` uses Core `ShortcodeDisplayRenderer`.
 
+### Elementor content-kind display rules
+- **Does:** Adds Episodes and Articles under Singular using the plugin-owned `_mpp_content_kind` classification and existing episode compatibility rules.
+- **Use:** Theme Builder display conditions `mpp_episode` and `mpp_article`; existing template assignments require no changes.
+- **Extend:** Registers at priority 30 after the MPP helper, replacing matching instances without duplicate child entries.
+- **Code:** `src/Integrations/Elementor/ContentKindRules.php`; `ContentKindCondition.php`, `EpisodeCondition.php`, `ArticleCondition.php`.
+
 ## Internals
 
 - Standalone regression harness models WordPress metadata and initialized ACF for the bundled Core version; `php tests/run.php` and `php tests/content-kind-migration.php`.
@@ -252,6 +258,12 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.3.6
+
+- Owns Episodes and Articles Elementor display rules under the existing mpp_episode/mpp_article keys and precedence.
+- Supersedes matching helper rule instances without editing the helper or changing stored template conditions.
+- Bundles Hexa WP Core 3.47.0.
 
 ### 3.3.5
 
