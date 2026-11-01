@@ -32,3 +32,5 @@ Before: home loads player and homepage CSS/JS; an article with media controls lo
 After, both continuity switches on: home retains all four; articles and About load player CSS/JS and permanent markup. Every public destination needs the same permanent container. Admin remains admin CSS/JS only.
 After, either continuity switch off: the existing feature-usage boundary remains; About loads neither, home and media output retain the player.
 The player script contains no fetch, swap, head or asset synchronization. Base Tools alone loads its Turbo/navigation assets. The player runtime guards repeated execution and refreshes delegated controls after each completed navigation.
+
+3.4.1 retains the same asset handles and boundaries. A scoped child-list observer refreshes playback state only when new Listen/Watch elements appear, including late search results.

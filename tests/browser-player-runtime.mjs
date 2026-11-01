@@ -874,6 +874,11 @@ function clientTestScript(mode) {
                     assert(!audio.paused && audio.currentTime>time,'playback reset');
                     assert(next.classList.contains('is-smp-playing'),'new button lost playing state');
                     assert(document.body.classList.contains('smp-podcast-player-visible'),'spacing lost');
+                    const late=next.cloneNode(true);
+                    late.classList.remove('is-smp-playing');
+                    document.querySelector('main').appendChild(late);
+                    await delay(50);
+                    assert(late.classList.contains('is-smp-playing'),'late search result lost playback state');
                     next.click();
                     assert(audio.paused,'new Listen button failed to pause current track');
                     next.click();

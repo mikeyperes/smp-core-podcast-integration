@@ -232,7 +232,7 @@ The **Persistent Player** tab includes an **AJAX player** section. **Keep playin
 
 Use `[smp_listen_button]` or `[smp_watch_button]` in an Elementor Shortcode widget, WordPress content, or a PHP template. Optional attributes are `post_id`, `label`, and `class`; Watch also accepts `element="button"` for legacy button-only placement while its default output is a real YouTube anchor. The server-rendered controls carry both available media sources so visitors can switch formats without leaving the current episode. A native Elementor Watch button may retain its real dynamic YouTube URL and add the `smp-watch-button` class; the runtime intercepts only an unmodified primary click while inline video is enabled.
 
-When AJAX player and HWS Base Tools AJAX Navigation (13.47.0+) are both on, the player renders on every eligible public page as a permanent aside with id smp-podcast-player. Its audio and YouTube frame remain inside that stable container. Base Tools owns all fetching, assets, document replacement, metadata and history. On hws:page-changed, delegated Listen/Watch controls reflect the current track and body spacing is restored. On hws:page-will-change, a nonpermanent player stops and releases its page handlers. Full reloads stop playback.
+When AJAX player and HWS Base Tools AJAX Navigation (13.47.0+) are both on, the player renders on every eligible public page as a permanent aside with id smp-podcast-player. Its audio and YouTube frame remain inside that stable container. Base Tools owns all fetching, assets, document replacement, metadata and history. On hws:page-changed, delegated Listen/Watch controls reflect the current track and body spacing is restored. Later search-result insertions also inherit the current playback state. On hws:page-will-change, a nonpermanent player stops and releases its page handlers. Full reloads stop playback.
 
 ## Testing
 
@@ -247,6 +247,9 @@ node tests/browser-player-runtime.mjs
 On an authenticated WordPress installation, use **Tools > Hexa Integration Tests** and filter to `smp-core-podcast-integration`.
 
 ## Release History
+
+### 3.4.1
+- Refresh media button state when asynchronously loaded search results add new Listen/Watch controls.
 
 ### 3.4.0
 - Remove the player-owned navigation, swap, asset and head synchronization engine.

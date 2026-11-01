@@ -823,11 +823,15 @@
         function observeLegacyPlayers() {
             if (!window.MutationObserver || !document.documentElement) return;
             state.legacyObserver = new MutationObserver(function (records) {
+                var addedTriggers = false;
                 records.forEach(function (record) {
                     Array.prototype.forEach.call(record.addedNodes || [], function (node) {
-                        if (node.nodeType === 1) enforcePlayerSingleton(node);
+                        if (node.nodeType !== 1) return;
+                        enforcePlayerSingleton(node);
+                        if (nodesIncludingScope(node, allTriggerSelector).length) addedTriggers = true;
                     });
                 });
+                if (addedTriggers) updateTriggers(mediaPlaying());
             });
             state.legacyObserver.observe(document.documentElement, { childList: true, subtree: true });
         }
