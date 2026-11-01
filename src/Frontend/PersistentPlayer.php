@@ -26,7 +26,7 @@ final class PersistentPlayer implements ModuleInterface {
         $this->enqueued = true;
         $url = plugin_dir_url( SMP_PODCAST_PLUGIN_FILE );
         wp_enqueue_style( 'smp-podcast-player', $url . 'assets/frontend-player.css', [], Config::VERSION );
-        wp_enqueue_script( 'smp-podcast-player', $url . 'assets/frontend-player.js', [], Config::VERSION, true );
+        wp_enqueue_script( 'smp-podcast-player', $url . 'assets/frontend-player.js', [], Config::VERSION . '-' . substr( hash_file( 'sha256', dirname( SMP_PODCAST_PLUGIN_FILE ) . '/assets/frontend-player.js' ), 0, 12 ), true );
         wp_script_add_data( 'smp-podcast-player', 'strategy', 'defer' );
         wp_localize_script(
             'smp-podcast-player',
