@@ -16,6 +16,8 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 ## Features
 
+- Episode data shortcodes and related queries. [Usage and HTML](docs/episode-elementor.md).
+
 ### Listen button
 - **Does:** Accessible audio trigger with matching video identity.
 - **Switch:** Always registered; empty when required episode/profile data is unavailable.

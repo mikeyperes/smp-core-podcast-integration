@@ -34,7 +34,7 @@ final class Shortcodes implements ModuleInterface {
             $registry->add( new ShortcodeDefinition(
                 $tag,
                 ucwords( str_replace( '_', ' ', $tag ) ),
-                $examples[ $tag ],
+                $examples[ $tag ] ?? '[' . $tag . ' post_id="{input}"]',
                 'Existing ' . $tag . ' output; empty output is valid when its episode or profile data is absent.',
                 'Live output below; callback registration and media/profile regression checks in tests/run.php.',
                 '0',
@@ -51,7 +51,7 @@ final class Shortcodes implements ModuleInterface {
 
     /** @return array<string,callable> */
     private static function callbacks(): array {
-        return [
+        return array_merge( EpisodeData::callbacks(), [
             'smp_listen_button' => [ ShortcodeCallbacks::class, 'listen_button' ],
             'smp_watch_button' => [ ShortcodeCallbacks::class, 'watch_button' ],
             'podcast_url' => [ ShortcodeCallbacks::class, 'podcast_url' ],
@@ -63,6 +63,6 @@ final class Shortcodes implements ModuleInterface {
             'display_guest_profile_info' => [ ShortcodeCallbacks::class, 'guest_profiles' ],
             'display_host_profile_info' => [ ShortcodeCallbacks::class, 'host_profiles' ],
             'podcast_host' => [ ShortcodeCallbacks::class, 'podcast_host' ],
-        ];
+        ] );
     }
 }
