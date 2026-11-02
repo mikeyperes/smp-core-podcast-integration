@@ -18,6 +18,8 @@ final class Shortcodes implements ModuleInterface {
         if ( $registry instanceof ShortcodeRegistry ) { return $registry; }
         $registry = new ShortcodeRegistry();
         $examples = [
+            'smp_episode_presence' => '[smp_episode_presence field="audio" post_id="{input}"]',
+            'mpp_episode_presence' => '[mpp_episode_presence field="audio" post_id="{input}"]',
             'smp_listen_button' => '[smp_listen_button post_id="{input}" label="Listen" class=""]',
             'smp_watch_button' => '[smp_watch_button post_id="{input}" label="Watch" class="" element="a"]',
             'podcast_url' => '[podcast_url social="spotify"]',

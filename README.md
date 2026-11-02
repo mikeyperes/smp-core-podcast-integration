@@ -16,6 +16,8 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 ## Features
 
+- Episode presence checks via `[smp_episode_presence field="audio" post_id="0"]`, with `[mpp_episode_presence]` retained as a compatibility alias. Uses episode-owned parsed content, valid profile relationships, usable media and category filtering. No automatic visitor output. [Presence fields](docs/episode-elementor.md#episode-presence).
+
 - Owns episode-to-guest relationships and Elementor host, guest and guest-episode queries; resolves profile context through the full Verified Profiles type list and guest type through Verified Profiles and episode type through podcast settings, including saved Elementor widget sources before query validation.
 
 - Episode data shortcodes and related queries. [Usage and HTML](docs/episode-elementor.md).

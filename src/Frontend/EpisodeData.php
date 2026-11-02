@@ -34,6 +34,8 @@ public function register(): void {
         return $type !== '' ? [$type] : \SMP\VerifiedProfiles\ProfileTypes\ProfileTypes::post_types();
     }
     public static function callbacks(): array { return [
+        'smp_episode_presence' => [self::class, 'presence_shortcode'],
+        'mpp_episode_presence' => [self::class, 'presence_shortcode'],
         'smp_episode_field' => [self::class, 'field_shortcode'],
         'smp_episode_audio_url' => [self::class, 'audio_url_shortcode'],
         'smp_episode_video_url' => [self::class, 'video_url_shortcode'],
@@ -47,6 +49,72 @@ public function register(): void {
         'smp_episode_host_links' => [self::class, 'host_links_shortcode'],
         'smp_episode_guest_fallback' => [self::class, 'guest_fallback_shortcode'],
     ]; }
+/** Presence uses the same parsed content, relationships and usable media as episode output. */
+public static function presence_shortcode(array $atts = []): string {
+    $atts = shortcode_atts(['field' => '', 'post_id' => 0], $atts, 'smp_episode_presence');
+    $episode_id = self::context_id(absint($atts['post_id']));
+    if (!$episode_id) {
+        return '';
+    }
+
+    $field = sanitize_key((string) $atts['field']);
+    $parts = null;
+    $hosts = null;
+    $profiles = null;
+    $fallback = null;
+
+    $content_parts = static function () use (&$parts, $episode_id): array {
+        if ($parts === null) {
+            $parts = self::content_parts($episode_id);
+        }
+        return $parts;
+    };
+    $host_ids = static function () use (&$hosts, $episode_id): array {
+        if ($hosts === null) {
+            $hosts = self::relationship_ids('hosts', $episode_id);
+        }
+        return $hosts;
+    };
+    $profile_ids = static function () use (&$profiles, $episode_id): array {
+        if ($profiles === null) {
+            $profiles = self::relationship_ids('profiles', $episode_id);
+        }
+        return $profiles;
+    };
+    $fallback_name = static function () use (&$fallback, $episode_id): string {
+        if ($fallback === null) {
+            $fallback = self::guest_fallback_name($episode_id);
+        }
+        return $fallback;
+    };
+
+    $present = match ($field) {
+        'deck' => $content_parts()['deck'] !== '',
+        'conversation' => $content_parts()['conversation'] !== [],
+        'takeaways' => $content_parts()['takeaways'] !== [],
+        'hosts' => $host_ids() !== [],
+        'guest_profiles' => $profile_ids() !== [],
+        'guest_fallback' => $fallback_name() !== '',
+        'guests' => $profile_ids() !== [] || $fallback_name() !== '',
+        'people' => $host_ids() !== [] || $profile_ids() !== [] || $fallback_name() !== '',
+        'people_separator' => $host_ids() !== []
+            && ($profile_ids() !== [] || $fallback_name() !== ''),
+        'category' => self::primary_category($episode_id) instanceof WP_Term,
+        'video' => self::video_url($episode_id) !== '',
+        'audio' => self::audio_url($episode_id) !== '' && shortcode_exists('smp_listen_button'),
+        'player' => self::video_url($episode_id) !== ''
+            || (self::audio_url($episode_id) !== '' && shortcode_exists('smp_listen_button')),
+        'record' => $content_parts()['conversation'] !== []
+            || $content_parts()['takeaways'] !== []
+            || $profile_ids() !== []
+            || $fallback_name() !== '',
+        'episode' => self::is_episode($episode_id),
+        default => false,
+    };
+
+    return $present ? '1' : '';
+}
+
 public static function context_id(int $candidate = 0): int {
     if ($candidate > 0 && get_post_type($candidate) === \SMP\Podcast\Settings\PodcastSettings::content_type()) {
         return $candidate;
