@@ -395,7 +395,7 @@ final class EpisodeFieldGroup {
                 'required'          => 1,
                 'conditional_logic' => 0,
                 'wrapper'           => array( 'width'=>'','class'=>'','id'=>'' ),
-                'post_type'         => array( 0=>'profile' ),
+                'post_type'         => \SMP\Podcast\Frontend\EpisodeData::guest_types(),
                 'return_format'     => 'object',
                 'multiple'          => 1,
                 'allow_null'        => 0,

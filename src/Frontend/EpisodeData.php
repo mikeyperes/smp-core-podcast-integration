@@ -11,7 +11,15 @@ use Hexa\PluginCore\CoreContracts\ModuleInterface;
 /** Episode presentation using saved podcast fields; no automatic frontend output. */
 final class EpisodeData implements ModuleInterface {
 public function register(): void {
+        add_action('elementor/query/smp_verified_profiles_episode_hosts', static function (WP_Query $query): void { self::apply_profile_query($query, 'hosts'); });
+        add_action('elementor/query/smp_verified_profiles_episode_guests', static function (WP_Query $query): void { self::apply_profile_query($query, 'profiles'); });
+        add_action('elementor/query/smp_verified_profiles_profile_episodes', [self::class, 'profile_apply_episode_query']);
         add_action('elementor/query/smp_episode_related', [self::class, 'related_query']);
+    }
+    public static function guest_types(): array {
+        if (!class_exists('SMP\\VerifiedProfiles\\ProfileTypes\\ProfileTypes')) { return []; }
+        $type = method_exists(\SMP\VerifiedProfiles\ProfileTypes\ProfileTypes::class, 'guest_type') ? \SMP\VerifiedProfiles\ProfileTypes\ProfileTypes::guest_type() : '';
+        return $type !== '' ? [$type] : \SMP\VerifiedProfiles\ProfileTypes\ProfileTypes::post_types();
     }
     public static function callbacks(): array { return [
         'smp_episode_field' => [self::class, 'field_shortcode'],
@@ -28,7 +36,7 @@ public function register(): void {
         'smp_episode_guest_fallback' => [self::class, 'guest_fallback_shortcode'],
     ]; }
 public static function context_id(int $candidate = 0): int {
-    if ($candidate > 0 && get_post_type($candidate) === 'post') {
+    if ($candidate > 0 && get_post_type($candidate) === \SMP\Podcast\Settings\PodcastSettings::content_type()) {
         return $candidate;
     }
 
@@ -37,12 +45,12 @@ public static function context_id(int $candidate = 0): int {
     // outer singular post. Profile Loop Items safely fall through because
     // their global object is not a `post`.
     $global_id = get_the_ID();
-    if ($global_id && get_post_type($global_id) === 'post') {
+    if ($global_id && get_post_type($global_id) === \SMP\Podcast\Settings\PodcastSettings::content_type()) {
         return (int) $global_id;
     }
 
     $queried_id = get_queried_object_id();
-    if ($queried_id && get_post_type($queried_id) === 'post') {
+    if ($queried_id && get_post_type($queried_id) === \SMP\Podcast\Settings\PodcastSettings::content_type()) {
         return (int) $queried_id;
     }
 
@@ -51,7 +59,7 @@ public static function context_id(int $candidate = 0): int {
         $document = \Elementor\Plugin::$instance->documents->get_current();
         if ($document && method_exists($document, 'get_settings')) {
             $preview_id = absint($document->get_settings('preview_id'));
-            if ($preview_id && get_post_type($preview_id) === 'post') {
+            if ($preview_id && get_post_type($preview_id) === \SMP\Podcast\Settings\PodcastSettings::content_type()) {
                 return $preview_id;
             }
         }
@@ -359,7 +367,7 @@ public static function relationship_ids(string $relationship, int $episode_id = 
                 $row = $row->ID;
             }
             $profile_id = absint($row);
-            if ($profile_id && get_post_type($profile_id) === 'profile') {
+            if ($profile_id && in_array(get_post_type($profile_id), self::guest_types(), true)) {
                 $ids[] = $profile_id;
             }
         }
@@ -368,7 +376,7 @@ public static function relationship_ids(string $relationship, int $episode_id = 
     if ($ids === [] && $relationship === 'hosts') {
         foreach ((array) maybe_unserialize(get_post_meta($episode_id, 'hosts', true)) as $profile_id) {
             $profile_id = absint($profile_id);
-            if ($profile_id && get_post_type($profile_id) === 'profile') {
+            if ($profile_id && in_array(get_post_type($profile_id), self::guest_types(), true)) {
                 $ids[] = $profile_id;
             }
         }
@@ -378,12 +386,16 @@ public static function relationship_ids(string $relationship, int $episode_id = 
         $count = absint(get_post_meta($episode_id, 'profiles', true));
         for ($index = 0; $index < $count; $index++) {
             $profile_id = absint(get_post_meta($episode_id, "profiles_{$index}_profile", true));
-            if ($profile_id && get_post_type($profile_id) === 'profile') {
+            if ($profile_id && in_array(get_post_type($profile_id), self::guest_types(), true)) {
                 $ids[] = $profile_id;
             }
         }
     }
 
+    if ($ids === [] && $relationship === 'hosts') {
+        $host = \SMP\Podcast\Settings\PodcastSettings::default_host_id();
+        if ($host && in_array(get_post_type($host), self::guest_types(), true)) { $ids[] = $host; }
+    }
     return array_values(array_unique($ids));
 }
 
@@ -827,7 +839,7 @@ public static function related_query(WP_Query $query): void {
     // single query, and rank deterministically by overlap, date, then ID.
     // This replaces the former all-post scan and N+1 category lookup.
     $candidate_posts = $categories === [] ? [] : get_posts([
-        'post_type' => 'post',
+        'post_type' => \SMP\Podcast\Settings\PodcastSettings::content_type(),
         'post_status' => 'publish',
         'posts_per_page' => 24,
         'post__not_in' => $episode_id ? [$episode_id] : [],
@@ -891,7 +903,7 @@ public static function related_query(WP_Query $query): void {
 
     if (count($ids) < 3) {
         $fill = get_posts([
-            'post_type' => 'post',
+            'post_type' => \SMP\Podcast\Settings\PodcastSettings::content_type(),
             'post_status' => 'publish',
             'posts_per_page' => 3 - count($ids),
             'post__not_in' => array_values(array_unique(array_merge($episode_id ? [$episode_id] : [], $ids))),
@@ -907,7 +919,7 @@ public static function related_query(WP_Query $query): void {
         $ids = array_slice(array_values(array_unique(array_merge($ids, array_map('absint', $fill)))), 0, 3);
     }
 
-    $query->set('post_type', 'post');
+    $query->set('post_type', \SMP\Podcast\Settings\PodcastSettings::content_type());
     $query->set('post_status', 'publish');
     $query->set('post__in', $ids !== [] ? $ids : [0]);
     $query->set('post__not_in', []);
@@ -927,5 +939,101 @@ public static function related_query(WP_Query $query): void {
     } finally {
         $resolving = false;
     }
+}
+public static function apply_profile_query(WP_Query $query, string $relationship): void {
+    static $resolving = false;
+    if ($resolving) {
+        return;
+    }
+    $resolving = true;
+    try {
+        $episode_id = self::context_id();
+        $ids = self::relationship_ids($relationship, $episode_id);
+        $query->set('post_type', self::guest_types() ?: ['__disabled']);
+        $query->set('post_status', 'publish');
+        $query->set('post__in', $ids !== [] ? $ids : [0]);
+        $query->set('orderby', 'post__in');
+        $query->set('order', 'ASC');
+        $query->set('posts_per_page', max(1, count($ids)));
+        $query->set('ignore_sticky_posts', true);
+        // Elementor's Loop Grid tests `found_posts`, not `post_count`, before it
+        // renders the Loop Item. The outer display query must therefore calculate
+        // found rows even though its relationship ID set is intentionally small.
+        $query->set('no_found_rows', false);
+    } finally {
+        $resolving = false;
+    }
+}
+
+public static function profile_context_id( int $candidate = 0 ): int {
+    $candidates = [ $candidate ];
+    if ( function_exists( 'get_queried_object_id' ) ) {
+        $candidates[] = (int) get_queried_object_id();
+    }
+    $candidates[] = (int) get_the_ID();
+
+    try {
+        if ( class_exists( 'Elementor\\Plugin' )
+            && isset( \Elementor\Plugin::$instance->documents )
+            && method_exists( \Elementor\Plugin::$instance->documents, 'get_current' ) ) {
+            $document = \Elementor\Plugin::$instance->documents->get_current();
+            if ( is_object( $document ) && method_exists( $document, 'get_settings' ) ) {
+                $candidates[] = (int) $document->get_settings( 'preview_id' );
+            }
+        }
+    } catch ( Throwable ) {
+        // Preview resolution is optional; continue through the safe candidates.
+    }
+
+    $post = $GLOBALS['post'] ?? null;
+    if ( $post instanceof WP_Post ) {
+        $candidates[] = (int) $post->ID;
+    }
+
+    foreach ( array_values( array_unique( array_filter( array_map( 'absint', $candidates ) ) ) ) as $post_id ) {
+        if ( in_array(get_post_type($post_id), self::guest_types(), true) ) {
+            return $post_id;
+        }
+    }
+    return 0;
+}
+
+public static function profile_episode_ids( int $profile_id = 0 ): array {
+    static $cache = [];
+    $profile_id = self::profile_context_id( $profile_id );
+    if ( $profile_id < 1 ) {
+        return [];
+    }
+    if ( array_key_exists( $profile_id, $cache ) ) {
+        return $cache[ $profile_id ];
+    }
+
+    $episodes = get_posts(\SMP\Podcast\Settings\PodcastSettings::scoped_query_args([
+        'post_status' => 'publish', 'numberposts' => -1, 'fields' => 'ids',
+        'orderby' => 'date', 'order' => 'DESC',
+    ]));
+    $ids = array_values(array_filter(array_map('absint', $episodes), static function(int $id) use ($profile_id): bool {
+        return in_array($profile_id, self::relationship_ids('profiles', $id), true)
+            || in_array($profile_id, self::relationship_ids('hosts', $id), true);
+    }));
+    $cache[ $profile_id ] = $ids;
+    return $ids;
+}
+
+public static function profile_apply_episode_query( WP_Query $query ): void {
+    static $resolving = false;
+    if ($resolving) { return; }
+    $resolving = true;
+    try {
+    $ids = self::profile_episode_ids();
+    $query->set( 'post_type', \SMP\Podcast\Settings\PodcastSettings::content_type() );
+    $query->set( 'post_status', 'publish' );
+    $query->set( 'post__in', $ids ?: [ 0 ] );
+    $query->set( 'orderby', 'post__in' );
+    $query->set( 'order', 'ASC' );
+    $query->set( 'posts_per_page', max( 1, count( $ids ) ) );
+    $query->set( 'ignore_sticky_posts', true );
+    $query->set( 'no_found_rows', false );
+    } finally { $resolving = false; }
 }
 }

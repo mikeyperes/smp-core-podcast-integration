@@ -152,9 +152,7 @@ final class PodcastOptionsFieldGroup {
                     'class' => '',
                     'id' => '',
                 ),
-                'post_type' => array(
-                    0 => 'profile',
-                ),
+                'post_type' => \SMP\Podcast\Frontend\EpisodeData::guest_types(),
                 'post_status' => '',
                 'taxonomy' => '',
                 'return_format' => 'object',

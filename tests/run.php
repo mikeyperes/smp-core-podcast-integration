@@ -794,12 +794,12 @@ $GLOBALS['test_options']['smp_podcast_content_model'] = 'post';
 
 $shortcodes = new SMP\Podcast\Frontend\Shortcodes();
 $shortcodes->register();
-$expected_tags = [ 'smp_listen_button', 'smp_watch_button', 'podcast_url', 'episode_fields', 'article_guests', 'podcast_hosts', 'display_single_episode_hosts', 'guest_grid', 'display_guest_profile_info', 'display_host_profile_info', 'podcast_host' ];
+$expected_tags = array_merge([ 'smp_episode_field', 'smp_episode_audio_url', 'smp_episode_video_url', 'smp_episode_platform_url', 'smp_episode_platforms', 'smp_episode_takeaways', 'smp_episode_primary_category', 'smp_episode_label', 'smp_episode_details', 'smp_episode_archive_url', 'smp_episode_host_links', 'smp_episode_guest_fallback' ], [ 'smp_listen_button', 'smp_watch_button', 'podcast_url', 'episode_fields', 'article_guests', 'podcast_hosts', 'display_single_episode_hosts', 'guest_grid', 'display_guest_profile_info', 'display_host_profile_info', 'podcast_host' ]);
 check( $expected_tags === SMP\Podcast\Frontend\Shortcodes::tags(), 'canonical media triggers and all nine legacy shortcode tags register' );
 check( [] === array_diff( $expected_tags, array_keys( $GLOBALS['test_shortcodes'] ) ), 'all shortcode callbacks register' );
 
 $registry = SMP\Podcast\Frontend\Shortcodes::registry();
-check( $expected_tags === array_keys( $registry->all() ), 'Core registry preserves all eleven distinct existing tags' );
+check( $expected_tags === array_keys( $registry->all() ), 'Core registry preserves episode data and all eleven legacy tags' );
 foreach ( $registry->all() as $tag => $definition ) {
     check( str_starts_with( $definition->shortcode(), '[' . $tag ) && '' !== $definition->test_method, 'Core example and test are registered: ' . $tag );
     check( is_callable( $GLOBALS['test_shortcodes'][ $tag ] ?? null ), 'Core registry binds the existing callable: ' . $tag );

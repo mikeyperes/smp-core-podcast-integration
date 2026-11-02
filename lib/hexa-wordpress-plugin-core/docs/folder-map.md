@@ -119,3 +119,5 @@ Then update:
 - `README.md`
 - `AGENTS.md`
 - `docs/folder-map.md`
+
+- `src/Sitemaps/`: shared sitemap registry, conditions, Rank Math comparison and administrator endpoints. See `docs/sitemaps.md`.

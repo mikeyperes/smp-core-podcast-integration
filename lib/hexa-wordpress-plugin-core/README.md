@@ -18,6 +18,8 @@
 
 ## Features
 
+- Opt-in shared sitemap recommendations, explicit Rank Math changes, saved conditions, REST/AJAX and JSON WP-CLI. [Contract](docs/sitemaps.md).
+
 - Search filter chips: opt-in `filter_layout="chips"` renders accessible single-choice radio chips, including All, with the same markup under `style="none"`. Dropdowns remain the default. [Markup](docs/search-filter-chips.md).
 
 - Automatic and direct plugin updates resolve a published stable release tag, verify its version, and never fall back to a branch archive.
@@ -364,3 +366,5 @@ Core is a library, not a WordPress plugin. Changed Core code always ships under 
 Run the complete PHP suite with `php tests/run.php`.
 
 Before adding code in another Codex or Claude chat, read `AGENTS.md`, `HEXA_PLUGIN_CORE_LIBRARY.md`, `docs/folder-map.md`, `docs/setup-protocol.md`, `docs/implementation-checklist.md`, `docs/integration-tests.md`, `docs/new-plugin-master-checklist.md` and the doc for the folder being changed. A feature that does not fit an existing namespace gets its namespace documented first. Every new or changed feature updates its entry in `## Features` in the same commit.
+
+- `src/Sitemaps/`: shared sitemap registry, conditions, Rank Math comparison and administrator endpoints. See `docs/sitemaps.md`.

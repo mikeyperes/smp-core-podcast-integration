@@ -172,3 +172,5 @@ The automatic core tab must remain host-neutral. Host plugins provide hook names
 ## Commit Hygiene
 
 Do not create backup files. Do not commit generated vendor files unless explicitly requested. Keep implementation and docs in the same commit when they define a new public pattern.
+
+- `src/Sitemaps/`: shared sitemap registry, conditions, Rank Math comparison and administrator endpoints. See `docs/sitemaps.md`.
