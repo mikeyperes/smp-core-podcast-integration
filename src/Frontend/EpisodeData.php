@@ -11,10 +11,22 @@ use Hexa\PluginCore\CoreContracts\ModuleInterface;
 /** Episode presentation using saved podcast fields; no automatic frontend output. */
 final class EpisodeData implements ModuleInterface {
 public function register(): void {
+        add_action('elementor/frontend/widget/before_render', [self::class, 'bind_widget_query']);
         add_action('elementor/query/smp_verified_profiles_episode_hosts', static function (WP_Query $query): void { self::apply_profile_query($query, 'hosts'); });
         add_action('elementor/query/smp_verified_profiles_episode_guests', static function (WP_Query $query): void { self::apply_profile_query($query, 'profiles'); });
         add_action('elementor/query/smp_verified_profiles_profile_episodes', [self::class, 'profile_apply_episode_query']);
         add_action('elementor/query/smp_episode_related', [self::class, 'related_query']);
+    }
+    /** Resolve saved Elementor sources before its query module validates the post type. */
+    public static function bind_widget_query($widget): void {
+        if (!is_object($widget) || !method_exists($widget, 'get_settings') || !method_exists($widget, 'set_settings')) { return; }
+        $id = (string)$widget->get_settings('post_query_query_id');
+        if (in_array($id, ['smp_verified_profiles_episode_hosts','smp_verified_profiles_episode_guests'], true)) {
+            $types = self::guest_types();
+            $widget->set_settings('post_query_post_type', $types[0] ?? '__smp_disabled');
+        } elseif (in_array($id, ['smp_verified_profiles_profile_episodes','smp_episode_related'], true)) {
+            $widget->set_settings('post_query_post_type', \SMP\Podcast\Settings\PodcastSettings::content_type());
+        }
     }
     public static function guest_types(): array {
         if (!class_exists('SMP\\VerifiedProfiles\\ProfileTypes\\ProfileTypes')) { return []; }
