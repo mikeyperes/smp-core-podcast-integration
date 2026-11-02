@@ -5,7 +5,44 @@ namespace Hexa\PluginCore\Sitemaps;
 final class RecommendationRegistry {
     public const FILTER = 'hexa_plugin_core_sitemap_recommendations';
     public const OPTION = 'hexa_plugin_core_sitemap_recommendations';
+    public const EXCLUDED_POST_TYPES_FILTER = 'hexa_plugin_core_sitemap_excluded_post_types';
+    public const SYSTEM_PREFIXES_FILTER = 'hexa_plugin_core_sitemap_system_post_type_prefixes';
+    public const EXCLUDED_POST_TYPES = ['elementor_library','e-landing-page','e-floating-buttons','elementor_font','elementor_icons','elementor_snippet','wp_block','wp_template','wp_template_part','wp_navigation','wp_global_styles','custom_css','customize_changeset','revision','nav_menu_item','user_request','oembed_cache','acf-field','acf-field-group','jet-engine','jet-smart-filters','jet-theme-core','jet-popup','jet-form-builder','et_pb_layout','fusion_template','fusion_element'];
+    public const SYSTEM_PREFIXES = ['elementor_','e-','et_pb_'];
     public const CONDITIONS = 'hexa_plugin_core_sitemap_conditions';
+
+    /** Providers extend these declared lists; post-provider policy cannot recommend helper types on. */
+    public static function excluded_post_types(): array {
+        return array_values(array_unique(array_map('strval',(array)apply_filters(self::EXCLUDED_POST_TYPES_FILTER,self::EXCLUDED_POST_TYPES))));
+    }
+    public static function is_system_type(string $name): bool {
+        if (in_array($name,self::excluded_post_types(),true)) return true;
+        foreach ((array)apply_filters(self::SYSTEM_PREFIXES_FILTER,self::SYSTEM_PREFIXES) as $prefix) {
+            if (is_string($prefix) && ''!==$prefix && str_starts_with($name,$prefix)) return true;
+        }
+        return false;
+    }
+    public static function apply_policy(array $rows): array {
+        $content_urls=[];
+        foreach($rows as $id=>$row) if('post_type'===($row['kind']??'') && !empty($row['url'])) $content_urls[rtrim($row['url'],'/')]=['id'=>$id,'name'=>$row['name']??$id];
+        foreach($rows as $id=>&$row){
+            $row['policy_warnings']=[];
+            unset($row['collision_with']);
+            if('post_type'===($row['kind']??'') && self::is_system_type((string)($row['name']??''))){
+                $row['recommended']=false;
+                $row['recommended_by']=['Hexa WP Core (system type exclusion)'];
+                $row['policy_warnings'][]='Builder or system helper content type is excluded from recommendations.';
+            }
+            $winner=$content_urls[rtrim((string)($row['url']??''),'/')]??null;
+            if('taxonomy'===($row['kind']??'') && $winner){
+                $row['recommended']=false;
+                $row['collision_with']=$winner['id'];
+                $row['policy_warnings'][]='Sitemap address collision: taxonomy "'.($row['name']??$id).'" shares '.$row['url'].' with content type "'.$winner['name'].'". The content type wins; this taxonomy must remain off.';
+            }
+        }
+        unset($row);
+        return $rows;
+    }
 
     public static function condition(string $key): array {
         $all = (array) get_option(self::CONDITIONS, []);
@@ -25,11 +62,11 @@ final class RecommendationRegistry {
         $add('index','Sitemap index','index','','','/sitemap_index.xml',true);
         $rows['index']['current']=$enabled;
         $types = get_post_types(['public'=>true], 'objects');
-        foreach (['attachment','elementor_library','e-landing-page'] as $name) {
+        foreach (['attachment','elementor_library','e-landing-page','e-floating-buttons'] as $name) {
             if ($object=get_post_type_object($name)) $types[$name]=$object;
         }
         foreach ($types as $name=>$object) {
-            $add('post_type_'.$name, $object->labels->name, 'post_type', $name, 'pt_'.$name.'_sitemap', '/'.$name.'-sitemap.xml', !in_array($name,['attachment','elementor_library','e-landing-page'],true));
+            $add('post_type_'.$name, $object->labels->name, 'post_type', $name, 'pt_'.$name.'_sitemap', '/'.$name.'-sitemap.xml', 'attachment' !== $name && !self::is_system_type($name));
         }
         foreach (get_taxonomies(['public'=>true], 'objects') as $name=>$object) {
             $id='taxonomy_'.$name;
@@ -57,10 +94,10 @@ final class RecommendationRegistry {
             $rows[$name]['available']=defined('RANK_MATH_PRO_VERSION');
         }
         $rows['local']['url']=home_url('/locations.kml');
-        $rows=(array) apply_filters(self::FILTER,$rows,$site_type);
+        $rows=self::apply_policy((array) apply_filters(self::FILTER,$rows,$site_type));
         foreach ($rows as $id=>&$row) {
             $row['id']=$id;
-            $row['warnings']=[];
+            $row['warnings']=$row['policy_warnings']??[];
             $checks=(array)get_option('hexa_plugin_core_sitemap_checks',[]);
             $row['live_check']=$checks[$id]??null;
             if (!empty($row['recommended']) && isset($checks[$id]['response']['code']) && 200 !== $checks[$id]['response']['code']) $row['warnings'][]='Required sitemap did not answer HTTP 200.';
@@ -82,6 +119,7 @@ final class RecommendationRegistry {
         $rows=array_column(self::lookup()['rows'],null,'id');
         if (!isset($rows[$id])) return ['ok'=>false,'message'=>'Unknown sitemap.'];
         $row=$rows[$id];
+        if ($on && !empty($row['collision_with'])) return ['ok'=>false,'id'=>$id,'message'=>'Cannot enable this sitemap: '.$row['policy_warnings'][0]];
         if ('module'===$row['kind'] || 'index'===$row['kind']) {
             if ($on && empty($row['available'])) return ['ok'=>false,'message'=>'Rank Math Pro is required.'];
             $module='index'===$row['kind']?'sitemap':$row['name'];

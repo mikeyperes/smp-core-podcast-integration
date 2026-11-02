@@ -1003,7 +1003,7 @@ public static function profile_context_id( int $candidate = 0 ): int {
     }
 
     foreach ( array_values( array_unique( array_filter( array_map( 'absint', $candidates ) ) ) ) as $post_id ) {
-        if ( in_array(get_post_type($post_id), self::guest_types(), true) ) {
+        if (class_exists('SMP\\VerifiedProfiles\\ProfileTypes\\ProfileTypes') && \SMP\VerifiedProfiles\ProfileTypes\ProfileTypes::is_profile_type((string)get_post_type($post_id))) {
             return $post_id;
         }
     }

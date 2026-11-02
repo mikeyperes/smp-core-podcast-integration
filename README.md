@@ -16,7 +16,7 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 ## Features
 
-- Owns episode-to-guest relationships and Elementor host, guest and guest-episode queries; resolves guest type through Verified Profiles and episode type through podcast settings, including saved Elementor widget sources before query validation.
+- Owns episode-to-guest relationships and Elementor host, guest and guest-episode queries; resolves profile context through the full Verified Profiles type list and guest type through Verified Profiles and episode type through podcast settings, including saved Elementor widget sources before query validation.
 
 - Episode data shortcodes and related queries. [Usage and HTML](docs/episode-elementor.md).
 
