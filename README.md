@@ -16,6 +16,8 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 ## Features
 
+- `[smp_season_field name="number|date_range|episode_count|first_date|last_date" format="M j, Y"]` reads the current season archive or an explicit `term` ID/slug. A shared season cache stores published episode counts and date bounds, invalidated on post, classification and term changes. Missing context or dates return empty output. See [season shortcode](docs/season-fields.md).
+
 - Public season archives, episode numbering, measured MP3 duration and size, linked podcast schema, complete RSS tags, and required page setup. New schema and numbering switches default off.
 
 

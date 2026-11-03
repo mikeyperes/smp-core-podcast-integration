@@ -1,0 +1,31 @@
+<?php
+/** Run with wp eval-file after creating seasons. No content or settings are changed. */
+use SMP\Podcast\Content\{SeasonData,EpisodeMetadata};
+use SMP\Podcast\Settings\PodcastSettings;
+$checks=0;
+$check=static function(bool $ok,string $label)use(&$checks){$checks++;if(!$ok)WP_CLI::error($label);WP_CLI::log('PASS '.$label);};
+$terms=get_terms(['taxonomy'=>EpisodeMetadata::TAXONOMY,'hide_empty'=>true,'number'=>1]);
+if(is_wp_error($terms)||!$terms)WP_CLI::error('Create a populated season before running live shortcode tests.');
+$term=$terms[0];$id=(int)$term->term_id;
+$tag=static fn($name,$extra='')=>do_shortcode('[smp_season_field term="'.$id.'" name="'.$name.'" '.$extra.']');
+$check(shortcode_exists('smp_season_field'),'shortcode registered');
+$check($tag('number')===esc_html((string)get_term_meta($id,'season_number',true)),'number matches season metadata');
+$data=SeasonData::get($id);
+$check((int)$tag('episode_count')===$data['episode_count'] && $data['episode_count']>0,'published episode count available');
+$check($tag('first_date')===esc_html(wp_date('M j, Y',$data['first_date'])),'first date default formatting');
+$check($tag('last_date','format="Y-m-d"')===esc_html(wp_date('Y-m-d',$data['last_date'])),'last date custom formatting');
+$first=wp_date('Y',$data['first_date']);$last=wp_date('Y',$data['last_date']);
+$check($tag('date_range','format="Y"')===esc_html($first===$last?$first:$first.' - '.$last),'date range formatting');
+$check($tag('unknown')==='','unknown field empty');
+$check(do_shortcode('[smp_season_field term="missing-season-mpp-17" name="number"]')==='','missing term empty');
+global $wp_query,$wpdb;$original=$wp_query;
+$wp_query=new WP_Query(['podcast_season'=>$term->slug,'post_type'=>PodcastSettings::content_type()]);
+$check(do_shortcode('[smp_season_field name="number"]')===$tag('number'),'current season archive context');
+$wp_query=new WP_Query(['pagename'=>'missing-page-mpp-17']);
+$check(do_shortcode('[smp_season_field name="number"]')==='','non-season context empty');
+$wp_query=$original;
+SeasonData::get($id);$queries=$wpdb->num_queries;SeasonData::get($id);
+$check($wpdb->num_queries===$queries,'warm cached season payload performs no database query');
+SeasonData::invalidate();$queries=$wpdb->num_queries;SeasonData::get($id);
+$check($wpdb->num_queries>$queries,'invalidation refreshes the season payload');
+WP_CLI::success($checks.' season shortcode checks passed.');
