@@ -194,15 +194,19 @@ final class PodcastSettings {
     /** The show's primary presenter is a published Person profile, never its publisher account. */
     public static function primary_host_id(): int {
         $id = self::configured_host_id();
+        return self::is_host_profile_id($id) ? $id : 0;
+    }
+
+    public static function is_host_profile_id(int $id): bool {
         $post = $id ? get_post($id) : null;
         if (!$post || $post->post_status !== 'publish' || !in_array($post->post_type, \SMP\Podcast\Frontend\EpisodeData::guest_types(), true)) {
-            return 0;
+            return false;
         }
         if (!class_exists(\SMP\VerifiedProfiles\Schema\ProfileSchema::class)
             || \SMP\VerifiedProfiles\Schema\ProfileSchema::profile_type($id) !== 'person') {
-            return 0;
+            return false;
         }
-        return $id;
+        return true;
     }
 
     /** Backward-compatible API: the primary host also seeds new episodes with no host. */

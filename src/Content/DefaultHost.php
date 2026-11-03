@@ -7,12 +7,22 @@ use SMP\Podcast\Settings\PodcastSettings;
 
 final class DefaultHost implements ModuleInterface {
     public function register(): void {
+        \Hexa\PluginCore\Fields\Hooks::on('validate_value/name=default_host', [self::class, 'validate_primary_host'], 10, 4);
         if ( ! (bool) get_option( 'enable_post_functionality', false ) ) {
             return;
         }
 
         \Hexa\PluginCore\Fields\Hooks::on( 'prepare_field/name=hosts', [ $this, 'prepare_field' ] );
         add_action( 'smp_podcast_content_kind_saved', [ $this, 'assign_after_content_kind' ], 20, 3 );
+    }
+
+    /** Invalid selections fail at save as well as at read. An empty selection is allowed. */
+    public static function validate_primary_host($valid, $value, $field = [], $input = '') {
+        if ($valid !== true || empty($value)) return $valid;
+        $id = $value instanceof \WP_Post ? (int)$value->ID : (is_numeric($value) ? (int)$value : 0);
+        return PodcastSettings::is_host_profile_id($id)
+            ? true
+            : __('Select a published Person profile as the primary host. The show publisher and organization profiles cannot be hosts.', 'smp-core-podcast-integration');
     }
 
     /** @param array<string,mixed> $field @return array<string,mixed> */
