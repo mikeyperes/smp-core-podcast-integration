@@ -18,6 +18,7 @@ final class Shortcodes implements ModuleInterface {
         if ( $registry instanceof ShortcodeRegistry ) { return $registry; }
         $registry = new ShortcodeRegistry();
         $examples = [
+            'smp_guest_count' => '[smp_guest_count]',
             'smp_episode_presence' => '[smp_episode_presence field="audio" post_id="{input}"]',
             'mpp_episode_presence' => '[mpp_episode_presence field="audio" post_id="{input}"]',
             'smp_listen_button' => '[smp_listen_button post_id="{input}" label="Listen" class=""]',
@@ -54,6 +55,7 @@ final class Shortcodes implements ModuleInterface {
     /** @return array<string,callable> */
     private static function callbacks(): array {
         return array_merge( EpisodeData::callbacks(), [
+            'smp_guest_count' => [ GuestCount::class, 'shortcode' ],
             'smp_listen_button' => [ ShortcodeCallbacks::class, 'listen_button' ],
             'smp_watch_button' => [ ShortcodeCallbacks::class, 'watch_button' ],
             'podcast_url' => [ ShortcodeCallbacks::class, 'podcast_url' ],

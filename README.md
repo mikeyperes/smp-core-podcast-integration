@@ -16,6 +16,8 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 ## Features
 
+- `[smp_guest_count]` displays the distinct linked guest profiles across published episodes, plus distinct sanitized fallback names only for episodes without a linked guest. Uses the configured episode type and EpisodeData APIs, caches for one hour (including zero), and invalidates on episode saves, metadata changes, and deletion. Plain localized number, no markup or assets, no output until used. [Guest count](docs/guest-count.md).
+
 - The catalog owns Episodes, single episodes, Podcast Host and Become a Guest. Native layouts belong to Base Tools; Voices and guest profiles belong to Verified Profiles, with historical key ownership recorded.
 
 - Canonical page definitions: [src/Pages/PageTypes.php](src/Pages/PageTypes.php), including native episode and taxonomy addresses, the Guests archive and its profile layout, and Podcast Host under About. Voices uses the live overview page; no Listen and Subscribe page is defined. The shared page manager handles ordinary pages only, through explicit setup; no automatic publishing.

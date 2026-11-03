@@ -55,6 +55,7 @@ final class Plugin {
             ->add_module( new \SMP\Podcast\Integrations\Elementor\ContentKindRules() )
             ->add_module( Registries::option_fields() )
             ->add_module( new Shortcodes() )
+            ->add_module( new \SMP\Podcast\Frontend\GuestCount() )
             ->add_module( new \SMP\Podcast\Frontend\EpisodeData() )
             ->add_module( new HomeInteractions() )
             ->add_module( new PersistentPlayer() )
