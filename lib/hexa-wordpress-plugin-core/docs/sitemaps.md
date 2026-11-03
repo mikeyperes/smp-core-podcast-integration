@@ -27,3 +27,7 @@ Snapshots: option `hexa_plugin_core_sitemap_recommendations`, keyed by current/n
 Declared `RecommendationRegistry::EXCLUDED_POST_TYPES` and `SYSTEM_PREFIXES` classify helper content. Providers extend through `hexa_plugin_core_sitemap_excluded_post_types` and `hexa_plugin_core_sitemap_system_post_type_prefixes`. Policy runs after recommendation providers, so helpers remain recommended off. Rows carry `policy_warnings`. A taxonomy sharing a content-type sitemap address gets `collision_with` (winning content row ID), recommended false and a named warning. Change-on requests are refused before any Rank Math write. Disabling remains allowed. Current settings are never changed by lookup.
 
 Exclusion membership does not register a sitemap or inventory private WordPress internals. Inventory remains registered public content plus the explicitly listed media and Elementor types; exclusions also apply to rows supplied by providers.
+
+## Junk sitemaps
+
+Post types in `EXCLUDED_POST_TYPES` (or matching `SYSTEM_PREFIXES`) and taxonomies in `JUNK_TAXONOMIES` (filter `hexa_plugin_core_sitemap_junk_taxonomies`) are junk: never recommended and flagged `junk` in the lookup. `disable_junk` turns every junk sitemap off in Rank Math in one action; `promote` (id, main) moves one row back to the main list (stored in `hexa_plugin_core_sitemap_promoted`) without changing Rank Math. CLI: `wp hexa sitemaps disable-junk`, `wp hexa sitemaps promote --id=<id> --main=1`.

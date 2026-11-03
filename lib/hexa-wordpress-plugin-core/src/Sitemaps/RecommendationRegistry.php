@@ -7,7 +7,12 @@ final class RecommendationRegistry {
     public const OPTION = 'hexa_plugin_core_sitemap_recommendations';
     public const EXCLUDED_POST_TYPES_FILTER = 'hexa_plugin_core_sitemap_excluded_post_types';
     public const SYSTEM_PREFIXES_FILTER = 'hexa_plugin_core_sitemap_system_post_type_prefixes';
-    public const EXCLUDED_POST_TYPES = ['elementor_library','e-landing-page','e-floating-buttons','elementor_font','elementor_icons','elementor_snippet','wp_block','wp_template','wp_template_part','wp_navigation','wp_global_styles','custom_css','customize_changeset','revision','nav_menu_item','user_request','oembed_cache','acf-field','acf-field-group','jet-engine','jet-smart-filters','jet-theme-core','jet-popup','jet-form-builder','et_pb_layout','fusion_template','fusion_element'];
+    public const EXCLUDED_POST_TYPES = ['elementor_library','e-landing-page','e-floating-buttons','elementor_font','elementor_icons','elementor_snippet','wp_block','wp_template','wp_template_part','wp_navigation','wp_global_styles','custom_css','customize_changeset','revision','nav_menu_item','user_request','oembed_cache','acf-field','acf-field-group','jet-engine','jet-smart-filters','jet-theme-core','jet-popup','jet-form-builder','et_pb_layout','fusion_template','fusion_element','attachment','product_variation','shop_order','shop_coupon','wpcf7_contact_form','wpforms','mc4wp-form','popup','elementor-hf','ct_template','fl-builder-template','astra-advanced-hook','ae_global_templates','oceanwp_library','tablepress_table','ocean_portfolio'];
+    /** Taxonomies whose sitemaps are almost always junk (builder, theme and shop internals). */
+    public const JUNK_TAXONOMIES = ['post_format','elementor_library_type','elementor_library_category','elementor_font_type','product_shipping_class','product_visibility','product_type','nav_menu','link_category','wp_theme','wp_template_part_area','wp_pattern_category','wp_block_category'];
+    public const JUNK_TAXONOMIES_FILTER = 'hexa_plugin_core_sitemap_junk_taxonomies';
+    /** Junk rows an administrator moved back to the main list. */
+    public const PROMOTED = 'hexa_plugin_core_sitemap_promoted';
     public const SYSTEM_PREFIXES = ['elementor_','e-','et_pb_'];
     public const CONDITIONS = 'hexa_plugin_core_sitemap_conditions';
 
@@ -22,6 +27,21 @@ final class RecommendationRegistry {
         }
         return false;
     }
+    public static function is_junk_taxonomy(string $name): bool {
+        if (in_array($name,array_map('strval',(array)apply_filters(self::JUNK_TAXONOMIES_FILTER,self::JUNK_TAXONOMIES)),true)) return true;
+        foreach ((array)apply_filters(self::SYSTEM_PREFIXES_FILTER,self::SYSTEM_PREFIXES) as $prefix) {
+            if (is_string($prefix) && ''!==$prefix && str_starts_with($name,$prefix)) return true;
+        }
+        return false;
+    }
+    /** A row is junk when its type is on the hardcoded lists, unless an administrator moved it back. */
+    public static function is_junk_type(array $row): bool {
+        $name=(string)($row['name']??'');
+        return ('post_type'===($row['kind']??'') && self::is_system_type($name)) || ('taxonomy'===($row['kind']??'') && self::is_junk_taxonomy($name));
+    }
+    public static function is_promoted(string $id): bool {
+        return in_array($id,(array)get_option(self::PROMOTED,[]),true);
+    }
     public static function apply_policy(array $rows): array {
         $content_urls=[];
         foreach($rows as $id=>$row) if('post_type'===($row['kind']??'') && !empty($row['url'])) $content_urls[rtrim($row['url'],'/')]=['id'=>$id,'name'=>$row['name']??$id];
@@ -33,6 +53,12 @@ final class RecommendationRegistry {
                 $row['recommended_by']=['Hexa WP Core (system type exclusion)'];
                 $row['policy_warnings'][]='Builder or system helper content type is excluded from recommendations.';
             }
+            if('taxonomy'===($row['kind']??'') && self::is_junk_taxonomy((string)($row['name']??''))){
+                $row['recommended']=false;
+                $row['recommended_by']=['Hexa WP Core (junk list)'];
+            }
+            $row['promoted']=self::is_junk_type($row) && self::is_promoted((string)$id);
+            $row['junk']=self::is_junk_type($row) && !$row['promoted'];
             $winner=$content_urls[rtrim((string)($row['url']??''),'/')]??null;
             if('taxonomy'===($row['kind']??'') && $winner){
                 $row['recommended']=false;
@@ -68,7 +94,11 @@ final class RecommendationRegistry {
         foreach ($types as $name=>$object) {
             $add('post_type_'.$name, $object->labels->name, 'post_type', $name, 'pt_'.$name.'_sitemap', '/'.$name.'-sitemap.xml', 'attachment' !== $name && !self::is_system_type($name));
         }
-        foreach (get_taxonomies(['public'=>true], 'objects') as $name=>$object) {
+        $taxonomies=get_taxonomies(['public'=>true], 'objects');
+        foreach (self::JUNK_TAXONOMIES as $name) {
+            if (($object=get_taxonomy($name)) && isset($settings['tax_'.$name.'_sitemap'])) $taxonomies[$name]=$object;
+        }
+        foreach ($taxonomies as $name=>$object) {
             $id='taxonomy_'.$name;
             $add($id,$object->labels->name,'taxonomy',$name,'tax_'.$name.'_sitemap','/'.$name.'-sitemap.xml',!in_array($name,['post_format','product_tag'],true));
             $condition=self::condition($id);
@@ -136,6 +166,27 @@ final class RecommendationRegistry {
         }
         self::clear_cache();
         return ['ok'=>true,'id'=>$id,'on'=>$on,'message'=>'Rank Math updated and sitemap cache cleared.'];
+    }
+    /** Turn off, in one action, every junk sitemap that is on. */
+    public static function disable_junk(): array {
+        if (!defined('RANK_MATH_VERSION')) return ['ok'=>false,'message'=>'Rank Math is inactive.'];
+        $off=[];
+        foreach (self::lookup()['rows'] as $row) {
+            if (empty($row['junk']) || empty($row['current']) || empty($row['setting'])) continue;
+            $settings=(array)get_option('rank-math-options-sitemap',[]);
+            $settings[$row['setting']]='off';
+            update_option('rank-math-options-sitemap',$settings);
+            $off[]=$row['id'];
+        }
+        self::clear_cache();
+        return ['ok'=>true,'turned_off'=>$off,'message'=>$off?'Turned off '.count($off).' hidden sitemaps in Rank Math.':'No hidden sitemap was on.'];
+    }
+    /** Move a junk row to the main list (promote) or back to the hidden list. Changes nothing in Rank Math. */
+    public static function promote(string $id,bool $main): array {
+        $ids=array_values(array_diff((array)get_option(self::PROMOTED,[]),[$id]));
+        if ($main) $ids[]=$id;
+        update_option(self::PROMOTED,$ids,false);
+        return ['ok'=>true,'id'=>$id,'main'=>$main,'message'=>$main?'Moved to the main list.':'Moved to the hidden list.'];
     }
     public static function clear_cache(): void {
         if (class_exists('RankMath\\Sitemap\\Cache')) \RankMath\Sitemap\Cache::invalidate_storage();

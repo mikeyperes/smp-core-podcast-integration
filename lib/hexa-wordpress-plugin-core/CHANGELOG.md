@@ -3,6 +3,8 @@
 Release notes moved from the README (3.31.1). Newest first; each Core release adds its line here.
 
 
+Version 3.49.0: the sitemap engine keeps a hardcoded junk list (page-builder templates, theme parts, shop internals, post formats). Junk sitemaps are never recommended, are flagged `junk` in the lookup, can be turned off together (`disable_junk`, `wp hexa sitemaps disable-junk`) and can be moved back to the main list one by one (`promote`).
+
 Version 3.47.1: the map shortcode takes `pulse="ring"`: happening-now pins pulse as small HTML rings animated with transform and opacity, so the map is no longer redrawn every frame. Without the attribute the pulse is unchanged.
 
 Version 3.47.0: API key fields for every plugin (`src/ApiKeys/`): save, remove and test a service key, stored encrypted, with the service's setup steps; a general key test (`ApiKeyVerifier`, `HttpApiKeyVerifier`) that services extend. HWS Base Tools' Stripe keys are the first user.

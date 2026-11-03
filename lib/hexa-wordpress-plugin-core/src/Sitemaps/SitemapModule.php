@@ -15,6 +15,8 @@ final class SitemapModule implements ModuleInterface {
             'change'=>fn()=>RecommendationRegistry::change(sanitize_key((string)($_POST['id']??'')), '1' === (string)($_POST['on']??'')),
             'conditions'=>fn()=>RecommendationRegistry::save_condition(sanitize_key((string)($_POST['id']??'')),wp_unslash($_POST)),
             'check'=>fn()=>self::check(sanitize_key((string)($_POST['id']??''))),
+            'disable_junk'=>fn()=>RecommendationRegistry::disable_junk(),
+            'promote'=>fn()=>RecommendationRegistry::promote(sanitize_key((string)($_POST['id']??'')), '1' === (string)($_POST['main']??'')),
         ]);
         if (defined('WP_CLI') && WP_CLI) {
             \WP_CLI::add_command('hexa sitemaps',function($args,$assoc){
@@ -23,8 +25,10 @@ final class SitemapModule implements ModuleInterface {
                 if ('list'===$verb) $result=RecommendationRegistry::lookup((string)($assoc['site-type']??''));
                 elseif ('check'===$verb) $result=self::check($id);
                 elseif ('change'===$verb && isset($assoc['on'])) $result=RecommendationRegistry::change($id,'1'===(string)$assoc['on']);
+                elseif ('disable-junk'===$verb) $result=RecommendationRegistry::disable_junk();
+                elseif ('promote'===$verb && isset($assoc['main'])) $result=RecommendationRegistry::promote($id,'1'===(string)$assoc['main']);
                 elseif ('conditions'===$verb) $result=RecommendationRegistry::save_condition($id,['more_than'=>$assoc['more-than']??2,'min_posts'=>$assoc['min-posts']??1,'apply'=>isset($assoc['apply'])]);
-                else \WP_CLI::error('Use list, check --id, change --id --on=0|1, or conditions --id.');
+                else \WP_CLI::error('Use list, check --id, change --id --on=0|1, disable-junk, promote --id --main=0|1, or conditions --id.');
                 \WP_CLI::line(wp_json_encode($result));
             });
         }
