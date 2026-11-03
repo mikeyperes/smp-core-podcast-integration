@@ -1754,3 +1754,8 @@ php tests/litespeed-cache.php
 ## User profile route
 
 Call `\Hexa\PluginCore\Users\UserProfileBridge::register()` from `hexa_plugin_core_package_selected` to expose `GET/POST /wp-json/hexa-plugin-core/v1/users/{id}/profile` (needs `list_users` and `edit_user`). GET returns `rows`, safe `meta`, `legacy_avatar_url` and `avatar_provider`. POST accepts `native` (display_name, first_name, last_name, nickname, user_url, description, user_email), `meta`, `fields` and `avatar: {media_id}`, then returns the fresh profile plus `written`. Role, login, password, capability and session keys are always refused.
+
+## Collection submissions
+FrontendForms\SubmissionStore provides collection storage, unique email keys, IP/header normalization, rate limits and safe CSV. Hosts own enablement, authorization, consent, notifications and privacy hook registration. See docs/collection-submissions.md.
+
+PublicComponents\InlineStyles::enqueue(handle, css) queues deduplicated inline shortcode CSS through WordPress, with late footer printing. FrontendForms\SubmissionStore::delete(collection, id) deletes one collection-bound row after host authorization.

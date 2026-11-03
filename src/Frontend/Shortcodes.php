@@ -54,7 +54,7 @@ final class Shortcodes implements ModuleInterface {
 
     /** @return array<string,callable> */
     private static function callbacks(): array {
-        return array_merge( EpisodeData::callbacks(), [
+        return array_merge( EpisodeData::callbacks(), PageSurfaces::callbacks(), [
             'smp_guest_count' => [ GuestCount::class, 'shortcode' ],
             'smp_listen_button' => [ ShortcodeCallbacks::class, 'listen_button' ],
             'smp_watch_button' => [ ShortcodeCallbacks::class, 'watch_button' ],

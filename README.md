@@ -16,6 +16,11 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 ## Features
 
+- Explicit page surfaces provide episode counts, formatted metrics, the latest episode, and a subject table through the existing shortcode registry. No automatic assets or output.
+- Optional profile episode schema uses the shared Hexa graph and the profile owner's Person ID. Enable `smp_podcast_profile_episode_schema` only for sites migrating existing output.
+- See [page surfaces](docs/page-surfaces.md).
+
+
 - `[smp_guest_count]` displays the distinct linked guest profiles across published episodes, plus distinct sanitized fallback names only for episodes without a linked guest. Uses the configured episode type and EpisodeData APIs, caches for one hour (including zero), and invalidates on episode saves, metadata changes, and deletion. Plain localized number, no markup or assets, no output until used. [Guest count](docs/guest-count.md).
 
 - The catalog owns Episodes, single episodes, Podcast Host and Become a Guest. Native layouts belong to Base Tools; Voices and guest profiles belong to Verified Profiles, with historical key ownership recorded.
