@@ -17,7 +17,7 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 ## Features
 
 - Explicit page surfaces provide episode counts, formatted metrics, the latest episode, and a subject table through the existing shortcode registry. No automatic assets or output.
-- Optional profile episode schema merges typed relationship fragments by ID so Person subjectOf links survive graph validation. It uses the shared Hexa graph and the profile owner's Person ID. Enable `smp_podcast_profile_episode_schema` only for sites migrating existing output.
+- Optional profile episode schema references the configured canonical site publisher and merges typed relationship fragments by ID so Person subjectOf links survive graph validation. It uses the shared Hexa graph and the profile owner's Person ID. Enable `smp_podcast_profile_episode_schema` only for sites migrating existing output.
 - See [page surfaces](docs/page-surfaces.md).
 
 

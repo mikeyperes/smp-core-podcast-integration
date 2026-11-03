@@ -21,7 +21,9 @@ final class ProfileEpisodesSchema implements ModuleInterface {
  'associatedMedia'=>$audio!==''?SchemaNodes::node('AudioObject',['contentUrl'=>$audio]):null,
  ],$u.'#podcast-episode');$nodes[]=$node;$refs[]=SchemaNodes::ref($u.'#podcast-episode');
  }
- $nodes[]=SchemaNodes::node('PodcastSeries',['url'=>$home,'name'=>get_bloginfo('name'),'description'=>get_bloginfo('description'),'publisher'=>SchemaNodes::ref($home.'#organization')],$series);
+ $entity=\Hexa\PluginCore\EntitySources\CanonicalEntityResolver::resolve();
+ $publisher=is_array($entity)&&($entity['entity_type']??'')==='person'&&!empty($entity['attached_user_id'])?SchemaIds::person():SchemaIds::organization();
+ $nodes[]=SchemaNodes::node('PodcastSeries',['url'=>$home,'name'=>get_bloginfo('name'),'description'=>get_bloginfo('description'),'publisher'=>SchemaNodes::ref($publisher)],$series);
  if($refs)$nodes[]=['@type'=>'Person','@id'=>$person,'subjectOf'=>$refs];
  return $nodes;
  }
