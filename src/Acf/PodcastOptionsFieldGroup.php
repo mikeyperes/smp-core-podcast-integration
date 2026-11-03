@@ -140,11 +140,11 @@ final class PodcastOptionsFieldGroup {
 
             array(
                 'key' => 'field_6848b7b0373d3',
-                'label' => 'Default Host',
+                'label' => 'Primary Host',
                 'name' => 'default_host',
                 'aria-label' => '',
                 'type' => 'post_object',
-                'instructions' => 'Default host to be automatically selected when a new podcast is created.',
+                'instructions' => 'The main presenter of this show. Select a published Person profile, not the publication or publisher account. Also selected for new episodes that have no host; an episode’s explicit hosts remain unchanged.',
                 'required' => 0,
                 'conditional_logic' => 0,
                 'wrapper' => array(
@@ -594,7 +594,7 @@ final class PodcastOptionsFieldGroup {
         return [
             'Content labels and legacy content slug',
             'Import settings for episodes and profiles',
-            'Default host',
+            'Primary host',
             'Podcast platform URLs',
         ];
     }

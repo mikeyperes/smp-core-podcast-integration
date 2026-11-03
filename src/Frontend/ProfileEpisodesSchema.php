@@ -23,7 +23,8 @@ final class ProfileEpisodesSchema implements ModuleInterface {
  }
  $entity=\Hexa\PluginCore\EntitySources\CanonicalEntityResolver::resolve();
  $publisher=is_array($entity)&&($entity['entity_type']??'')==='person'&&!empty($entity['attached_user_id'])?SchemaIds::person():SchemaIds::organization();
- $nodes[]=SchemaNodes::node('PodcastSeries',['url'=>$home,'name'=>get_bloginfo('name'),'description'=>get_bloginfo('description'),'publisher'=>SchemaNodes::ref($publisher)],$series);
+ $host=\SMP\Podcast\Settings\PodcastSettings::primary_host_id();
+ $nodes[]=SchemaNodes::node('PodcastSeries',['url'=>$home,'name'=>get_bloginfo('name'),'description'=>get_bloginfo('description'),'publisher'=>SchemaNodes::ref($publisher),'actor'=>$host?SchemaNodes::ref(SchemaIds::for_url((string)get_permalink($host),'person')):null],$series);
  if($refs)$nodes[]=['@type'=>'Person','@id'=>$person,'subjectOf'=>$refs];
  return $nodes;
  }

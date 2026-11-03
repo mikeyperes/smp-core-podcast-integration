@@ -16,6 +16,9 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 ## Features
 
+- **Primary host**: the existing show-level host picker now explicitly selects a published Person profile. `PodcastSettings::primary_host_id()` validates the profile and exposes it to consumers; `default_host_id()` remains compatible and seeds only episodes with no assigned host. The show publisher is a separate identity. PodcastSeries schema references the primary host as actor without duplicating their Person definition.
+
+
 - Explicit page surfaces provide episode counts, formatted metrics, the latest episode, and a subject table through the existing shortcode registry. No automatic assets or output.
 - Optional profile episode schema references the configured canonical site publisher and merges typed relationship fragments by ID so Person subjectOf links survive graph validation. It uses the shared Hexa graph and the profile owner's Person ID. Enable `smp_podcast_profile_episode_schema` only for sites migrating existing output.
 - See [page surfaces](docs/page-surfaces.md).
