@@ -16,7 +16,7 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 ## Features
 
-- Canonical page definitions: [src/Pages/PageTypes.php](src/Pages/PageTypes.php), including episode queries, guest profiles, directories and subscription pages. The shared page manager handles ordinary pages only, through explicit setup; no automatic publishing.
+- Canonical page definitions: [src/Pages/PageTypes.php](src/Pages/PageTypes.php), including native episode and taxonomy addresses, the Guests archive and its profile layout, and Podcast Host under About. Voices uses the live overview page; no Listen and Subscribe page is defined. The shared page manager handles ordinary pages only, through explicit setup; no automatic publishing.
 
 - Episode presence checks via `[smp_episode_presence field="audio" post_id="0"]`, with `[mpp_episode_presence]` retained as a compatibility alias. Uses episode-owned parsed content, valid profile relationships, usable media and category filtering. No automatic visitor output. [Presence fields](docs/episode-elementor.md#episode-presence).
 
