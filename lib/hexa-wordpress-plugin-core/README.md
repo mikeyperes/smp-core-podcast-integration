@@ -34,6 +34,7 @@
 - Declared extensible builder/system exclusions and taxonomy/content-type sitemap collision protection.
 
 - Opt-in shared sitemap recommendations, explicit Rank Math changes, saved conditions, REST/AJAX and JSON WP-CLI. [Contract](docs/sitemaps.md).
+- Plugin-owned sitemaps: each plugin declares its sitemaps and gets its own Sitemaps section; other screens show them read-only with a link to the owner. [Contract](docs/sitemaps.md#plugin-owned-sitemaps).
 
 - Search filter chips: opt-in `filter_layout="chips"` renders accessible single-choice radio chips, including All, with the same markup under `style="none"`. Dropdowns remain the default. [Markup](docs/search-filter-chips.md).
 

@@ -124,7 +124,7 @@ final class RecommendationRegistry {
             $rows[$name]['available']=defined('RANK_MATH_PRO_VERSION');
         }
         $rows['local']['url']=home_url('/locations.kml');
-        $rows=self::apply_policy((array) apply_filters(self::FILTER,$rows,$site_type));
+        $rows=self::apply_policy(SitemapProviders::apply((array) apply_filters(self::FILTER,$rows,$site_type)));
         foreach ($rows as $id=>&$row) {
             $row['id']=$id;
             $row['warnings']=$row['policy_warnings']??[];
