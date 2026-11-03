@@ -22,7 +22,7 @@ final class ProfileEpisodesSchema implements ModuleInterface {
  ],$u.'#podcast-episode');$nodes[]=$node;$refs[]=SchemaNodes::ref($u.'#podcast-episode');
  }
  $nodes[]=SchemaNodes::node('PodcastSeries',['url'=>$home,'name'=>get_bloginfo('name'),'description'=>get_bloginfo('description'),'publisher'=>SchemaNodes::ref($home.'#organization')],$series);
- if($refs)$nodes[]=['@id'=>$person,'subjectOf'=>$refs];
+ if($refs)$nodes[]=['@type'=>'Person','@id'=>$person,'subjectOf'=>$refs];
  return $nodes;
  }
 }
