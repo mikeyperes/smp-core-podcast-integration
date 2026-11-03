@@ -659,6 +659,9 @@ check(
 );
 $GLOBALS['test_is_admin'] = true;
 $GLOBALS['test_current_screen'] = (object) [ 'base' => 'post', 'action' => 'add', 'post_type' => 'post' ];
+eval('namespace SMP\\VerifiedProfiles\\Schema; final class ProfileSchema { public static function profile_type(int $id): string {return $id===999 ? \'person\' : \'organization\';}}');
+eval('namespace SMP\\VerifiedProfiles\\ProfileTypes; final class ProfileTypes { public static function guest_type(): string {return \'podcast-guest\';}}');
+$GLOBALS['test_posts'][999] = new WP_Post(['ID'=>999,'post_type'=>'podcast-guest','post_status'=>'publish']);
 $GLOBALS['test_options']['option_podcast_default_host'] = 999;
 $GLOBALS['test_options']['enable_post_functionality'] = true;
 $default_host = new SMP\Podcast\Content\DefaultHost();
@@ -794,7 +797,7 @@ $GLOBALS['test_options']['smp_podcast_content_model'] = 'post';
 
 $shortcodes = new SMP\Podcast\Frontend\Shortcodes();
 $shortcodes->register();
-$expected_tags = array_merge([ 'smp_episode_field', 'smp_episode_audio_url', 'smp_episode_video_url', 'smp_episode_platform_url', 'smp_episode_platforms', 'smp_episode_takeaways', 'smp_episode_primary_category', 'smp_episode_label', 'smp_episode_details', 'smp_episode_archive_url', 'smp_episode_host_links', 'smp_episode_guest_fallback' ], [ 'smp_listen_button', 'smp_watch_button', 'podcast_url', 'episode_fields', 'article_guests', 'podcast_hosts', 'display_single_episode_hosts', 'guest_grid', 'display_guest_profile_info', 'display_host_profile_info', 'podcast_host' ]);
+$expected_tags = array_merge([ 'smp_episode_presence', 'mpp_episode_presence', 'smp_episode_field', 'smp_episode_audio_url', 'smp_episode_video_url', 'smp_episode_platform_url', 'smp_episode_platforms', 'smp_episode_takeaways', 'smp_episode_primary_category', 'smp_episode_label', 'smp_episode_details', 'smp_episode_archive_url', 'smp_episode_host_links', 'smp_episode_guest_fallback' ], [ 'smp_episode_count', 'smp_podcast_metric', 'smp_podcast_metrics', 'smp_podcast_latest_episode', 'smp_podcast_subject_table', 'smp_guest_count', 'smp_listen_button', 'smp_watch_button', 'podcast_url', 'episode_fields', 'article_guests', 'podcast_hosts', 'display_single_episode_hosts', 'guest_grid', 'display_guest_profile_info', 'display_host_profile_info', 'podcast_host' ]);
 check( $expected_tags === SMP\Podcast\Frontend\Shortcodes::tags(), 'canonical media triggers and all nine legacy shortcode tags register' );
 check( [] === array_diff( $expected_tags, array_keys( $GLOBALS['test_shortcodes'] ) ), 'all shortcode callbacks register' );
 

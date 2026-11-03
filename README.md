@@ -16,6 +16,9 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 
 ## Features
 
+- Public season archives, episode numbering, measured MP3 duration and size, linked podcast schema, complete RSS tags, and required page setup. New schema and numbering switches default off.
+
+
 - **Primary host**: the existing show-level host picker now explicitly selects a published Person profile. `PodcastSettings::primary_host_id()` validates the profile and exposes it to consumers; `default_host_id()` remains compatible and seeds only episodes with no assigned host. The picker lists published profiles and rejects non-Person selections when saved through either field engine. The show publisher is a separate identity. PodcastSeries schema references the primary host as actor without duplicating their Person definition.
 
 

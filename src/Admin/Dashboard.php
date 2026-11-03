@@ -178,7 +178,7 @@ final class Dashboard implements ModuleInterface {
     private function groups(): array {
         return [
             'overview' => [ 'label' => 'Overview', 'tabs' => [ 'overview' ] ],
-            'podcast' => [ 'label' => 'Podcast', 'tabs' => [ 'settings', 'playback', 'custom-fields', 'snippets', 'shortcodes' ] ],
+            'podcast' => [ 'label' => 'Podcast', 'tabs' => [ 'settings', 'metadata', 'playback', 'custom-fields', 'snippets', 'shortcodes' ] ],
             'operations' => [ 'label' => 'Operations', 'tabs' => [ 'operations', 'integrations' ] ],
             'system' => [ 'label' => 'System', 'tabs' => [ 'update-center', 'hexa-core' ] ],
         ];

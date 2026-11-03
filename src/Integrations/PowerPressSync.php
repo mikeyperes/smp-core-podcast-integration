@@ -42,7 +42,7 @@ final class PowerPressSync implements ModuleInterface {
             'duration' => 'duration',
             'summary' => 'summary',
             'episode_no' => 'number',
-            'season' => 'season',
+
         ];
         foreach ( $map as $source => $target ) {
             if ( isset( $data[ $source ] ) && '' !== (string) $data[ $source ] ) {
@@ -88,6 +88,12 @@ final class PowerPressSync implements ModuleInterface {
 
         $parts = preg_split( '/\r\n|\r|\n/', $before['enclosure'], 4 ) ?: [];
         $tail = isset( $parts[3] ) && '' !== trim( (string) $parts[3] ) ? (string) $parts[3] : '';
+        $data = $tail !== '' ? maybe_unserialize($tail) : [];
+        $data = is_array($data) ? $data : [];
+        $data['season'] = \SMP\Podcast\Content\EpisodeMetadata::season_number($post_id);
+        $data['episode_no'] = (int)get_post_meta($post_id, 'number', true);
+        $data['duration'] = (string)get_post_meta($post_id, 'duration', true);
+        $tail = maybe_serialize($data);
         $enclosure = $url . "\n" . $size . "\n" . ( $mime ?: 'audio/mpeg' );
         if ( '' !== $tail ) {
             $enclosure .= "\n" . $tail;
@@ -123,8 +129,8 @@ final class PowerPressSync implements ModuleInterface {
             return;
         }
         ?>
-        <style>.acf-field[data-name="summary"] textarea[readonly],.acf-field[data-name="audio_url"] input[readonly],.acf-field[data-name="number"] input[readonly],.acf-field[data-name="duration"] input[readonly]{background:#f6f7f7;color:#50575e}</style>
-        <script>jQuery(function($){$('.acf-field[data-name="summary"] textarea,.acf-field[data-name="audio_url"] input,.acf-field[data-name="number"] input,.acf-field[data-name="duration"] input').prop('readonly',true);});</script>
+        <style>.acf-field[data-name="summary"] textarea[readonly],.acf-field[data-name="audio_url"] input[readonly][readonly],.acf-field[data-name="duration"] input[readonly]{background:#f6f7f7;color:#50575e}</style>
+        <script>jQuery(function($){$('.acf-field[data-name="summary"] textarea,.acf-field[data-name="audio_url"] input,.acf-field[data-name="duration"] input').prop('readonly',true);});</script>
         <?php
     }
 

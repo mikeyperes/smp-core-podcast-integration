@@ -4,6 +4,7 @@ namespace Hexa\PluginCore\FrontendForms;
 /** Host-neutral collection storage. Unique collection/email index is the concurrency boundary. */
 final class SubmissionStore {
     public function table(): string { global $wpdb; return $wpdb->prefix . 'hexa_form_submissions'; }
+    public function deletions_table(): string {global $wpdb;return $wpdb->prefix . 'hexa_form_deletions';}
     public function install(): void {
         global $wpdb;
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -23,6 +24,14 @@ final class SubmissionStore {
             KEY email (email),
             KEY collection_id (collection,id)
         ) $collate;");
+        dbDelta("CREATE TABLE {$this->deletions_table()} (
+            deletion_id bigint unsigned NOT NULL AUTO_INCREMENT,
+            id bigint unsigned NOT NULL,
+            collection varchar(80) NOT NULL,
+            deleted_at datetime NOT NULL,
+            PRIMARY KEY  (deletion_id),
+            KEY collection (collection)
+        ) ENGINE=InnoDB $collate;");
         dbDelta("CREATE TABLE {$wpdb->prefix}hexa_form_rates (
             rate_key varchar(64) NOT NULL,
             attempts int unsigned NOT NULL DEFAULT 0,
@@ -80,13 +89,23 @@ final class SubmissionStore {
     }
     /** Hosts must authorize the exact list and row before calling. */
     public function delete(string $list, int $id): bool {
-        global $wpdb;
-        return $id > 0 && $wpdb->delete($this->table(), ['collection'=>self::collection($list),'id'=>$id]) === 1;
+        return $id>0 && $this->remove(['collection'=>self::collection($list),'id'=>$id])===1;
     }
     public function total(string $list): int {global $wpdb; return (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$this->table()} WHERE collection=%s",self::collection($list)));}
     public function recent(string $list, int $limit=20, int $before=0): array {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$this->table()} WHERE collection=%s AND id < %d ORDER BY id DESC LIMIT %d",self::collection($list),$before?:PHP_INT_MAX,max(1,min(500,$limit))),ARRAY_A)?:[];
+    }
+    /** Caller owns authorization. Ascending snapshot-bounded scan, safe across insertions and deletions. */
+    public function scan(int $after=0,int $limit=100,?string $collection=null,?int $upper=null): array {
+        global $wpdb;$table=$this->table();$after=max(0,$after);$limit=max(1,min(500,$limit));
+        $scope=$collection!==null?$wpdb->prepare(' AND collection=%s',self::collection($collection)):'';
+        if($upper===null){$upper=(int)$wpdb->get_var("SELECT MAX(id) FROM $table WHERE 1=1$scope");if($wpdb->last_error!=='')throw new \RuntimeException('Submission scan unavailable.');}
+        $upper=max(0,$upper);
+        $rows=$wpdb->get_results($wpdb->prepare("SELECT * FROM $table WHERE id > %d AND id <= %d$scope ORDER BY id ASC LIMIT %d",$after,$upper,$limit+1),ARRAY_A);
+        if($wpdb->last_error!==''||!is_array($rows))throw new \RuntimeException('Submission scan unavailable.');
+        $more=count($rows)>$limit;$rows=array_slice($rows,0,$limit);
+        return ['items'=>$rows,'upper_id'=>$upper,'next_after_id'=>$rows?(int)end($rows)['id']:$after,'has_more'=>$more];
     }
     public static function est(string $utc): string { return (new \DateTimeImmutable($utc,new \DateTimeZone('UTC')))->setTimezone(new \DateTimeZone('-05:00'))->format('Y-m-d H:i:s').' EST'; }
     public static function csv_cell($value): string { $s=(string)$value; return preg_match('/^[\s\x00-\x20]*[=+@-]/u',$s) || preg_match('/^[\t\r\n]/',$s) ? "'".$s : $s; }
@@ -101,5 +120,40 @@ final class SubmissionStore {
     public function personal_data(string $email,int $page=1): array {
         global $wpdb; return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$this->table()} WHERE email=%s ORDER BY id LIMIT 100 OFFSET %d",self::email($email),max(0,$page-1)*100),ARRAY_A)?:[];
     }
-    public function erase(string $email): bool {global $wpdb; return $wpdb->delete($this->table(),['email'=>self::email($email)])!==false;}
+    public function erase(string $email): bool {return $this->remove(['email'=>self::email($email)])!==null;}
+    /** Atomic removal plus privacy-safe journal. Serialize commits so an ascending cursor never misses a late commit. */
+    private function remove(array $where): ?int {
+        global $wpdb;$table=$this->table();$journal=$this->deletions_table();
+        $engines=(int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN (%s,%s) AND ENGINE='InnoDB'",$table,$journal));
+        if($engines!==2)return null;
+        $lock='hexa_delete_'.substr(hash('sha256',DB_NAME.':'.$table),0,40);
+        if((int)$wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s,10)',$lock))!==1)return null;
+        $started=false;
+        try {
+            if($wpdb->query('START TRANSACTION')===false)throw new \RuntimeException('Transaction unavailable.');$started=true;
+            $clauses=[];$values=[];foreach($where as $key=>$value){$clauses[]=$key.'=%s';$values[]=$value;}
+            $rows=$wpdb->get_results($wpdb->prepare("SELECT id,collection FROM $table WHERE ".implode(' AND ',$clauses).' FOR UPDATE',$values),ARRAY_A);
+            if($wpdb->last_error!==''||!is_array($rows))throw new \RuntimeException('Delete lookup failed.');
+            foreach($rows as $row){
+                if($wpdb->insert($journal,['id'=>$row['id'],'collection'=>$row['collection'],'deleted_at'=>gmdate('Y-m-d H:i:s')])!==1)throw new \RuntimeException('Deletion journal failed.');
+                if($wpdb->delete($table,['id'=>$row['id'],'collection'=>$row['collection']])!==1)throw new \RuntimeException('Delete failed.');
+            }
+            if($wpdb->query('COMMIT')===false)throw new \RuntimeException('Commit failed.');$started=false;
+            return count($rows);
+        }catch(\Throwable $e){if($started)$wpdb->query('ROLLBACK');return null;}
+        finally{$wpdb->get_var($wpdb->prepare('SELECT RELEASE_LOCK(%s)',$lock));}
+    }
+    /** No personal fields survive deletion. Hosts authorize this journal just like live submissions. */
+    public function deleted(int $after=0,int $limit=100): array {
+        global $wpdb;$after=max(0,$after);$limit=max(1,min(500,$limit));
+        $rows=$wpdb->get_results($wpdb->prepare("SELECT deletion_id,id,collection,deleted_at FROM {$this->deletions_table()} WHERE deletion_id > %d ORDER BY deletion_id ASC LIMIT %d",$after,$limit+1),ARRAY_A);
+        if($wpdb->last_error!==''||!is_array($rows))throw new \RuntimeException('Deletion scan unavailable.');
+        $more=count($rows)>$limit;$rows=array_slice($rows,0,$limit);
+        return ['items'=>$rows,'next_after_id'=>$rows?(int)end($rows)['deletion_id']:$after,'has_more'=>$more];
+    }
+    public function lists(): array {
+        global $wpdb;$rows=$wpdb->get_results("SELECT known.collection AS list,COUNT(s.id) AS total FROM (SELECT collection FROM {$this->table()} UNION SELECT collection FROM {$this->deletions_table()}) known LEFT JOIN {$this->table()} s ON s.collection=known.collection GROUP BY known.collection ORDER BY known.collection ASC",ARRAY_A);
+        if($wpdb->last_error!==''||!is_array($rows))throw new \RuntimeException('List totals unavailable.');
+        foreach($rows as &$row)$row['total']=(int)$row['total'];unset($row);return $rows;
+    }
 }

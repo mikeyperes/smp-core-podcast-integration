@@ -61,6 +61,19 @@ final class SchemaNodes {
         return self::finish( [ '@type' => $type, '@id' => $id ] + $properties );
     }
 
+    /** Podcast/media builders accept schema.org properties and derive stable IDs from url. */
+    private static function identified_media(string $type, string $fragment, array $properties): array {
+        $id = (string) ($properties['@id'] ?? SchemaIds::for_url((string) ($properties['url'] ?? $properties['contentUrl'] ?? ''), $fragment));
+        unset($properties['@id']);
+        return self::node($type, $properties, $id);
+    }
+    public static function podcast_series(array $properties): array { return self::identified_media('PodcastSeries', 'podcast-series', $properties); }
+    public static function podcast_season(array $properties): array { return self::identified_media('PodcastSeason', 'podcast-season', $properties); }
+    public static function podcast_episode(array $properties): array { return self::identified_media('PodcastEpisode', 'podcast-episode', $properties); }
+    public static function audio_object(array $properties): array { return self::identified_media('AudioObject', 'audio', $properties); }
+    public static function video_object(array $properties): array { return self::identified_media('VideoObject', 'video', $properties); }
+    public static function data_feed(array $properties): array { return self::identified_media('DataFeed', 'datafeed', $properties); }
+
     public static function organization( array $properties, string $type = 'Organization' ): array {
         if ( ! self::named_or_identified( $properties ) ) {
             return [];

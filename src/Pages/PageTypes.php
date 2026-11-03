@@ -18,10 +18,18 @@ final class PageTypes {
 
     public static function definitions(): array {
         $pages = [
-            'single_episode' => [ 'parent' => 'episodes', 'title' => 'Single episode', 'slug' => '/<episode>/', 'kind' => 'layout', 'content_source' => 'Podcast episode query and episode data', 'slug_source' => 'WordPress postname permalink' ],
-            'episodes' => [ 'title' => 'Episodes', 'slug' => 'episodes', 'content_source' => 'Podcast episode directory' ],
-            'podcast_host' => [ 'title' => 'Podcast Host', 'slug' => 'podcast-host', 'parent' => 'about', 'content_source' => 'Podcast default host and profile relationships' ],
-            'become_guest' => [ 'title' => 'Become a Guest', 'slug' => 'become-a-guest', 'design' => 'text', 'content_source' => 'Site guest application copy and form' ],
+            'homepage'=>['title'=>'Home (series)','slug'=>'home','slugs'=>['home-after-hours'],'content_source'=>'Podcast series and existing WordPress front page'],
+            'episodes'=>['title'=>'Episodes','slug'=>'episodes','content_source'=>'Podcast episode directory'],
+            'season'=>['title'=>'Season page','slug'=>'/season/<n>/','kind'=>'layout','content_source'=>'podcast_season taxonomy archive'],
+            'single_episode'=>['title'=>'Episode page','slug'=>'/<episode>/','kind'=>'layout','content_source'=>'Podcast episode query and episode data'],
+            'guests'=>['title'=>'Guests','slug'=>'voices','slugs'=>['guests'],'content_source'=>'Verified profiles directory'],
+            'guest_profile'=>['title'=>'Guest page','slug'=>'/profile/<guest>/','kind'=>'layout','content_source'=>'Verified Person profile'],
+            'podcast_host'=>['title'=>'Host page','slug'=>'podcast-host','content_source'=>'Configured primary host profile'],
+            'about'=>['title'=>'About','slug'=>'about','design'=>'text','content_source'=>'Site about copy'],
+            'contact'=>['title'=>'Contact','slug'=>'contact','design'=>'text','content_source'=>'Site contact information'],
+            'press_releases'=>['title'=>'Press releases','slug'=>'press-releases','content_source'=>'Publication press release directory'],
+            'badges'=>['title'=>'Badges','slug'=>'badges','content_source'=>'Podcast brand badges'],
+            'welcome'=>['title'=>'Welcome','slug'=>'welcome','content_source'=>'Podcast welcome content'],
         ];
         foreach ( $pages as &$page ) {
             $page += [ 'slugs' => [], 'parent' => '', 'design' => 'custom', 'enabled_by_default' => true, 'conditions' => [], 'kind' => 'page' ];

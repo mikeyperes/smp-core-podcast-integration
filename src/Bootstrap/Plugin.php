@@ -52,6 +52,8 @@ final class Plugin {
         $core
             ->add_module( Registries::content_types() )
             ->add_module( new ContentKind() )
+            ->add_module( new \SMP\Podcast\Content\EpisodeMetadata() )
+            ->add_module( new \SMP\Podcast\Frontend\PodcastSchema() )
             ->add_module( new \SMP\Podcast\Integrations\Elementor\ContentKindRules() )
             ->add_module( Registries::option_fields() )
             ->add_module( new Shortcodes() )

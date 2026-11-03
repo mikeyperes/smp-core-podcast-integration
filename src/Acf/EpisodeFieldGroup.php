@@ -455,7 +455,7 @@ final class EpisodeFieldGroup {
             // Episode Number
             array(
                 'key'               => 'field_6844c7e536051',
-                'label'             => 'Episode Number',
+                'label'             => 'Episode #',
                 'name'              => 'number',
                 'aria-label'        => '',
                 'type'              => 'text',
@@ -486,23 +486,10 @@ final class EpisodeFieldGroup {
                 'ui_on_text'        => '',
                 'ui_off_text'       => '',
             ),
-            // Season
-            array(
-                'key'               => 'field_6844c7e536054',
-                'label'             => 'Season',
-                'name'              => 'season',
-                'aria-label'        => '',
-                'type'              => 'text',
-                'instructions'      => 'Use shortcode: <code>[episode_fields name="season"]</code>',
-                'required'          => 0,
-                'conditional_logic' => 0,
-                'wrapper'           => array( 'width'=>'','class'=>'','id'=>'' ),
-                'default_value'     => '',
-                'maxlength'         => '',
-                'placeholder'       => '',
-                'prepend'           => '',
-                'append'            => '',
-            ),
+            // A distinct taxonomy key preserves old plain-text season data for migration.
+            ['key'=>'field_smp_podcast_season','label'=>'Season','name'=>'podcast_season','type'=>'taxonomy',
+             'taxonomy'=>'podcast_season','field_type'=>'select','allow_null'=>1,'add_term'=>1,
+             'save_terms'=>1,'load_terms'=>1,'return_format'=>'id'],
             // Duration
             array(
                 'key'               => 'field_6844c7e536055',

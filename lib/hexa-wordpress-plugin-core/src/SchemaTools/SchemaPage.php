@@ -19,6 +19,12 @@ final class SchemaPage {
 
     /** Linked properties keep @id and @type so validators can follow them. */
     private const LINKED_REFERENCE_PROPERTIES = [
+        'partOfSeries' => [ '@id', '@type' ],
+        'partOfSeason' => [ '@id', '@type' ],
+        'associatedMedia' => [ '@id', '@type' ],
+        'webFeed' => [ '@id', '@type' ],
+        'actor' => [ '@id', '@type' ],
+        'contributor' => [ '@id', '@type' ],
         'author'             => [ '@id', '@type' ],
         'publisher'          => [ '@id', '@type' ],
         'copyrightHolder'    => [ '@id', '@type' ],
