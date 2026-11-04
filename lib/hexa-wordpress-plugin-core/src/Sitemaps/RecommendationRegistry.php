@@ -77,6 +77,8 @@ final class RecommendationRegistry {
 
     /** Build and persist the complete, site-type-specific snapshot in one lookup. */
     public static function lookup(string $site_type = ''): array {
+        // The site's own type when none is asked for; a plugin that records site types supplies it.
+        if ('' === $site_type) $site_type = (string) apply_filters('hexa_plugin_core_site_type', '');
         $settings = (array) get_option('rank-math-options-sitemap', []);
         $modules = (array) get_option('rank_math_modules', []);
         $active = defined('RANK_MATH_VERSION');
@@ -124,7 +126,7 @@ final class RecommendationRegistry {
             $rows[$name]['available']=defined('RANK_MATH_PRO_VERSION');
         }
         $rows['local']['url']=home_url('/locations.kml');
-        $rows=self::apply_policy(SitemapProviders::apply((array) apply_filters(self::FILTER,$rows,$site_type)));
+        $rows=self::apply_policy(SitemapProviders::apply((array) apply_filters(self::FILTER,$rows,$site_type),$site_type));
         foreach ($rows as $id=>&$row) {
             $row['id']=$id;
             $row['warnings']=$row['policy_warnings']??[];

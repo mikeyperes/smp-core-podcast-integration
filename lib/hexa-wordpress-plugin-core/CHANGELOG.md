@@ -2,6 +2,10 @@
 
 Release notes moved from the README (3.31.1). Newest first; each Core release adds its line here.
 
+Version 3.54.0: sitemap site-type rules: a declared row with `site_types` applies only on those site types without taking ownership; recommendation callables receive the site type; the lookup defaults to the site's own type through `hexa_plugin_core_site_type`.
+
+Version 3.53.0: SchemaNodes adds `exhibition_event()` (schema.org ExhibitionEvent with dates, venue Place and address, organizer, works shown as VisualArtwork, and extra properties such as contributor) and `award_text()` (one award as the text Person and Organization `award` takes, since schema.org has no Award type).
+
 Version 3.50.1: WordPress-handle inline styles survive discarded shortcode expansions and print once even for late Elementor widgets; submission storage gains collection-bound single-row deletion.
 
 Version 3.50.0: reusable FrontendForms SubmissionStore adds unique collection/email storage, safe request metadata, Cloudflare-aware IP resolution, atomic rate counters, cursor-based CSV and personal-data helpers.

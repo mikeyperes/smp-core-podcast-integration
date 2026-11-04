@@ -372,6 +372,70 @@ final class SchemaNodes {
         );
     }
 
+    /**
+     * An exhibition, show or fair (schema.org ExhibitionEvent).
+     * Field row keys: name, start_date, end_date, description, url, venue,
+     * city, address, organizer, organizer_url, works (list of names or rows),
+     * image. `$properties` adds or overrides properties, e.g. contributor.
+     */
+    public static function exhibition_event( array $row, string $id = '', array $properties = [] ): array {
+        $name = ValueNormalizer::text( $row['name'] ?? '' );
+        if ( '' === $name ) {
+            return [];
+        }
+        $venue = ValueNormalizer::text( $row['venue'] ?? '' );
+        $location = null;
+        if ( '' !== $venue || '' !== ValueNormalizer::text( $row['city'] ?? '' ) ) {
+            $location = self::finish(
+                [
+                    '@type'   => 'Place',
+                    'name'    => '' !== $venue ? $venue : ValueNormalizer::text( $row['city'] ?? '' ),
+                    'address' => self::finish( [ '@type' => 'PostalAddress', 'streetAddress' => ValueNormalizer::text( $row['address'] ?? '' ), 'addressLocality' => ValueNormalizer::text( $row['city'] ?? '' ) ] ),
+                ]
+            );
+        }
+        $works = [];
+        foreach ( (array) ( $row['works'] ?? [] ) as $work ) {
+            $work_name = is_array( $work ) ? ( $work['name'] ?? $work['value'] ?? '' ) : $work;
+            $node = self::thing( (string) $work_name, is_array( $work ) ? (string) ( $work['url'] ?? '' ) : '', 'VisualArtwork' );
+            if ( $node ) {
+                $works[] = $node;
+            }
+        }
+        $organizer = ValueNormalizer::text( $row['organizer'] ?? '' );
+        return self::finish(
+            [
+                '@type'       => 'ExhibitionEvent',
+                '@id'         => $id,
+                'name'        => $name,
+                'startDate'   => ValueNormalizer::date( $row['start_date'] ?? $row['date'] ?? '' ),
+                'endDate'     => ValueNormalizer::date( $row['end_date'] ?? '' ),
+                'eventAttendanceMode' => 'https://schema.org/OfflineEventAttendanceMode',
+                'description' => ValueNormalizer::text( $row['description'] ?? '' ),
+                'url'         => ValueNormalizer::url( $row['url'] ?? '' ),
+                'image'       => self::image_value( $row['image'] ?? null ),
+                'location'    => $location,
+                'organizer'   => '' !== $organizer ? self::thing( $organizer, (string) ( $row['organizer_url'] ?? '' ), 'Organization' ) : null,
+                'workFeatured' => $works,
+            ] + $properties
+        );
+    }
+
+    /**
+     * One award as the text schema.org's Person/Organization `award` takes
+     * (schema.org has no Award type). Field row keys: name, year, given_by.
+     * Gives "Best in Show, Palm Beach Art Show (2025)".
+     */
+    public static function award_text( array $row ): string {
+        $name = ValueNormalizer::text( $row['name'] ?? '' );
+        if ( '' === $name ) {
+            return '';
+        }
+        $given_by = ValueNormalizer::text( $row['given_by'] ?? '' );
+        $year     = ValueNormalizer::text( $row['year'] ?? '' );
+        return $name . ( '' !== $given_by ? ', ' . $given_by : '' ) . ( '' !== $year ? ' (' . $year . ')' : '' );
+    }
+
     /** A named reference to an entity that has no node of its own on the page. */
     public static function thing( string $name, string $url = '', string $type = 'Thing' ): array {
         $name = ValueNormalizer::text( $name );

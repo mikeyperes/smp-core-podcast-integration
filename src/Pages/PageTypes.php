@@ -24,12 +24,14 @@ final class PageTypes {
             'single_episode'=>['title'=>'Episode page','slug'=>'/<episode>/','kind'=>'layout','content_source'=>'Podcast episode query and episode data'],
             'guests'=>['title'=>'Guests','slug'=>'voices','slugs'=>['guests'],'content_source'=>'Verified profiles directory'],
             'guest_profile'=>['title'=>'Guest page','slug'=>'/profile/<guest>/','kind'=>'layout','content_source'=>'Verified Person profile'],
-            'podcast_host'=>['title'=>'Host page','slug'=>'podcast-host','content_source'=>'Configured primary host profile'],
+            'podcast_host'=>['title'=>'Host page','slug'=>'podcast-host','parent'=>'about','content_source'=>'Configured primary host profile'],
             'about'=>['title'=>'About','slug'=>'about','design'=>'text','content_source'=>'Site about copy'],
-            'contact'=>['title'=>'Contact','slug'=>'contact','design'=>'text','content_source'=>'Site contact information'],
+            'about_podcast'=>['title'=>'About the Podcast','slug'=>'about-the-podcast','slugs'=>['about-the-michael-peres-podcast'],'parent'=>'about','design'=>'text','content_source'=>'Site about copy'],
+            'contact'=>['title'=>'Connect','slug'=>'connect','slugs'=>['contact'],'design'=>'text','content_source'=>'Site contact information'],
             'press_releases'=>['title'=>'Press releases','slug'=>'press-releases','content_source'=>'Publication press release directory'],
             'badges'=>['title'=>'Badges','slug'=>'badges','content_source'=>'Podcast brand badges'],
             'welcome'=>['title'=>'Welcome','slug'=>'welcome','content_source'=>'Podcast welcome content'],
+            'become_a_guest'=>['title'=>'Become a Guest','slug'=>'become-a-guest','slugs'=>['be-a-guest'],'content_source'=>'Guest application form'],
         ];
         foreach ( $pages as &$page ) {
             $page += [ 'slugs' => [], 'parent' => '', 'design' => 'custom', 'enabled_by_default' => true, 'conditions' => [], 'kind' => 'page' ];

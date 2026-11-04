@@ -70,6 +70,7 @@ final class Plugin {
             ->add_module( new RewriteLifecycle() )
             ->add_module( new LegacyCompatibility() )
             ->add_module( new LegacyOptionSynchronizer() )
+            ->add_module( new \SMP\Podcast\Sitemaps\SitemapTypes() )
             ->add_module( new IntegrationTests() );
 
         if ( is_admin() || wp_doing_ajax() ) {

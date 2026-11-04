@@ -48,6 +48,7 @@
 
 - Opt-in shared sitemap recommendations, explicit Rank Math changes, saved conditions, REST/AJAX and JSON WP-CLI. [Contract](docs/sitemaps.md).
 - Plugin-owned sitemaps: each plugin declares its sitemaps and gets its own Sitemaps section; other screens show them read-only with a link to the owner. [Contract](docs/sitemaps.md#plugin-owned-sitemaps).
+- Site-type sitemap rules: a plugin can recommend a sitemap on or off for one site type only (for example authors off on a person website), and the lookup uses the site's own type by default. [Contract](docs/sitemaps.md#plugin-owned-sitemaps).
 
 - Search filter chips: opt-in `filter_layout="chips"` renders accessible single-choice radio chips, including All, with the same markup under `style="none"`. Dropdowns remain the default. [Markup](docs/search-filter-chips.md).
 
@@ -273,7 +274,7 @@
 
 ### Schema tools
 - **Does:** the one schema library: node builders, WordPress data sources, shared `@id`s and one merged `hexa-schema` JSON-LD block per page from every plugin, plus the Rank Math schema switch and a schema dashboard.
-- **Use:** `SchemaNodes::organization()`, `person()`, `article()`, `web_page()` and the rest with `SchemaSources` and `SchemaIds`; `SchemaPage::register( $source, $callback )` to add nodes; `RankMathSchemaControl::register()`; `SchemaGraph::standalone_nodes()`, `validation_issues()`; `SchemaDashboardRenderer::render()`.
+- **Use:** `SchemaNodes::organization()`, `person()`, `article()`, `web_page()`, `event()`, `exhibition_event()`, `award_text()` and the rest with `SchemaSources` and `SchemaIds`; `SchemaPage::register( $source, $callback )` to add nodes; `RankMathSchemaControl::register()`; `SchemaGraph::standalone_nodes()`, `validation_issues()`; `SchemaDashboardRenderer::render()`.
 - **Extend:** `hexa_plugin_core_schema_graph`.
 - **Code:** `src/SchemaTools/` (docs: `docs/schema-tools.md`, `docs/schema-standalone-nodes.md`)
 
