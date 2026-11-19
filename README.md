@@ -16,7 +16,7 @@ Hexa WordPress integration for podcast content, field structures, profile relati
 
 ## Features
 
-- Hexa WP Core 3.64.0 owns the episode and podcast settings fields. Existing episode data, field names and option keys stay in use.
+- Hexa WP Core 3.64.0 owns episode and podcast settings fields, including front-end relationship and audio attachment reads. Existing keys and PowerPress enclosure precedence are preserved.
 
 - Every page a podcast site's default menus link to is in the page catalog: About the Podcast and the Host page under About, Become a Guest, and the contact page named Connect (`/connect/`, the old `/contact/` address still matches).
 - Site-type sitemap rule: on a podcast site the authors sitemap is off, since the episodes are the posts. Bundles Hexa WP Core 3.54.0.
@@ -25,7 +25,7 @@ Hexa WordPress integration for podcast content, field structures, profile relati
 - Public season archives, episode numbering, measured MP3 duration and size, linked podcast schema, complete RSS tags, and required page setup. New schema and numbering switches default off.
 
 
-- **Primary host**: the existing show-level host picker now explicitly selects a published Person profile. `PodcastSettings::primary_host_id()` validates the profile and exposes it to consumers; `default_host_id()` remains compatible and seeds only episodes with no assigned host. The picker lists published profiles and rejects non-Person selections when saved through either field engine. The show publisher is a separate identity. PodcastSeries schema references the primary host as actor without duplicating their Person definition.
+- **Primary host**: the existing show-level host picker now explicitly selects a published Person profile. `PodcastSettings::primary_host_id()` validates the profile and exposes it to consumers; `default_host_id()` remains compatible and seeds only episodes with no assigned host. The picker lists published profiles and rejects non-Person selections when saved in Core. The show publisher is a separate identity. PodcastSeries schema references the primary host as actor without duplicating their Person definition.
 
 
 - Explicit page surfaces provide episode counts, formatted metrics, the latest episode, and a subject table through the existing shortcode registry. No automatic assets or output.

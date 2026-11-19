@@ -7,6 +7,7 @@ use DOMDocument;
 use DOMXPath;
 use DOMElement;
 use Hexa\PluginCore\CoreContracts\ModuleInterface;
+use Hexa\PluginCore\Fields\Field;
 
 /** Episode presentation using saved podcast fields; no automatic frontend output. */
 final class EpisodeData implements ModuleInterface {
@@ -437,19 +438,19 @@ public static function relationship_ids(string $relationship, int $episode_id = 
     }
 
     $ids = [];
-    if (function_exists('get_field')) {
-        $value = get_field($relationship, $episode_id);
-        foreach (is_array($value) ? $value : [] as $row) {
-            if ($relationship === 'profiles' && is_array($row) && array_key_exists('profile', $row)) {
-                $row = $row['profile'];
-            }
-            if (is_object($row) && isset($row->ID)) {
-                $row = $row->ID;
-            }
-            $profile_id = absint($row);
-            if ($profile_id && in_array(get_post_type($profile_id), self::guest_types(), true)) {
-                $ids[] = $profile_id;
-            }
+    // Bug: episode relationships used ACF's field reader when ACF was active.
+    // Fix: read through Core so relationship rows use the same engine as the editor.
+    $value = Field::get($relationship, $episode_id);
+    foreach (is_array($value) ? $value : [] as $row) {
+        if ($relationship === 'profiles' && is_array($row) && array_key_exists('profile', $row)) {
+            $row = $row['profile'];
+        }
+        if (is_object($row) && isset($row->ID)) {
+            $row = $row->ID;
+        }
+        $profile_id = absint($row);
+        if ($profile_id && in_array(get_post_type($profile_id), self::guest_types(), true)) {
+            $ids[] = $profile_id;
         }
     }
 
@@ -670,7 +671,8 @@ public static function audio_url(int $episode_id = 0): string {
         return $valid;
     }
 
-    $audio = function_exists('get_field') ? get_field('audio', $episode_id) : get_post_meta($episode_id, 'audio', true);
+    // Bug: the attachment fallback depended on ACF. Read it through Core while retaining PowerPress precedence.
+    $audio = Field::get('audio', $episode_id);
     return self::valid_audio_url($audio);
 }
 

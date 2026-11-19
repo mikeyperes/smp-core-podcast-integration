@@ -120,7 +120,7 @@ final class IntegrationTests implements ModuleInterface {
 
         $registry->register(
             $host . '.acf-key-contract',
-            'Episode ACF field keys remain compatible',
+            'Episode field keys remain compatible',
             static function(): array {
                 $required = [
                     'field_6844c5f82ace2', 'field_6844c7776e21e', 'field_6844c7e536052',

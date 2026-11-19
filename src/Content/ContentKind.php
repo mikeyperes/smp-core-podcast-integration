@@ -304,7 +304,7 @@ final class ContentKind implements ModuleInterface {
      * @param mixed $check ACF pre-update short-circuit value; null continues.
      * @param mixed $value Proposed field value.
      * @param mixed $post_id ACF post identifier.
-     * @param mixed $field ACF field definition.
+     * @param mixed $field Core field definition.
      * @return mixed
      */
     public function prevent_article_episode_field_update( mixed $check, mixed $value, mixed $post_id, mixed $field ): mixed {
