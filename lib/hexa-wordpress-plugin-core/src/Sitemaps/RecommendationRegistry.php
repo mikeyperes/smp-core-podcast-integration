@@ -1,7 +1,7 @@
 <?php
 namespace Hexa\PluginCore\Sitemaps;
 
-/** Shared recommendation engine. Reading never changes Rank Math. */
+/** Shared recommendation engine. Recommendations ignore Rank Math's noindex; reading never changes Rank Math. */
 final class RecommendationRegistry {
     public const FILTER = 'hexa_plugin_core_sitemap_recommendations';
     public const OPTION = 'hexa_plugin_core_sitemap_recommendations';
@@ -132,6 +132,8 @@ final class RecommendationRegistry {
             $row['warnings']=$row['policy_warnings']??[];
             $checks=(array)get_option('hexa_plugin_core_sitemap_checks',[]);
             $row['live_check']=$checks[$id]??null;
+            $row['hidden_from_google']=self::is_hidden_from_google($row);
+            if (!empty($row['recommended']) && $row['hidden_from_google']) $row['warnings'][]='Its pages are hidden from Google, so Rank Math leaves them out of the sitemap; turning it on here makes them visible.';
             if (!empty($row['recommended']) && isset($checks[$id]['response']['code']) && 200 !== $checks[$id]['response']['code']) $row['warnings'][]='Required sitemap did not answer HTTP 200.';
             if (!empty($row['recommended']) && empty($row['current'])) $row['warnings'][]='Required sitemap is off in Rank Math.';
             if (empty($row['recommended']) && !empty($row['current'])) $row['warnings'][]='A sitemap that is not recommended is on.';
@@ -166,8 +168,41 @@ final class RecommendationRegistry {
             $after[$row['setting']]=$on?'on':'off';
             update_option('rank-math-options-sitemap',$after);
         }
+        // Rank Math drops hidden (noindex) pages from their sitemap, so a sitemap turned on also makes its pages visible.
+        $shown=$on && !empty($row['hidden_from_google']) && self::show_to_google($row);
         self::clear_cache();
-        return ['ok'=>true,'id'=>$id,'on'=>$on,'message'=>'Rank Math updated and sitemap cache cleared.'];
+        return ['ok'=>true,'id'=>$id,'on'=>$on,'made_visible'=>$shown,'message'=>'Rank Math updated'.($shown?', its pages made visible to Google,':'').' and sitemap cache cleared.'];
+    }
+    /** Rank Math's Titles & Meta robots key for a row, or '' when the row has none. */
+    public static function robots_key(array $row): string {
+        $kind=(string)($row['kind']??'');
+        if ('post_type'===$kind) return 'pt_'.$row['name'].'_robots';
+        if ('taxonomy'===$kind) return 'tax_'.$row['name'].'_robots';
+        if ('author'===$kind) return 'author_robots';
+        return '';
+    }
+    /** The robots values Rank Math applies: the type's own when it has custom robots, else the site-wide ones. */
+    public static function effective_robots(array $row): array {
+        $key=self::robots_key($row);
+        if (''===$key) return [];
+        $titles=(array)get_option('rank-math-options-titles',[]);
+        $custom='on'===($titles[substr($key,0,-6).'custom_robots']??'');
+        return array_values((array)($custom?($titles[$key]??[]):($titles['robots_global']??[])));
+    }
+    public static function is_hidden_from_google(array $row): bool {
+        return in_array('noindex',self::effective_robots($row),true);
+    }
+    /** Set the type's own robots to index, keeping every other robots value. */
+    private static function show_to_google(array $row): bool {
+        $key=self::robots_key($row);
+        if (''===$key) return false;
+        $titles=(array)get_option('rank-math-options-titles',[]);
+        $robots=array_values(array_diff(self::effective_robots($row),['noindex','index']));
+        array_unshift($robots,'index');
+        $titles[$key]=$robots;
+        $titles[substr($key,0,-6).'custom_robots']='on';
+        update_option('rank-math-options-titles',$titles);
+        return true;
     }
     /** Turn off, in one action, every junk sitemap that is on. */
     public static function disable_junk(): array {

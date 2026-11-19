@@ -1,6 +1,6 @@
 <?php
 
-namespace SMP\Podcast\Acf;
+namespace SMP\Podcast\Fields;
 
 final class EpisodeFieldGroup {
     public const GROUP_KEY = 'group_6844c5d5cf57f';
@@ -587,3 +587,6 @@ final class EpisodeFieldGroup {
         ];
     }
 }
+
+// Preserve the former public class name.
+class_alias( EpisodeFieldGroup::class, 'SMP\\Podcast\\Acf\\EpisodeFieldGroup' );

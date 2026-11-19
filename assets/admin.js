@@ -214,8 +214,5 @@
 
     document.addEventListener('hexa-core-host-tab-loaded', function (event) {
         var panel = event.detail && event.detail.panel ? event.detail.panel : null;
-        if (panel && window.acf && typeof window.acf.doAction === 'function') {
-            window.acf.doAction('append', panel);
-        }
     });
 })();

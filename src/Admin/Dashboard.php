@@ -10,7 +10,7 @@ use Hexa\PluginCore\SnippetRegistry\SnippetsTableRenderer;
 use Hexa\PluginCore\WpAdminComponents\CoreUi;
 use Hexa\PluginCore\WpAdminComponents\DynamicButton;
 use Hexa\PluginCore\WpAdminTabs\HostTabsRenderer;
-use SMP\Podcast\Acf\PodcastOptionsFieldGroup;
+use SMP\Podcast\Fields\PodcastOptionsFieldGroup;
 use SMP\Podcast\Bootstrap\Registries;
 use SMP\Podcast\Config;
 use SMP\Podcast\Settings\PlaybackSettings;
@@ -241,7 +241,7 @@ final class Dashboard implements ModuleInterface {
         echo CoreUi::collapsible( [ 'title' => 'Default Host', 'body_html' => $host_body, 'meta_html' => CoreUi::pill( $host_id ? 'Configured' : 'Optional', $host_id ? 'success' : 'warning' ), 'open' => true, 'persist_key' => 'smp-podcast-default-host' ] );
 
         if ( \Hexa\PluginCore\Fields\Field::available() && \Hexa\PluginCore\Fields\Field::available() && \Hexa\PluginCore\Fields\FieldGroups::get_group( PodcastOptionsFieldGroup::GROUP_KEY ) ) {
-            echo '<section class="hpc-card smp-podcast-acf-form"><h3>Podcast Data</h3><p>These are the existing saved podcast options. Field names and storage keys remain unchanged.</p>';
+            echo '<section class="hpc-card smp-podcast-field-form"><h3>Podcast Data</h3><p>These are the existing saved podcast options. Field names and storage keys remain unchanged.</p>';
             \Hexa\PluginCore\Fields\Form::render(
                 [
                     'post_id' => PodcastSettings::OPTIONS_POST_ID,
@@ -371,7 +371,7 @@ final class Dashboard implements ModuleInterface {
     private function render_operations(): void {
         echo '<section class="smp-podcast-intro"><h2>Podcast Operations</h2><p>Each operation discovers the current podcast content first, then processes one item per authenticated AJAX request with a live before-and-after report.</p></section>';
         $this->operation_card( 'default-host', 'Apply Default Host', 'Assigns the selected default profile only to podcast items whose Hosts field is empty. Existing hosts are never overwritten.' );
-        $this->operation_card( 'audio', 'Synchronize Audio and PowerPress', 'Aligns the ACF audio URL and PowerPress enclosure while preserving the existing serialized PowerPress settings line.' );
+        $this->operation_card( 'audio', 'Synchronize Audio and PowerPress', 'Aligns the stored audio URL and PowerPress enclosure while preserving the existing serialized PowerPress settings line.' );
         $this->operation_card( 'migrate-urls', 'Migrate Legacy URL Fields', 'Copies the legacy YouTube ID field into the canonical grouped YouTube field only when the destination is empty.' );
     }
 

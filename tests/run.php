@@ -333,8 +333,8 @@ $core_version = trim( (string) file_get_contents( $root . '/lib/hexa-wordpress-p
 check( 1 === preg_match( '/^\d+\.\d+\.\d+$/', $core_version ) && $core_version === Hexa\PluginCore\CoreRuntime\CoreVersion::current(), 'loaded Core matches bundled VERSION', $core_version );
 check( hash_equals( $declared_hash, $actual_hash ), 'bundled Core source matches PACKAGE_HASH' );
 
-$episode = SMP\Podcast\Acf\EpisodeFieldGroup::definition();
-$options = SMP\Podcast\Acf\PodcastOptionsFieldGroup::definition();
+$episode = SMP\Podcast\Fields\EpisodeFieldGroup::definition();
+$options = SMP\Podcast\Fields\PodcastOptionsFieldGroup::definition();
 check( 'group_6844c5d5cf57f' === $episode['key'], 'episode ACF group key is stable' );
 check( 'group_6848b7b0247cc' === $options['key'], 'options ACF group key is stable' );
 check( '@post_type' === $episode['location'][0][0]['value'], 'episode ACF location remains Core-resolvable' );
@@ -603,7 +603,7 @@ check( ! SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 203 ), 'non-p
 check( SMP\Podcast\Settings\PodcastSettings::is_podcast_content( 201, false ), 'explicit unscoped compatibility checks accept the configured post type' );
 
 $episode_rule = [ 'param' => 'post_type', 'operator' => '==', 'value' => 'post' ];
-$episode_group = [ 'key' => SMP\Podcast\Acf\EpisodeFieldGroup::GROUP_KEY, 'title' => 'Podcast Episode Fields' ];
+$episode_group = [ 'key' => SMP\Podcast\Fields\EpisodeFieldGroup::GROUP_KEY, 'title' => 'Podcast Episode Fields' ];
 check(
     false === $content_kind->match_episode_field_group_location( true, $episode_rule, [ 'post_id' => 206, 'post_type' => 'post' ], $episode_group ),
     'podcast ACF field group is suppressed for explicit articles'

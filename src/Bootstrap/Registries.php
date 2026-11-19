@@ -5,8 +5,8 @@ namespace SMP\Podcast\Bootstrap;
 use Hexa\PluginCore\ContentTypes\ContentTypeRegistry;
 use Hexa\PluginCore\FieldStructures\AcfFieldGroupRegistry;
 use Hexa\PluginCore\SnippetRegistry\SnippetRegistry;
-use SMP\Podcast\Acf\EpisodeFieldGroup;
-use SMP\Podcast\Acf\PodcastOptionsFieldGroup;
+use SMP\Podcast\Fields\EpisodeFieldGroup;
+use SMP\Podcast\Fields\PodcastOptionsFieldGroup;
 use SMP\Podcast\Settings\PodcastSettings;
 use SMP\Podcast\Support\SnippetDefinitions;
 

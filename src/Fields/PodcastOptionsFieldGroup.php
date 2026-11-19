@@ -1,6 +1,6 @@
 <?php
 
-namespace SMP\Podcast\Acf;
+namespace SMP\Podcast\Fields;
 
 final class PodcastOptionsFieldGroup {
     public const GROUP_KEY = 'group_6848b7b0247cc';
@@ -35,7 +35,7 @@ final class PodcastOptionsFieldGroup {
                             'required'  => 0,
                             'conditional_logic' => 0,
                             'wrapper'   => array('width'=>'','class'=>'','id'=>''),
-                            'message'   => 'WP All Import and its ACF add-on must be active. Source spreadsheets must be accessible to the importer.',
+                            'message'   => 'Source spreadsheets must be accessible to WP All Import when using that optional import workflow.',
                             'new_lines' => 'wpautop',
                             'esc_html'  => 0,
                         ),
@@ -599,3 +599,6 @@ final class PodcastOptionsFieldGroup {
         ];
     }
 }
+
+// Preserve the former public class name.
+class_alias( PodcastOptionsFieldGroup::class, 'SMP\\Podcast\\Acf\\PodcastOptionsFieldGroup' );

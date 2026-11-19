@@ -1,6 +1,54 @@
+## 3.64.0 - 2026-11-18
+
+- Run Hexa field registration, storage, formatting, row loops and editors in Core with or without ACF installed. Preserve existing values, field keys and storage names.
+
+## 3.63.0 - 2026-11-16
+
+- Add the shared public press-release author/person lookup and paginated release-list client, with safe HTTPS transport and response checks.
+
+## 3.62.1 - 2026-11-15
+
+- Normalize calling URLs and domains once in the shared signed transport, including www and trailing-dot handling; refuse IP or malformed identities.
+
+## 3.62.0 - 2026-11-15
+
+- Add shared domain-bound HMAC JSON signing and HTTPS POST transport with fresh nonces, exact-body hashes and redirects disabled.
+
+# 3.57.0
+
+## 3.61.0 - 2026-11-13
+
+- Schema structures: `SchemaStructures` registry, `SchemaContext`, `SchemaStructuresPanel` and `SchemaStructuresModule` (AJAX and `wp hexa schema`): each plugin declares its structures, which ship on in their default mode, keep their mode, print in the shared block and preview live.
+- `SchemaNodes::person_profile()`, `occupation()`, `educational_organization()`, `country()`, `quotation()`, `creative_work()`; `ImageGallery` page type; `same_as()` keeps the first spelling of a repeated link.
+- `SchemaPage::merge_nodes()` and `document_for()` merge and print nodes without changing the current page.
+- FAQ output no longer prints the admin UI styles on public pages; its own styles print once per page.
+
+## 3.59.1 - 2026-11-08
+
+- Recognize Simple User Avatar and network-active avatar plugins; enforce Simple Local Avatars for profile writes and clean outgoing derivatives.
+
+
+## 3.59.0
+
+- Include nonstandard discussion statuses when closing all registered content types.
+
+## 3.58.0
+
+- Close site-wide comments and pings in bounded status-only updates with post-cache invalidation, avoiding thousands of content-save hooks.
+
+- Sitemap recommendations ignore Rank Math's noindex. Each row reports `hidden_from_google` with a warning when a recommended sitemap's pages are hidden, and turning a content-type, taxonomy or author sitemap on also makes its pages visible to Google (Titles & Meta robots set to index), so the sitemap actually appears.
+
+# 3.56.1
+
+- Term choice limits skip anonymous, CLI and cron saves, preserve excluded mandatory terms, and accept a host ownership predicate.
+
 # Hexa WordPress Plugin Core changelog
 
 Release notes moved from the README (3.31.1). Newest first; each Core release adds its line here.
+
+Version 3.56.0: name-to-slug conversion: `DataNormalization\SlugConverter` (PHP, with an identical browser twin) and `WpAdminComponents\SlugField`, a name box whose slug box fills in live as you type.
+
+Version 3.55.0: every plugin dashboard with the sidebar layout gets a search box at the top of its sidebar that filters the sections as you type (by section name, ID or group name); Enter opens the first match, Escape clears it.
 
 Version 3.54.0: sitemap site-type rules: a declared row with `site_types` applies only on those site types without taking ownership; recommendation callables receive the site type; the lookup defaults to the site's own type through `hexa_plugin_core_site_type`.
 
@@ -353,3 +401,6 @@ Version 0.19.13 adds reusable collapsed detail subcards and uses them in cleanup
 Version 0.19.12 keeps Core toggle inputs clipped to a 1px focusable control so hidden checkbox fields cannot create horizontal page overflow.
 
 Version 0.19.4 adds:
+
+## 3.60.0
+- Generic PdfPrint physical dimensions and HTML print/PDF renderer; host supplies Dompdf.

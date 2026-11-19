@@ -3,7 +3,7 @@
 namespace SMP\Podcast\Content;
 
 use Hexa\PluginCore\CoreContracts\ModuleInterface;
-use SMP\Podcast\Acf\EpisodeFieldGroup;
+use SMP\Podcast\Fields\EpisodeFieldGroup;
 use SMP\Podcast\Settings\PodcastSettings;
 
 /**

@@ -4,8 +4,8 @@ namespace SMP\Podcast\Diagnostics;
 
 use Hexa\PluginCore\CoreContracts\ModuleInterface;
 use Hexa\PluginCore\IntegrationTests\TestRegistry;
-use SMP\Podcast\Acf\EpisodeFieldGroup;
-use SMP\Podcast\Acf\PodcastOptionsFieldGroup;
+use SMP\Podcast\Fields\EpisodeFieldGroup;
+use SMP\Podcast\Fields\PodcastOptionsFieldGroup;
 use SMP\Podcast\Config;
 use SMP\Podcast\Content\ContentKind;
 use SMP\Podcast\Frontend\AudioSourceResolver;

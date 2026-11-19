@@ -1,6 +1,6 @@
 # Scale My Podcast - Core Functionality
 
-Hexa WordPress integration for podcast content, ACF field structures, profile relationships, PowerPress metadata, feeds, shortcodes, a persistent audio/video player, Base Tools playback continuity, and release diagnostics.
+Hexa WordPress integration for podcast content, field structures, profile relationships, PowerPress metadata, feeds, shortcodes, a persistent audio/video player, Base Tools playback continuity, and release diagnostics.
 
 
 > Feature base for HWS Skills. Read before building on this plugin; use or
@@ -15,6 +15,8 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - [Bundled Core library](HEXA_PLUGIN_CORE_LIBRARY.md)
 
 ## Features
+
+- Hexa WP Core 3.64.0 owns the episode and podcast settings fields. Existing episode data, field names and option keys stay in use.
 
 - Every page a podcast site's default menus link to is in the page catalog: About the Podcast and the Host page under About, Become a Guest, and the contact page named Connect (`/connect/`, the old `/contact/` address still matches).
 - Site-type sitemap rule: on a podcast site the authors sitemap is off, since the episodes are the posts. Bundles Hexa WP Core 3.54.0.
@@ -128,13 +130,13 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - **Does:** Platform URLs, hosts, audio, numbering, duration and references.
 - **Switch:** Custom Fields; `regsiter_acf_post_podcast`.
 - **Use:** Automatic; stable group `group_6844c5d5cf57f`.
-- **Code:** `src/Acf/EpisodeFieldGroup.php`.
+- **Code:** `src/Fields/EpisodeFieldGroup.php`.
 
 ### Podcast option fields
 - **Does:** Podcast labels, importer settings, default host and platform URLs.
 - **Switch:** Custom Fields; `register_theme_options`.
 - **Use:** Podcast Settings; stable group `group_6848b7b0247cc`.
-- **Code:** `src/Acf/PodcastOptionsFieldGroup.php`.
+- **Code:** `src/Fields/PodcastOptionsFieldGroup.php`.
 
 ### Persistent player and navigation
 - **Acceptance:** [Browser evidence and known automated-browser YouTube condition](docs/persistent-player-acceptance.md).
@@ -195,7 +197,7 @@ Hexa WordPress integration for podcast content, ACF field structures, profile re
 - PowerPress for enclosure synchronization and the public podcast feed
 - SMP Verified Profiles for profile-backed hosts and guests
 
-ACF Pro is not required: the field layer runs on Hexa WP Core custom fields, which use ACF when it is active and store the same data natively when it is not. Optional integrations never prevent the settings dashboard or unrelated runtime features from loading.
+Podcast fields use Hexa WP Core and retain their existing post metadata and option names.
 
 ## Architecture
 
@@ -203,7 +205,7 @@ ACF Pro is not required: the field layer runs on Hexa WP Core custom fields, whi
 - `initialization.php`: compatibility entrypoint for installations activated under the old basename
 - `src/Bootstrap`: Core module registration and registries
 - `src/Admin`: Hexa WP Core dashboard and authenticated operations
-- `src/Acf`: canonical podcast field groups with stable ACF keys
+- `src/Fields`: canonical podcast field groups with stable ACF keys
 - `src/Content`: content and default-host behavior
 - `src/Frontend`: shortcodes, audio-source resolution, the persistent player, playback continuity, displays, and feeds
 - `src/Integrations`: PowerPress synchronization
