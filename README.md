@@ -16,7 +16,7 @@ Hexa WordPress integration for podcast content, field structures, profile relati
 
 ## Features
 
-- Hexa WP Core 3.64.0 owns episode and podcast settings fields, including front-end relationship and audio attachment reads. Existing keys and PowerPress enclosure precedence are preserved.
+- Hexa WP Core 3.64.0 owns episode and podcast settings fields, including front-end relationship and audio attachment reads. Existing keys and PowerPress enclosure precedence are preserved. When PowerPress sync is enabled, Core renders the synced summary, audio URL and duration as read-only.
 
 - Every page a podcast site's default menus link to is in the page catalog: About the Podcast and the Host page under About, Become a Guest, and the contact page named Connect (`/connect/`, the old `/contact/` address still matches).
 - Site-type sitemap rule: on a podcast site the authors sitemap is off, since the episodes are the posts. Bundles Hexa WP Core 3.54.0.

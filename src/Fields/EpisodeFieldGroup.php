@@ -8,6 +8,9 @@ final class EpisodeFieldGroup {
     /** @return array<string,mixed> */
     public static function definition( array $content_type = [], array $field_group = [] ): array {
         unset( $content_type, $field_group );
+        // Bug: the read-only PowerPress inputs were selected by ACF markup.
+        // Fix: attach their editing state to the field definitions so Core renders it.
+        $powerpress_managed = (bool) get_option( 'enable_powerpress_post_functionality', false );
         $definition = array(
         'key'               => 'group_6844c5d5cf57f',
         'title'             => 'Podcast Episode Fields',
@@ -406,6 +409,7 @@ final class EpisodeFieldGroup {
                 'key'               => 'field_6844c7e536052',
                 'label'             => 'Summary',
                 'name'              => 'summary',
+                'readonly'          => $powerpress_managed,
                 'aria-label'        => '',
                 'type'              => 'textarea',
                 'instructions'      => 'Use shortcode: <code>[episode_fields name="summary"]</code>',
@@ -423,6 +427,7 @@ final class EpisodeFieldGroup {
                 'key'               => 'field_6844c7e536056',
                 'label'             => 'Audio URL',
                 'name'              => 'audio_url',
+                'readonly'          => $powerpress_managed,
                 'aria-label'        => '',
                 'type'              => 'text',
                 'instructions'      => 'Use shortcode: <code>[episode_fields name="audio_url"]</code>',
@@ -495,6 +500,7 @@ final class EpisodeFieldGroup {
                 'key'               => 'field_6844c7e536055',
                 'label'             => 'Duration',
                 'name'              => 'duration',
+                'readonly'          => $powerpress_managed,
                 'aria-label'        => '',
                 'type'              => 'text',
                 'instructions'      => 'Use shortcode: <code>[episode_fields name="duration"]</code>',

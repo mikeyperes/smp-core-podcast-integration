@@ -3,7 +3,7 @@
 namespace SMP\Podcast\Integrations;
 
 use Hexa\PluginCore\CoreContracts\ModuleInterface;
-use SMP\Podcast\Content\ContentKind;
+use Hexa\PluginCore\Fields\Field;
 use SMP\Podcast\Settings\PodcastSettings;
 
 final class PowerPressSync implements ModuleInterface {
@@ -16,7 +16,6 @@ final class PowerPressSync implements ModuleInterface {
 
         add_action( 'save_post_' . PodcastSettings::content_type(), [ $this, 'sync_from_powerpress' ], 20, 3 );
         \Hexa\PluginCore\Fields\Hooks::on( 'save_post', [ $this, 'sync_to_powerpress' ], 30 );
-        \Hexa\PluginCore\Fields\Hooks::on( 'input/admin_footer', [ $this, 'render_readonly_fields' ] );
     }
 
     public function sync_from_powerpress( int $post_id, \WP_Post $post, bool $update ): void {
@@ -31,11 +30,11 @@ final class PowerPressSync implements ModuleInterface {
         }
 
         self::$syncing = true;
-        self::update_acf_if_changed( 'audio_url', esc_url_raw( (string) $data['url'] ), $post_id );
+        self::update_field_if_changed( 'audio_url', esc_url_raw( (string) $data['url'] ), $post_id );
 
         $attachment_id = attachment_url_to_postid( (string) $data['url'] );
         if ( $attachment_id > 0 ) {
-            self::update_acf_if_changed( 'audio', $attachment_id, $post_id );
+            self::update_field_if_changed( 'audio', $attachment_id, $post_id );
         }
 
         $map = [
@@ -47,10 +46,10 @@ final class PowerPressSync implements ModuleInterface {
         foreach ( $map as $source => $target ) {
             if ( isset( $data[ $source ] ) && '' !== (string) $data[ $source ] ) {
                 $value = 'duration' === $source ? self::normalize_duration( (string) $data[ $source ] ) : $data[ $source ];
-                self::update_acf_if_changed( $target, $value, $post_id );
+                self::update_field_if_changed( $target, $value, $post_id );
             }
         }
-        self::update_acf_if_changed( 'active', 1, $post_id );
+        self::update_field_if_changed( 'active', 1, $post_id );
         self::$syncing = false;
     }
 
@@ -73,7 +72,7 @@ final class PowerPressSync implements ModuleInterface {
             return [ 'changed' => false, 'before' => $before, 'after' => $before, 'message' => 'Skipped: content type does not match.' ];
         }
 
-        $audio = \Hexa\PluginCore\Fields\Field::available() ? \Hexa\PluginCore\Fields\Field::get( 'audio', $post_id ) : get_post_meta( $post_id, 'audio', true );
+        $audio = Field::get( 'audio', $post_id );
         [ $url, $attachment_id ] = self::normalize_audio( $audio );
         if ( '' === $url ) {
             return [ 'changed' => false, 'before' => $before, 'after' => $before, 'message' => 'Skipped: no valid audio file is attached.' ];
@@ -100,7 +99,7 @@ final class PowerPressSync implements ModuleInterface {
         }
 
         self::$syncing = true;
-        self::update_acf_if_changed( 'audio_url', $url, $post_id );
+        self::update_field_if_changed( 'audio_url', $url, $post_id );
         if ( $enclosure !== $before['enclosure'] ) {
             update_post_meta( $post_id, 'enclosure', $enclosure );
         }
@@ -117,21 +116,6 @@ final class PowerPressSync implements ModuleInterface {
             'after' => $after,
             'message' => $before !== $after ? 'Audio and enclosure metadata synchronized.' : 'Audio metadata was already synchronized.',
         ];
-    }
-
-    public function render_readonly_fields(): void {
-        $screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
-        if ( ! $screen || 'post' !== $screen->base || PodcastSettings::content_type() !== $screen->post_type ) {
-            return;
-        }
-        $post_id = ContentKind::current_post_id();
-        if ( $post_id < 1 || ! PodcastSettings::is_podcast_content( $post_id ) ) {
-            return;
-        }
-        ?>
-        <style>.acf-field[data-name="summary"] textarea[readonly],.acf-field[data-name="audio_url"] input[readonly][readonly],.acf-field[data-name="duration"] input[readonly]{background:#f6f7f7;color:#50575e}</style>
-        <script>jQuery(function($){$('.acf-field[data-name="summary"] textarea,.acf-field[data-name="audio_url"] input,.acf-field[data-name="duration"] input').prop('readonly',true);});</script>
-        <?php
     }
 
     private static function eligible( int $post_id ): bool {
@@ -165,16 +149,12 @@ final class PowerPressSync implements ModuleInterface {
         return 3 === count( $parts ) && '0' === $parts[0] ? $parts[1] . ':' . $parts[2] : trim( $duration );
     }
 
-    private static function update_acf_if_changed( string $field, mixed $value, int $post_id ): void {
-        $current = \Hexa\PluginCore\Fields\Field::available() ? \Hexa\PluginCore\Fields\Field::get( $field, $post_id, false ) : get_post_meta( $post_id, $field, true );
+    private static function update_field_if_changed( string $field, mixed $value, int $post_id ): void {
+        $current = Field::get( $field, $post_id, false );
         if ( $current == $value ) {
             return;
         }
 
-        if ( \Hexa\PluginCore\Fields\Field::available() ) {
-            \Hexa\PluginCore\Fields\Field::update( $field, $value, $post_id );
-        } else {
-            update_post_meta( $post_id, $field, $value );
-        }
+        Field::update( $field, $value, $post_id );
     }
 }
