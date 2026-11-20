@@ -16,6 +16,8 @@ Hexa WordPress integration for podcast content, field structures, profile relati
 
 ## Features
 
+- Episode and settings diagnostics name Hexa WP Core as the field engine. Existing diagnostic and snippet IDs remain compatible.
+
 - Hexa WP Core 3.64.0 owns episode and podcast settings fields, including front-end relationship and audio attachment reads. Existing keys and PowerPress enclosure precedence are preserved. When PowerPress sync is enabled, Core renders the synced summary, audio URL and duration as read-only.
 
 - Every page a podcast site's default menus link to is in the page catalog: About the Podcast and the Host page under About, Become a Guest, and the contact page named Connect (`/connect/`, the old `/contact/` address still matches).
@@ -187,7 +189,7 @@ Hexa WordPress integration for podcast content, field structures, profile relati
 
 ## Internals
 
-- Standalone regression harness models WordPress metadata and initialized ACF for the bundled Core version; `php tests/run.php` and `php tests/content-kind-migration.php`.
+- Standalone regression harness models WordPress metadata for the bundled Core field engine; `php tests/run.php` and `php tests/content-kind-migration.php`.
 - Core registries, updater panels, authenticated operations and integration diagnostics live under `src/Bootstrap`, `src/Admin` and `src/Diagnostics`.
 
 ## Requirements
@@ -205,7 +207,7 @@ Podcast fields use Hexa WP Core and retain their existing post metadata and opti
 - `initialization.php`: compatibility entrypoint for installations activated under the old basename
 - `src/Bootstrap`: Core module registration and registries
 - `src/Admin`: Hexa WP Core dashboard and authenticated operations
-- `src/Fields`: canonical podcast field groups with stable ACF keys
+- `src/Fields`: canonical podcast field groups with stable field keys
 - `src/Content`: content and default-host behavior
 - `src/Frontend`: shortcodes, audio-source resolution, the persistent player, playback continuity, displays, and feeds
 - `src/Integrations`: PowerPress synchronization
@@ -219,7 +221,7 @@ The plugin defaults to existing WordPress posts. It does not migrate podcast arc
 ScaleMyPodcast owns the protected `_mpp_content_kind` post-meta contract. Its
 only valid values are `episode` and `article`. An explicit `episode` is
 authoritative even before incidental podcast fields exist; an explicit
-`article` vetoes podcast queries, ACF episode fields, default-host processing,
+`article` vetoes podcast queries, Core episode fields, default-host processing,
 PowerPress synchronization, and podcast player/shortcode resolution even if
 legacy podcast metadata remains. Only posts with no content-kind metadata may
 temporarily use the historical podcast-marker fallback. Invalid explicit
@@ -243,18 +245,18 @@ exact 165 IDs. It must not be run without its documented production gates.
 
 ## Compatibility Contracts
 
-- Existing post, option, ACF, and PowerPress metadata remains in place.
-- ACF group keys `group_6844c5d5cf57f` and `group_6848b7b0247cc` remain canonical.
+- Existing post, option, custom-field, and PowerPress metadata remains in place.
+- Field group keys `group_6844c5d5cf57f` and `group_6848b7b0247cc` remain canonical.
 - All nine legacy shortcode tags remain registered, plus the canonical `[smp_listen_button]` and `[smp_watch_button]` media triggers.
 - The old active basename `smp-core-podcast-integration/initialization.php` migrates to the canonical plugin file automatically.
 - The public PowerPress feed remains `/feed/podcast/`.
 - Optional internal integration feed: `/feed/internal-rss/`.
-- The player uses one audio element and one on-demand privacy-enhanced YouTube iframe. Audio URLs prefer PowerPress, then ACF `audio`, `audio_url`, and the WordPress `enclosure` value; video uses the validated episode `urls_youtube` value.
+- The player uses one audio element and one on-demand privacy-enhanced YouTube iframe. Audio URLs prefer PowerPress, then the episode `audio` field, `audio_url`, and the WordPress `enclosure` value; video uses the validated episode `urls_youtube` value.
 - No unauthenticated admin AJAX action, public REST route, app shell, hash router, or alternate indexable response is introduced.
 
 ## Admin
 
-Open **Settings > Scale My Podcast**. The dashboard uses Hexa WP Core for sidebar tabs, collapsible structures, content-type and ACF controls, snippets, shortcodes, update panels, dynamic buttons, and integration tests.
+Open **Settings > Scale My Podcast**. The dashboard uses Hexa WP Core for sidebar tabs, collapsible structures, content-type and field controls, snippets, shortcodes, update panels, dynamic buttons, and integration tests.
 
 The **Persistent Player** tab includes an **AJAX player** section. **Keep playing across page clicks** is off by default; an explicitly stored legacy navigation choice migrates to it. The section links to Base Tools AJAX Navigation and warns when its dependency is missing, too old or disabled. With both switches on it shows a green ready note.
 

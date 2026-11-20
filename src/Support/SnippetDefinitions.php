@@ -43,7 +43,7 @@ final class SnippetDefinitions {
             [
                 'id' => 'register_theme_options',
                 'name' => 'Podcast settings fields',
-                'description' => 'Registers the canonical Podcast Settings ACF group and option object.',
+                'description' => 'Registers the Podcast Settings field group and option object through Hexa WP Core.',
                 'category' => 'custom-fields',
                 'default_enabled' => true,
                 'test_rules' => [

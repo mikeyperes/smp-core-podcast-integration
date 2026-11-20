@@ -21,7 +21,6 @@ function check( bool $passed, string $label, string $detail = '' ): void {
 }
 
 $GLOBALS['test_options'] = [];
-$GLOBALS['test_fields'] = [];
 $GLOBALS['test_shortcodes'] = [];
 $GLOBALS['test_post_types'] = [];
 $GLOBALS['test_post_meta_keys'] = [];
@@ -82,6 +81,11 @@ final class TestWpdb {
         $this->prepared_meta_key = (string) ( $args[0] ?? '' );
         $this->prepared_post_type = (string) ( $args[1] ?? '' );
         return $query;
+    }
+
+    /** No saved third-party field groups are needed by these fixtures. */
+    public function get_results( string $query ): array {
+        return [];
     }
 
     /** @return array<int,int>|false */
@@ -152,6 +156,7 @@ function sanitize_key( string $value ): string { return strtolower( preg_replace
 function sanitize_title( string $value ): string { return trim( strtolower( preg_replace( '/[^a-z0-9]+/i', '-', $value ) ?: '' ), '-' ); }
 function sanitize_text_field( string $value ): string { return trim( strip_tags( $value ) ); }
 function absint( mixed $value ): int { return abs( (int) $value ); }
+function wp_slash( mixed $value ): mixed { return is_array( $value ) ? array_map( 'wp_slash', $value ) : ( is_string( $value ) ? addslashes( $value ) : $value ); }
 function wp_unslash( mixed $value ): mixed { return is_array( $value ) ? array_map( 'wp_unslash', $value ) : ( is_string( $value ) ? stripslashes( $value ) : $value ); }
 function esc_html( mixed $value ): string { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_attr( mixed $value ): string { return esc_html( $value ); }
@@ -170,7 +175,12 @@ function shortcode_atts( array $defaults, array $atts, string $tag = '' ): array
 function add_shortcode( string $tag, callable $callback ): void { $GLOBALS['test_shortcodes'][ $tag ] = $callback; }
 function shortcode_exists( string $tag ): bool { return isset( $GLOBALS['test_shortcodes'][ $tag ] ); }
 function get_the_ID(): int { return 101; }
-function get_field( string $field, mixed $context = null, bool $format = true ): mixed { unset( $format ); $GLOBALS['test_get_field_calls'][] = [ $field, $context ]; $key = (string) $context . ':' . $field; return $GLOBALS['test_fields'][ $key ] ?? null; }
+// Bug: feeding fixtures to ACF bypassed the plugin's current field engine.
+// Fix: put fixture values in WordPress metadata. Why this way: both engines can be present in the test.
+function get_field( string $field, mixed $context = null, bool $format = true ): mixed {
+    $GLOBALS['test_get_field_calls'][] = [ $field, $context ];
+    return null;
+}
 function get_post( int $post_id ): ?object { return $GLOBALS['test_posts'][ $post_id ] ?? ( $post_id > 0 ? new WP_Post( [ 'ID' => $post_id, 'post_author' => 1, 'post_type' => 'post' ] ) : null ); }
 function get_post_type( int $post_id ): string|false { return $GLOBALS['test_post_types'][ $post_id ] ?? false; }
 function metadata_exists( string $meta_type, int $object_id, string $meta_key ): bool {
@@ -310,7 +320,6 @@ function do_action( string $hook, mixed ...$args ): void {
 }
 function did_action( string $hook ): int { return 'acf/init' === $hook ? 1 : count( array_filter( $GLOBALS['test_actions_fired'], static fn( array $event ): bool => $hook === $event[0] ) ); }
 function flush_rewrite_rules( bool $hard = true ): void { unset( $hard ); }
-function update_field( string $field, mixed $value, int $post_id ): bool { $GLOBALS['test_fields'][ $post_id . ':' . $field ] = $value; return true; }
 
 require $root . '/lib/hexa-wordpress-plugin-core/bootstrap.php';
 require $root . '/lib/hexa-wordpress-plugin-core/tests/support/fields.php';
@@ -444,9 +453,9 @@ $GLOBALS['test_current_user_can'] = false;
 check( ! SMP\Podcast\Content\ContentKind::authorize( true, '_mpp_content_kind', 201 ), 'users who cannot edit a post cannot update its content kind' );
 $GLOBALS['test_current_user_can'] = true;
 check(
-    isset( $GLOBALS['test_filters_registered']['acf/location/match_rule'] )
-    && ! isset( $GLOBALS['test_filters_registered']['acf/prepare_field_group'] ),
-    'episode field-group visibility uses ACF Pro supported location matching'
+    isset( $GLOBALS['test_filters_registered']['hexa_fields/location/match_rule'] )
+    && ! isset( $GLOBALS['test_filters_registered']['acf/location/match_rule'] ),
+    'episode field-group visibility uses the Core location hook only'
 );
 $content_kind->add_meta_box();
 check(
@@ -684,7 +693,7 @@ $_POST = [
 ];
 $content_kind->save_meta_box( 213, $editor_post, false );
 check( [ 'episode' ] === SMP\Podcast\Content\ContentKind::raw_values( 213 ), 'editor save writes one canonical episode metadata row' );
-check( [ 999 ] === ( $GLOBALS['test_fields']['213:hosts'] ?? null ), 'first episode classification assigns the configured default host without a second save' );
+check( [ 999 ] === get_post_meta( 213, 'hosts', true ), 'first episode classification assigns the configured default host without a second save' );
 $saved_action = end( $GLOBALS['test_actions_fired'] );
 check(
     'smp_podcast_content_kind_saved' === ( $saved_action[0] ?? '' )
@@ -766,17 +775,20 @@ $GLOBALS['test_options']['smp_podcast_content_model'] = 'episode';
 $GLOBALS['test_post_types'][217] = 'episode';
 $default_host->assign_after_content_kind( 217, 'episode', '' );
 check(
-    ! array_key_exists( '217:hosts', $GLOBALS['test_fields'] ),
+    ! metadata_exists( 'post', 217, 'hosts' ),
     'dedicated episode mode keeps its existing ACF Add New default-host lifecycle'
 );
 $GLOBALS['test_options']['smp_podcast_content_model'] = 'post';
 
 $GLOBALS['test_current_screen'] = (object) [ 'base' => 'post', 'action' => '', 'post_type' => 'post' ];
-$GLOBALS['post'] = (object) [ 'ID' => 206 ];
-ob_start();
-( new SMP\Podcast\Integrations\PowerPressSync() )->render_readonly_fields();
-$article_powerpress_admin = (string) ob_get_clean();
-check( '' === $article_powerpress_admin, 'PowerPress admin field behavior does not render on explicit articles' );
+$managed_fields = [ 'summary', 'audio_url', 'duration' ];
+$GLOBALS['test_options']['enable_powerpress_post_functionality'] = true;
+$episode_fields = array_column( SMP\Podcast\Fields\EpisodeFieldGroup::definition()['fields'], null, 'name' );
+check(
+    [] === array_filter( $managed_fields, static fn( string $name ): bool => empty( $episode_fields[ $name ]['readonly'] ) ),
+    'Core fields mark the PowerPress-managed values read-only'
+);
+unset( $GLOBALS['test_options']['enable_powerpress_post_functionality'] );
 $GLOBALS['test_is_admin'] = false;
 $GLOBALS['test_current_screen'] = null;
 unset( $GLOBALS['post'], $GLOBALS['test_options']['option_podcast_default_host'], $GLOBALS['test_options']['enable_post_functionality'] );
@@ -826,7 +838,7 @@ check( ! SMP\Podcast\Frontend\FeatureUsage::player(), 'ordinary singular without
 $GLOBALS['test_singular'] = false;
 $GLOBALS['test_queried_id'] = 0;
 
-$GLOBALS['test_fields']['301:audio'] = [ 'url' => 'https://example.test/direct-301.mp3' ];
+$GLOBALS['test_post_meta_values'][301]['audio'] = [ 'url' => 'https://example.test/direct-301.mp3' ];
 $GLOBALS['test_powerpress'][301] = [ 'url' => 'https://media.example.test/powerpress-301.mp3', 'duration' => '1:02:03' ];
 $resolved_audio = SMP\Podcast\Frontend\AudioSourceResolver::resolve( 301 );
 check( 'https://media.example.test/powerpress-301.mp3' === $resolved_audio['playback_url'], 'PowerPress URL has playback precedence' );
@@ -839,7 +851,7 @@ check( str_contains( $listen_button, 'data-smp-player-trigger' ) && str_contains
 check( str_contains( $listen_button, 'aria-controls="smp-podcast-player"' ) && str_contains( $listen_button, 'aria-pressed="false"' ), 'listen-button shortcode is keyboard and state accessible' );
 check( ! str_contains( $listen_button, '<script>' ), 'listen-button shortcode sanitizes custom classes and labels' );
 
-$GLOBALS['test_fields']['301:urls_youtube'] = 'yzMcrZCYh5Y';
+$GLOBALS['test_post_meta_values'][301]['urls_youtube'] = 'yzMcrZCYh5Y';
 $resolved_video = SMP\Podcast\Frontend\VideoSourceResolver::resolve( 301 );
 check( 'yzMcrZCYh5Y' === ( $resolved_video['id'] ?? '' ), 'YouTube episode IDs resolve into the persistent media contract' );
 check( '89gjiaYTa0Y' === SMP\Podcast\Frontend\VideoSourceResolver::video_id( '89gjiaYTa0Y&t=3s' ), 'legacy YouTube IDs with a timestamp suffix normalize safely' );
@@ -877,15 +889,15 @@ check(
 );
 unset( $GLOBALS['test_options'][ SMP\Podcast\Settings\PlaybackSettings::OPTION_NAME ] );
 
-$GLOBALS['test_fields']['302:audio'] = null;
-$GLOBALS['test_fields']['302:audio_url'] = 'https://cdn.example.test/direct-302.m4a';
+$GLOBALS['test_post_meta_values'][302]['audio'] = null;
+$GLOBALS['test_post_meta_values'][302]['audio_url'] = 'https://cdn.example.test/direct-302.m4a';
 $direct_audio = SMP\Podcast\Frontend\AudioSourceResolver::resolve( 302 );
 check( 'https://cdn.example.test/direct-302.m4a' === $direct_audio['playback_url'] && 'audio' === $direct_audio['source'], 'ACF audio URL is the first fallback without PowerPress' );
 $GLOBALS['test_post_meta_values'][303]['enclosure'] = "https://cdn.example.test/enclosure-303.mp3\n12345\naudio/mpeg";
 $enclosure_audio = SMP\Podcast\Frontend\AudioSourceResolver::resolve( 303 );
 check( 'https://cdn.example.test/enclosure-303.mp3' === $enclosure_audio['playback_url'] && 'enclosure' === $enclosure_audio['source'], 'WordPress enclosure is the final playback fallback' );
 $GLOBALS['test_post_meta_values'][304]['_mpp_content_kind'] = 'article';
-$GLOBALS['test_fields']['304:audio'] = [ 'url' => 'https://example.test/article-audio.mp3' ];
+$GLOBALS['test_post_meta_values'][304]['audio'] = [ 'url' => 'https://example.test/article-audio.mp3' ];
 $GLOBALS['test_powerpress'][304] = [ 'url' => 'https://media.example.test/article-powerpress.mp3' ];
 $powerpress_calls_before_article = count( $GLOBALS['test_powerpress_calls'] );
 $acf_calls_before_article = count( $GLOBALS['test_get_field_calls'] );
@@ -900,11 +912,11 @@ check( $acf_calls_before_default_host === count( $GLOBALS['test_get_field_calls'
 $article_sync_result = SMP\Podcast\Integrations\PowerPressSync::sync_audio( 304 );
 check( false === $article_sync_result['changed'] && str_starts_with( $article_sync_result['message'], 'Skipped:' ), 'PowerPress mutations veto explicit articles' );
 
-$GLOBALS['test_fields']['101:audio_url'] = 'https://cdn.example.test/audio.mp3';
+$GLOBALS['test_post_meta_values'][101]['audio_url'] = 'https://cdn.example.test/audio.mp3';
 check( 'https://cdn.example.test/audio.mp3' === SMP\Podcast\Frontend\ShortcodeCallbacks::episode_fields( [ 'name' => 'audio_url', 'post_id' => 101 ] ), 'top-level audio_url shortcode is not misread as a group' );
-$GLOBALS['test_fields']['101:urls'] = [ 'spotify' => 'https://open.spotify.com/example' ];
+$GLOBALS['test_post_meta_values'][101]['urls'] = [ 'spotify' => 'https://open.spotify.com/example' ];
 check( 'https://open.spotify.com/example' === SMP\Podcast\Frontend\ShortcodeCallbacks::episode_fields( [ 'name' => 'urls_spotify', 'post_id' => 101 ] ), 'grouped URL shortcode resolves' );
-$GLOBALS['test_fields']['21811:guests'] = '1';
+$GLOBALS['test_post_meta_values'][21811]['guests'] = '1';
 $GLOBALS['test_post_meta_values'][21811]['guests'] = '1';
 $GLOBALS['test_post_meta_values'][21811]['guests_0_guest'] = '139';
 $guest_output = SMP\Podcast\Frontend\ShortcodeCallbacks::guest_profiles( [ 'post_id' => 21811 ] );
@@ -1042,6 +1054,8 @@ check(
     str_contains( $dashboard_source, "'return' => admin_url( 'options-general.php?page=' . Config::SETTINGS_PAGE . '&tab=settings&updated=1' )" ),
     'AJAX-rendered ACF form returns to the canonical settings tab'
 );
+
+check( [] === $GLOBALS['test_get_field_calls'], 'Podcast field reads never call ACF while it is available' );
 
 echo "\n{$checks} checks, " . count( $failures ) . " failed.\n";
 if ( $failures ) {

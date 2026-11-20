@@ -99,7 +99,7 @@ final class IntegrationTests implements ModuleInterface {
 
         $registry->register(
             $host . '.acf-groups',
-            'Canonical podcast ACF groups are registered once',
+            'Canonical podcast field groups are registered once',
             static function(): array {
                 $keys = [ EpisodeFieldGroup::GROUP_KEY, PodcastOptionsFieldGroup::GROUP_KEY ];
                 $missing = [];
@@ -196,7 +196,7 @@ final class IntegrationTests implements ModuleInterface {
                 return [
                     'passed' => $passed,
                     'summary' => $passed ? 'The newest episode has a resolved source and canonical listen button.' : 'The newest episode cannot initialize the persistent player.',
-                    'expected' => 'PowerPress, ACF audio, audio_url, or enclosure source',
+                    'expected' => 'PowerPress, the episode audio field, audio_url, or enclosure source',
                     'actual' => (string) ( $audio['source'] ?? 'missing' ),
                     'details' => [ 'post_id' => $post_id, 'playback_url' => (string) ( $audio['playback_url'] ?? '' ) ],
                 ];
@@ -282,7 +282,7 @@ final class IntegrationTests implements ModuleInterface {
                 $passed = '' !== $first_line && '' !== $audio_url && $first_line === $audio_url;
                 return [
                     'passed' => $passed,
-                    'summary' => $passed ? 'The latest enclosure-backed post uses the same audio URL in ACF and PowerPress.' : 'Audio URL and enclosure data differ.',
+                    'summary' => $passed ? 'The latest enclosure-backed post uses the same audio URL in Core Fields and PowerPress.' : 'Audio URL and enclosure data differ.',
                     'expected' => $audio_url ?: 'Saved audio_url',
                     'actual' => $first_line ?: 'Missing enclosure URL',
                     'details' => [ 'post_id' => (string) $post_id ],
@@ -311,7 +311,7 @@ final class IntegrationTests implements ModuleInterface {
 
         $registry->register(
             $host . '.registry-contracts',
-            'Core CPT, ACF, and snippet registries resolve',
+            'Core content type, field group, and snippet registries resolve',
             static function(): array {
                 $content = \SMP\Podcast\Bootstrap\Registries::content_types()->resolved_definitions();
                 $options = \SMP\Podcast\Bootstrap\Registries::option_fields()->resolved_definitions();
