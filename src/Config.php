@@ -3,7 +3,7 @@
 namespace SMP\Podcast;
 
 final class Config {
-    public const VERSION = '3.8.4';
+    public const VERSION = '3.8.5';
     public const SLUG = 'smp-core-podcast-integration';
     public const MAIN_FILE = 'smp-core-podcast-integration.php';
     public const LEGACY_FILE = 'initialization.php';

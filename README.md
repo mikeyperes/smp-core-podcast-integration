@@ -16,6 +16,8 @@ Hexa WordPress integration for podcast content, field structures, profile relati
 
 ## Features
 
+- Episode editors see shortcode help for each platform field. Platform links shown to visitors come from the saved Podcast Settings.
+
 - Episode and settings diagnostics name Hexa WP Core as the field engine. Existing diagnostic and snippet IDs remain compatible.
 
 - Hexa WP Core 3.64.0 owns episode and podcast settings fields, including front-end relationship and audio attachment reads. Existing keys and PowerPress enclosure precedence are preserved. When PowerPress sync is enabled, Core renders the synced summary, audio URL and duration as read-only.
